@@ -1,7 +1,7 @@
 
 using Arpack, SparseArrays, LinearAlgebra
 # using ExpmV
-using Roots
+using NLsolve
 using Plots
 
 function createH!(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,matH::SparseMatrixCSC{Float64})
@@ -22,16 +22,32 @@ function createH!(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float6
 
 end
 
-function funbetamu!(Fun0,x,Ene,Np,mu,K,W)
-    # x[1] = beta, x[2] = mu
+function funbetamu!(F,x,K::Int64,W::Int64,Ene::Float64,Np::Float64)
 
+    # x[1] = beta, x[2] = mu
     Depsilon = W/(K-1)
-    Fun0[1] = 0.0
 
     for kk = 1:K
-        Fun0[1] += ((kk-1)*Depsilon - W/2)*exp(-x[1]*((kk-1)*Depsilon - W/2 - x[2])*1.0)
-        Fun0[2] += exp(-x[1]*((kk-1)*Depsilon - W/2 - x[2])*1.0)
+        epsilonk = (kk-1)*Depsilon - W/2
+        if kk == 1
+           F[1] = 1.0/(exp((epsilonk-x[2])*x[1])+1.0)*epsilonk
+           F[2] = 1.0/(exp((epsilonk-x[2])*x[1])+1.0)
+        else
+           F[1] += 1.0/(exp((epsilonk-x[2])*x[1])+1.0)*epsilonk
+           F[2] += 1.0/(exp((epsilonk-x[2])*x[1])+1.0)
+        end
     end
+
+    F[1] = F[1] - Ene
+    F[2] = F[2] - Np
+
+end
+
+function funeffectivebetamu(K::Int64,W::Int64,Ene::Float64,Np::Float64,beta0::Float64,mu0::Float64)
+
+    sol = nlsolve((F,x) ->funbetamu!(F,x,K,W,Ene,Np), [beta0; mu0])
+    return sol.zero
+
 end
 
 function calculatequantities2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
@@ -91,6 +107,9 @@ function calculatequantities2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
     N_L = zeros(ComplexF64,Nt)
     N_R = zeros(ComplexF64,Nt)
 
+    effparaL = zeros(Float64,Nt,2)
+    effparaR = zeros(Float64,Nt,2)
+
     for tt = 1:Nt
 
         Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
@@ -103,9 +122,6 @@ function calculatequantities2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
         E_sys[tt] = dCt[1]*epsilonLR[1]
         E_L[tt] = sum(dCt[2:K+1].*epsilonLR[2:K+1])
         E_R[tt] = sum(dCt[K+2:2*K+1].*epsilonLR[K+2:2*K+1])
-        # F_L[tt] = sum(dCt[2:K+1].*(epsilonLR[2:K+1] .- muL))
-        # F_R[tt] = sum(dCt[K+2:2*K+1].*(epsilonLR[K+2:2*K+1] .- muR))
-        # E_tot[tt] = sum(dCt[1:end].*epsilonLR[1:end])
 
         dCt1 .= Ct[1,1:end] # Ct[1,1:end] - C0[1,1:end]
         E_tot[tt] = E_L[tt] + E_R[tt] + sum(dCt1[2:end].*tLRk[2:end])*2
@@ -119,13 +135,13 @@ function calculatequantities2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
         val_Ct .= eigvals(Ct)
         vNE[tt] = - sum(val_Ct.*log.(val_Ct)) - sum((1.0 .- val_Ct).*log.(1.0 .- val_Ct))
 
-        # effective inverse temperature
-
-        # E_L[tt]
+        # effective inverse temperature and chemical potential
+        effparaL[tt,:] .= funeffectivebetamu(K,W,real(E_L[tt]),real(N_L[tt]),betaL,muL)
+        effparaR[tt,:] .= funeffectivebetamu(K,W,real(E_R[tt]),real(N_R[tt]),betaR,muR)
 
     end
 
-    return time, E_sys, E_L, E_R, N_sys, N_L, N_R, E_tot
+    return time, E_sys, E_L, E_R, N_sys, N_L, N_R, E_tot, effparaL, effparaR
 
 end
 
