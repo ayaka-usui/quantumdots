@@ -43,11 +43,6 @@ function calculatequantities(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Gam
         C0[1+kk] = 1.0/(exp((matH[1+kk,1+kk]-muL)*betaL)+1.0)
         C0[1+K+kk] = 1.0/(exp((matH[1+K+kk,1+K+kk]-muR)*betaR)+1.0)
     end
-
-    return C0
-
-    return - sum(C0.*log.(C0)) - sum((1.0 .- C0).*log.(1.0 .- C0))
-
     C0 = diagm(C0)
 
     Depsilon = W/(K-1)
@@ -55,6 +50,7 @@ function calculatequantities(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Gam
     Ct = zeros(ComplexF64,K*2+1,K*2+1)
     Ct_E = zeros(ComplexF64,K*2,K*2)
     val_Ct_E = zeros(ComplexF64,K*2)
+    # vNE = zeros(ComplexF64,Nt)
     vNE_sys = zeros(ComplexF64,Nt)
     vNE_E = zeros(ComplexF64,Nt)
     I_SE = zeros(ComplexF64,Nt)
@@ -70,17 +66,14 @@ function calculatequantities(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Gam
         Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
         # Ct = Hermitian(Ct)
 
-        val_Ct = eigvals(Ct)
-        return - sum(val_Ct.*log.(val_Ct)) - sum((1.0 .- val_Ct).*log.(1.0 .- val_Ct))
-
         # vNE
-        vNE_sys[tt] = -(Ct[1,1]*log(Ct[1,1]) + (1-Ct[1,1])*log(1-Ct[1,1]))
+        vNE_sys[tt] = -Ct[1,1]*log(Ct[1,1]) - (1-Ct[1,1])*log(1-Ct[1,1])
         Ct_E .= Ct[2:end,2:end]
         val_Ct_E .= eigvals(Ct_E)
         vNE_E[tt] = - sum(val_Ct_E.*log.(val_Ct_E)) - sum((1.0 .- val_Ct_E).*log.(1.0 .- val_Ct_E))
 
         # I_SE
-        I_SE[tt] = vNE_sys[tt] + vNE_E[tt] - vNE_sys[1] - vNE_E[1]
+        I_SE[tt] = vNE_sys[tt] - vNE_sys[1] + vNE_E[tt] - vNE_E[1]
 
         # heat
         QLkk = 0.0
@@ -100,6 +93,7 @@ function calculatequantities(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Gam
 
     end
 
+    return time, vNE_E, I_SE
     return time, sigma, vNE_sys, betaQL, betaQR, I_SE, Drel
 
 end
