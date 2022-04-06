@@ -29,8 +29,8 @@ function funbetamu!(Fun0,x,Ene,Np,mu,K,W)
     Fun0[1] = 0.0
 
     for kk = 1:K
-        Fun0[1] += exp(-x[1]*((kk-1)*Depsilon - W/2 - x[2]*mu)) - Ene
-        Fun0[2] =
+        Fun0[1] += ((kk-1)*Depsilon - W/2)*exp(-x[1]*((kk-1)*Depsilon - W/2 - x[2])*1.0)
+        Fun0[2] += exp(-x[1]*((kk-1)*Depsilon - W/2 - x[2])*1.0)
     end
 end
 
