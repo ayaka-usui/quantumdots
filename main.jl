@@ -8,7 +8,7 @@ function createH!(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float6
     # matH = sparse(Float64,K*2+1,K*2+1)
     Depsilon = W/(K-1)
 
-    matH[1,1] = 1.0 # epsilon for the system
+    matH[1,1] = 1.0 # epsilon for the system, energy unit
 
     for kk = 1:K
         matH[1+kk,1+kk] = (kk-1)*Depsilon - W/2 # epsilon for the bath L
@@ -79,11 +79,13 @@ function calculatequantities(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Gam
         QLkk = 0.0
         QRkk = 0.0
         for kk = 1:K
-            QLkk += QLkk + (Ct[1+kk,1+kk]-C0[1+kk,1+kk])*((kk-1)*Depsilon - W/2 - muL)
-            QRkk += QRkk + (Ct[1+K+kk,1+K+kk]-C0[1+K+kk,1+K+kk])*((kk-1)*Depsilon - W/2 - muR)
+            QLkk = QLkk - (Ct[1+kk,1+kk]-C0[1+kk,1+kk])*((kk-1)*Depsilon - W/2 - muL)
+            QRkk = QRkk - (Ct[1+K+kk,1+K+kk]-C0[1+K+kk,1+K+kk])*((kk-1)*Depsilon - W/2 - muR)
         end
         betaQL[tt] = QLkk*betaL
         betaQR[tt] = QRkk*betaR
+
+        println(QLkk*betaL)
 
         # entropy production
         sigma[tt] = vNE_sys[tt] - vNE_sys[1] - betaQL[tt] - betaQR[tt]
@@ -93,7 +95,7 @@ function calculatequantities(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Gam
 
     end
 
-    return time, vNE_E, I_SE
+    return time, vNE_E.-vNE_E[1], I_SE, betaQL, betaQR
     return time, sigma, vNE_sys, betaQL, betaQR, I_SE, Drel
 
 end
