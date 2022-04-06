@@ -1,19 +1,7 @@
 
 using Arpack, SparseArrays, LinearAlgebra
 # using ExpmV
-
-function vNEntropy(matC::Matrix{Float64})
-
-    output = 0.0
-    jjmax = size(matC,1)
-
-    for jj = 1:jjmax
-        output += matC
-    end
-
-    return
-
-end
+using Plots
 
 function createH!(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,matH::SparseMatrixCSC{Float64})
 
@@ -35,37 +23,46 @@ end
 
 function calculatequantities(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
-    matH = sparse(Float64,K*2+1,K*2+1)
+    # Hamiltonian
+    matH = spzeros(Float64,K*2+1,K*2+1)
     createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
-
-    # time
-    time = LinRange(0.0,tf,Nt)
-
-    C0 = zeros(Float64,K*2+1)
-    C0[1] = 0.0 # n_d(0)
-
-    for kk = 1:K
-        C0[1+kk] = 1.0/(exp((matH[1+kk,1+kk]-muL)*betaL)+1.0)
-        C0[1+K+kk] = 1.0/(exp((matH[1+K+kk,1+K+kk]-muR)*betaR)+1.0)
-    end
-    C0 = diagm(C0)
-    # C0 = spdiagm(C0)
-    # vecC0 = zeros(Float64,K*2+1)
-    Ct = zeros(ComplexF64,K*2+1,K*2+1)
-    Ct_L = zeros(ComplexF64,K*2+1,K*2+1)
-    Ct_R = zeros(ComplexF64,K*2+1,K*2+1)
-    val_Ct_L = zeros(ComplexF64,K*2+1)
-    val_Ct_R = zeros(ComplexF64,K*2+1)
-    vNE_sys = zeros(ComplexF64,Nt)
-    vNE_L = zeros(ComplexF64,Nt)
-    vNE_R = zeros(ComplexF64,Nt)
 
     # Hamiltonian is hermitian
     matH = Hermitian(Array(matH))
     val_matH, vec_matH = eigen(matH)
     invvec_matH = inv(vec_matH)
 
+    # time
+    time = LinRange(0.0,tf,Nt)
+
     # correlation matrix
+    # at initial
+    C0 = zeros(Float64,K*2+1)
+    C0[1] = 0.0 + 1e-15 # n_d(0) # make it not 0 exactly to avoid 0.0 log 0.0 = NaN
+    for kk = 1:K
+        C0[1+kk] = 1.0/(exp((matH[1+kk,1+kk]-muL)*betaL)+1.0)
+        C0[1+K+kk] = 1.0/(exp((matH[1+K+kk,1+K+kk]-muR)*betaR)+1.0)
+    end
+
+    return C0
+
+    return - sum(C0.*log.(C0)) - sum((1.0 .- C0).*log.(1.0 .- C0))
+
+    C0 = diagm(C0)
+
+    Depsilon = W/(K-1)
+
+    Ct = zeros(ComplexF64,K*2+1,K*2+1)
+    Ct_E = zeros(ComplexF64,K*2,K*2)
+    val_Ct_E = zeros(ComplexF64,K*2)
+    vNE_sys = zeros(ComplexF64,Nt)
+    vNE_E = zeros(ComplexF64,Nt)
+    I_SE = zeros(ComplexF64,Nt)
+    betaQL = zeros(ComplexF64,Nt)
+    betaQR = zeros(ComplexF64,Nt)
+    sigma = zeros(ComplexF64,Nt)
+    Drel = zeros(ComplexF64,Nt)
+
     for tt = 1:Nt
 
         Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
@@ -73,19 +70,36 @@ function calculatequantities(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Gam
         Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
         # Ct = Hermitian(Ct)
 
+        val_Ct = eigvals(Ct)
+        return - sum(val_Ct.*log.(val_Ct)) - sum((1.0 .- val_Ct).*log.(1.0 .- val_Ct))
+
         # vNE
         vNE_sys[tt] = -(Ct[1,1]*log(Ct[1,1]) + (1-Ct[1,1])*log(1-Ct[1,1]))
+        Ct_E .= Ct[2:end,2:end]
+        val_Ct_E .= eigvals(Ct_E)
+        vNE_E[tt] = - sum(val_Ct_E.*log.(val_Ct_E)) - sum((1.0 .- val_Ct_E).*log.(1.0 .- val_Ct_E))
 
-        Ct_L .= Ct[2:K*2+1,2:K*2+1]
-        val_Ct_L .= eigvals(Ct_L)
-        vNE_L[tt] = - sum(val_Ct_L.*log.(val_Ct_L)) - sum((1.0 .- val_Ct_L).*log.(1.0 .- val_Ct_L))
+        # I_SE
+        I_SE[tt] = vNE_sys[tt] + vNE_E[tt] - vNE_sys[1] - vNE_E[1]
 
-        Ct_R .= Ct[K*2+2:end,K*2+2:end]
-        val_Ct_R .= eigvals(Ct_R)
-        vNE_R[tt] = - sum(val_Ct_R.*log.(val_Ct_R)) - sum((1.0 .- val_Ct_R).*log.(1.0 .- val_Ct_R))
+        # heat
+        QLkk = 0.0
+        QRkk = 0.0
+        for kk = 1:K
+            QLkk += QLkk + (Ct[1+kk,1+kk]-C0[1+kk,1+kk])*((kk-1)*Depsilon - W/2 - muL)
+            QRkk += QRkk + (Ct[1+K+kk,1+K+kk]-C0[1+K+kk,1+K+kk])*((kk-1)*Depsilon - W/2 - muR)
+        end
+        betaQL[tt] = QLkk*betaL
+        betaQR[tt] = QRkk*betaR
+
+        # entropy production
+        sigma[tt] = vNE_sys[tt] - vNE_sys[1] - betaQL[tt] - betaQR[tt]
+
+        # relative entropy
+        Drel[tt] = - betaQL[tt] - betaQR[tt] - (vNE_E[tt] - vNE_E[1])
 
     end
 
-
+    return time, sigma, vNE_sys, betaQL, betaQR, I_SE, Drel
 
 end
