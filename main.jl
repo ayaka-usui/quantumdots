@@ -1,6 +1,7 @@
 
 using Arpack, SparseArrays, LinearAlgebra
 # using ExpmV
+using Roots
 using Plots
 
 function createH!(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,matH::SparseMatrixCSC{Float64})
@@ -19,6 +20,18 @@ function createH!(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float6
 
     matH .= matH + matH' - spdiagm(diag(matH))
 
+end
+
+function funbetamu!(Fun0,x,Ene,Np,mu,K,W)
+    # x[1] = beta, x[2] = mu
+
+    Depsilon = W/(K-1)
+    Fun0[1] = 0.0
+
+    for kk = 1:K
+        Fun0[1] += exp(-x[1]*((kk-1)*Depsilon - W/2 - x[2]*mu)) - Ene
+        Fun0[2] =
+    end
 end
 
 function calculatequantities2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
@@ -105,6 +118,10 @@ function calculatequantities2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
         # vNE for total
         val_Ct .= eigvals(Ct)
         vNE[tt] = - sum(val_Ct.*log.(val_Ct)) - sum((1.0 .- val_Ct).*log.(1.0 .- val_Ct))
+
+        # effective inverse temperature
+
+        # E_L[tt]
 
     end
 
