@@ -51,7 +51,11 @@ function calculatequantities2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
     dCt = zeros(ComplexF64,K*2+1)
     Ct_E = zeros(ComplexF64,K*2,K*2)
     val_Ct_E = zeros(ComplexF64,K*2)
-    epsilonLR = zeros(ComplexF64,K*2+1)
+    val_Ct = zeros(ComplexF64,K*2+1)
+    dCt1 = zeros(ComplexF64,K*2+1)
+
+    epsilonLR = diag(matH)
+    tLRk = matH[1,1:end]
 
     vNE_sys = zeros(ComplexF64,Nt)
     vNE_E = zeros(ComplexF64,Nt)
@@ -66,6 +70,13 @@ function calculatequantities2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
     E_sys = zeros(ComplexF64,Nt)
     E_L = zeros(ComplexF64,Nt)
     E_R = zeros(ComplexF64,Nt)
+    F_L = zeros(ComplexF64,Nt)
+    F_R = zeros(ComplexF64,Nt)
+    E_tot = zeros(ComplexF64,Nt)
+    vNE = zeros(ComplexF64,Nt)
+    N_sys = zeros(ComplexF64,Nt)
+    N_L = zeros(ComplexF64,Nt)
+    N_R = zeros(ComplexF64,Nt)
 
     for tt = 1:Nt
 
@@ -75,15 +86,29 @@ function calculatequantities2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
         # Ct = Hermitian(Ct)
 
         # energy
-        dCt .= diag(Ct - C0)
-        epsilonLR .= diag(matH)
+        dCt .= diag(Ct) #diag(Ct - C0)
         E_sys[tt] = dCt[1]*epsilonLR[1]
         E_L[tt] = sum(dCt[2:K+1].*epsilonLR[2:K+1])
         E_R[tt] = sum(dCt[K+2:2*K+1].*epsilonLR[K+2:2*K+1])
+        # F_L[tt] = sum(dCt[2:K+1].*(epsilonLR[2:K+1] .- muL))
+        # F_R[tt] = sum(dCt[K+2:2*K+1].*(epsilonLR[K+2:2*K+1] .- muR))
+        # E_tot[tt] = sum(dCt[1:end].*epsilonLR[1:end])
+
+        dCt1 .= Ct[1,1:end] # Ct[1,1:end] - C0[1,1:end]
+        E_tot[tt] = E_L[tt] + E_R[tt] + sum(dCt1[2:end].*tLRk[2:end])*2
+
+        # particle numbers
+        N_sys[tt] = dCt[1]
+        N_L[tt] = sum(dCt[2:K+1])
+        N_R[tt] = sum(dCt[K+2:2*K+1])
+
+        # vNE for total
+        val_Ct .= eigvals(Ct)
+        vNE[tt] = - sum(val_Ct.*log.(val_Ct)) - sum((1.0 .- val_Ct).*log.(1.0 .- val_Ct))
 
     end
 
-    return time, E_sys, E_L, E_R
+    return time, E_sys, E_L, E_R, N_sys, N_L, N_R, E_tot
 
 end
 
