@@ -113,8 +113,9 @@ function createH_randomDeltaepsilon!(K::Int64,W::Int64,numvari::Int64,betaL::Flo
 
     # matH = sparse(Float64,K*2+1,K*2+1)
     # Depsilon = W/(K-1)
-    # epsilonL, epsilonR = fun_randomDeltaepsilon(K,W,numvari)
-    epsilonL, epsilonR = fun_equalDeltaepsilon(K,W)
+
+    epsilonL, epsilonR = fun_randomDeltaepsilon(K,W,numvari)
+    # epsilonL, epsilonR = fun_equalDeltaepsilon(K,W)
 
     matH[1,1] = 0.0 # epsilon for the system, probably 0
 
@@ -142,8 +143,12 @@ function calculatequantities2(K::Int64,W::Int64,numvari::Int64,betaL::Float64,be
 
     # Hamiltonian
     matH = spzeros(Float64,K*2+1,K*2+1)
-    createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
-    # createH_randomDeltaepsilon!(K,W,numvari,betaL,betaR,GammaL,GammaR,matH)
+
+    if numvari == 0
+       createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
+    else
+       createH_randomDeltaepsilon!(K,W,numvari,betaL,betaR,GammaL,GammaR,matH)
+    end
 
     # Hamiltonian is hermitian
     matH = Hermitian(Array(matH))
