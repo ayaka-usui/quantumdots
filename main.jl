@@ -3,6 +3,7 @@ using Arpack, SparseArrays, LinearAlgebra
 # using ExpmV
 using NLsolve
 using Plots
+using Distributions, Random
 
 function createH!(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,matH::SparseMatrixCSC{Float64})
 
@@ -47,6 +48,54 @@ function funeffectivebetamu(K::Int64,W::Int64,Ene::Float64,Np::Float64,beta0::Fl
 
     sol = nlsolve((F,x) ->funbetamu!(F,x,K,W,Ene,Np), [beta0; mu0])
     return sol.zero
+
+end
+
+function fun_randomDeltaepsilon(K::Int64,W::Int64)
+
+    epsilonL = zeros(Float64,K)
+    epsilonR = zeros(Float64,K)
+
+    epsilonL[1] = -W/2
+    epsilonR[1] = -W/2
+
+    epsilonL[K] = W/2
+    epsilonR[K] = W/2
+
+    Depsilon = W/(K-1)
+    distri = Normal(Depsilon, Depsilon/2)
+
+    for kk = 2:K-1
+
+        trdistri = truncated(distri, 0.0, epsilonL[K]-epsilonL[kk-1])
+        epsilonL[kk] = rand(trdistri) + epsilonL[kk-1]
+
+        trdistri = truncated(distri, 0.0, epsilonR[K]-epsilonR[kk-1])
+        epsilonR[kk] = rand(trdistri) + epsilonR[kk-1]
+
+    end
+
+    return epsilonL, epsilonR
+
+end
+
+function createH_randomDeltaepsilon!(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,matH::SparseMatrixCSC{Float64})
+
+    # matH = sparse(Float64,K*2+1,K*2+1)
+    # Depsilon = W/(K-1)
+    epsilonL, epsilonR = fun_randomDeltaepsilon(K,W)
+
+    matH[1,1] = 0.0 # epsilon for the system, probably 0
+
+    for kk = 1:K
+        matH[1+kk,1+kk] = epsilonL[kk] #(kk-1)*Depsilon - W/2 # epsilon for the bath L
+        matH[2+K+kk,2+K+kk] = epsilonR[kk] # epsilon for the bath R
+        matH[1+kk,1] = sqrt(GammaL*Depsilon/(2*pi)) # tunnel with the bath L
+        matH[1+K+kk,1] = sqrt(GammaR*Depsilon/(2*pi)) # tunnel with the bath R
+    end
+    # matH[K+2:end,K+2:end] = matH[2:K+1,2:K+1] # epsilon for the bath R
+
+    matH .= matH + matH' - spdiagm(diag(matH))
 
 end
 
