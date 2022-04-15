@@ -120,8 +120,18 @@ function createH_randomDeltaepsilon!(K::Int64,W::Int64,numvari::Int64,betaL::Flo
     matH[1,1] = 0.0 # epsilon for the system, probably 0
 
     for kk = 1:K
+
         matH[1+kk,1+kk] = epsilonL[kk] #(kk-1)*Depsilon - W/2 # epsilon for the bath L
         matH[1+K+kk,1+K+kk] = epsilonR[kk] # epsilon for the bath R
+
+        # if kk <= K-1
+        #    matH[1+kk,1] = sqrt(GammaL*(epsilonL[kk+1]-epsilonL[kk])/(2*pi)) #sqrt(GammaL*Depsilon/(2*pi)) # tunnel with the bath L
+        #    matH[1+K+kk,1] = sqrt(GammaR*(epsilonR[kk+1]-epsilonR[kk])/(2*pi)) # tunnel with the bath R
+        # elseif kk == K
+        #    matH[1+kk,1] = sqrt(GammaL*(epsilonL[1]-epsilonL[kk])/(2*pi))
+        #    matH[1+K+kk,1] = sqrt(GammaR*(epsilonR[1]-epsilonR[kk])/(2*pi))
+        # end
+
         if kk >= 2 && kk <= K-1
            matH[1+kk,1] = sqrt(GammaL*(epsilonL[kk+1]-epsilonL[kk-1])/2/(2*pi)) #sqrt(GammaL*Depsilon/(2*pi)) # tunnel with the bath L
            matH[1+K+kk,1] = sqrt(GammaR*(epsilonR[kk+1]-epsilonR[kk-1])/2/(2*pi)) # tunnel with the bath R
@@ -132,6 +142,7 @@ function createH_randomDeltaepsilon!(K::Int64,W::Int64,numvari::Int64,betaL::Flo
            matH[1+kk,1] = sqrt(GammaL*(epsilonL[kk]-epsilonL[kk-1])/(2*pi))
            matH[1+K+kk,1] = sqrt(GammaR*(epsilonR[kk]-epsilonR[kk-1])/(2*pi))
         end
+
     end
     # matH[K+2:end,K+2:end] = matH[2:K+1,2:K+1] # epsilon for the bath R
 
