@@ -58,9 +58,13 @@ function fun_randomDeltaepsilon(K::Int64,W::Int64)
 
     epsilon0 = rand(Uniform(-W/2, W/2), K)
     sort!(epsilon0)
+    epsilonL .= epsilon0
 
-    epsilonL = epsilon0
-    epsilonR = epsilon0
+    # epsilonR .= epsilon0
+
+    epsilon0 = rand(Uniform(-W/2, W/2), K)
+    sort!(epsilon0)
+    epsilonR .= epsilon0
 
     return epsilonL, epsilonR
 
