@@ -51,7 +51,22 @@ function funeffectivebetamu(K::Int64,W::Int64,Ene::Float64,Np::Float64,beta0::Fl
 
 end
 
-function fun_randomDeltaepsilon(K::Int64,W::Int64,numvari::Int64)
+function fun_randomDeltaepsilon(K::Int64,W::Int64)
+
+    epsilonL = zeros(Float64,K)
+    epsilonR = zeros(Float64,K)
+
+    epsilon0 = rand(Uniform(-W/2, W/2), K)
+    sort!(epsilon0)
+
+    epsilonL = epsilon0
+    epsilonR = epsilon0
+
+    return epsilonL, epsilonR
+
+end
+
+function fun_gaussianDeltaepsilon(K::Int64,W::Int64,numvari::Int64)
 
     epsilonL = zeros(Float64,K)
     epsilonR = zeros(Float64,K)
@@ -109,12 +124,12 @@ function fun_equalDeltaepsilon(K::Int64,W::Int64)
 
 end
 
-function createH_randomDeltaepsilon!(K::Int64,W::Int64,numvari::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,matH::SparseMatrixCSC{Float64})
+function createH_randomDeltaepsilon!(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,matH::SparseMatrixCSC{Float64})
 
     # matH = sparse(Float64,K*2+1,K*2+1)
-    # Depsilon = W/(K-1)
+    Depsilon = W/(K-1)
 
-    epsilonL, epsilonR = fun_randomDeltaepsilon(K,W,numvari)
+    epsilonL, epsilonR = fun_randomDeltaepsilon(K,W)
     # epsilonL, epsilonR = fun_equalDeltaepsilon(K,W)
 
     matH[1,1] = 0.0 # epsilon for the system, probably 0
@@ -124,6 +139,9 @@ function createH_randomDeltaepsilon!(K::Int64,W::Int64,numvari::Int64,betaL::Flo
         matH[1+kk,1+kk] = epsilonL[kk] #(kk-1)*Depsilon - W/2 # epsilon for the bath L
         matH[1+K+kk,1+K+kk] = epsilonR[kk] # epsilon for the bath R
 
+        matH[1+kk,1] = sqrt(GammaL*Depsilon/(2*pi)) # tunnel with the bath L
+        matH[1+K+kk,1] = sqrt(GammaR*Depsilon/(2*pi)) # tunnel with the bath R
+
         # if kk <= K-1
         #    matH[1+kk,1] = sqrt(GammaL*(epsilonL[kk+1]-epsilonL[kk])/(2*pi)) #sqrt(GammaL*Depsilon/(2*pi)) # tunnel with the bath L
         #    matH[1+K+kk,1] = sqrt(GammaR*(epsilonR[kk+1]-epsilonR[kk])/(2*pi)) # tunnel with the bath R
@@ -132,16 +150,16 @@ function createH_randomDeltaepsilon!(K::Int64,W::Int64,numvari::Int64,betaL::Flo
         #    matH[1+K+kk,1] = sqrt(GammaR*(epsilonR[1]-epsilonR[kk])/(2*pi))
         # end
 
-        if kk >= 2 && kk <= K-1
-           matH[1+kk,1] = sqrt(GammaL*(epsilonL[kk+1]-epsilonL[kk-1])/2/(2*pi)) #sqrt(GammaL*Depsilon/(2*pi)) # tunnel with the bath L
-           matH[1+K+kk,1] = sqrt(GammaR*(epsilonR[kk+1]-epsilonR[kk-1])/2/(2*pi)) # tunnel with the bath R
-        elseif kk == 1
-           matH[1+kk,1] = sqrt(GammaL*(epsilonL[kk+1]-epsilonL[kk])/(2*pi))
-           matH[1+K+kk,1] = sqrt(GammaR*(epsilonR[kk+1]-epsilonR[kk])/(2*pi))
-        elseif kk == K
-           matH[1+kk,1] = sqrt(GammaL*(epsilonL[kk]-epsilonL[kk-1])/(2*pi))
-           matH[1+K+kk,1] = sqrt(GammaR*(epsilonR[kk]-epsilonR[kk-1])/(2*pi))
-        end
+        # if kk >= 2 && kk <= K-1
+        #    matH[1+kk,1] = sqrt(GammaL*(epsilonL[kk+1]-epsilonL[kk-1])/2/(2*pi)) #sqrt(GammaL*Depsilon/(2*pi)) # tunnel with the bath L
+        #    matH[1+K+kk,1] = sqrt(GammaR*(epsilonR[kk+1]-epsilonR[kk-1])/2/(2*pi)) # tunnel with the bath R
+        # elseif kk == 1
+        #    matH[1+kk,1] = sqrt(GammaL*(epsilonL[kk+1]-epsilonL[kk])/(2*pi))
+        #    matH[1+K+kk,1] = sqrt(GammaR*(epsilonR[kk+1]-epsilonR[kk])/(2*pi))
+        # elseif kk == K
+        #    matH[1+kk,1] = sqrt(GammaL*(epsilonL[kk]-epsilonL[kk-1])/(2*pi))
+        #    matH[1+K+kk,1] = sqrt(GammaR*(epsilonR[kk]-epsilonR[kk-1])/(2*pi))
+        # end
 
     end
     # matH[K+2:end,K+2:end] = matH[2:K+1,2:K+1] # epsilon for the bath R
@@ -158,7 +176,7 @@ function calculatequantities2(K::Int64,W::Int64,numvari::Int64,betaL::Float64,be
     if numvari == 0
        createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
     else
-       createH_randomDeltaepsilon!(K,W,numvari,betaL,betaR,GammaL,GammaR,matH)
+       createH_randomDeltaepsilon!(K,W,betaL,betaR,GammaL,GammaR,matH)
     end
 
     # Hamiltonian is hermitian
