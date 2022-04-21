@@ -36,7 +36,7 @@ function funbetamu!(F,x,K::Int64,W::Int64,Ene::Float64,Np::Float64)
         else
            F[1] += 1.0/(exp((epsilonk-x[2])*x[1])+1.0)*epsilonk
            F[2] += 1.0/(exp((epsilonk-x[2])*x[1])+1.0)
-        end
+       end@
     end
 
     F[1] = F[1] - Ene
@@ -179,8 +179,12 @@ function calculatequantities2(K::Int64,W::Int64,numvari::Int64,betaL::Float64,be
 
     if numvari == 0
        createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
-    else
+    elseif numvari == 1
        createH_randomDeltaepsilon!(K,W,betaL,betaR,GammaL,GammaR,matH)
+    elseif numvari == 2
+       createH_fluctuatedDeltaepsilon!(K,W,betaL,betaR,GammaL,GammaR,matH)
+    else
+       error("input numvari correctly")
     end
 
     # Hamiltonian is hermitian
