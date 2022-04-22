@@ -184,7 +184,7 @@ function calculatequantities2(K::Int64,W::Int64,numvari::Int64,betaL::Float64,be
     elseif numvari == 2
        createH_fluctuatedDeltaepsilon!(K,W,betaL,betaR,GammaL,GammaR,matH)
     else
-       error("input numvari correctly")
+       error("Input numvari correctly")
     end
 
     # Hamiltonian is hermitian
