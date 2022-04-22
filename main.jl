@@ -36,7 +36,7 @@ function funbetamu!(F,x,K::Int64,W::Int64,Ene::Float64,Np::Float64)
         else
            F[1] += 1.0/(exp((epsilonk-x[2])*x[1])+1.0)*epsilonk
            F[2] += 1.0/(exp((epsilonk-x[2])*x[1])+1.0)
-       end@
+        end
     end
 
     F[1] = F[1] - Ene
@@ -48,6 +48,34 @@ function funeffectivebetamu(K::Int64,W::Int64,Ene::Float64,Np::Float64,beta0::Fl
 
     sol = nlsolve((F,x) ->funbetamu!(F,x,K,W,Ene,Np), [beta0; mu0])
     return sol.zero
+
+end
+
+function fun_fluctuDeltaepsilon(K::Int64,W::Int64,numvari::Int64)
+
+    if numvari <= 2
+       error("fluctuations may come across the above or blow level")
+    end
+
+    epsilonL = zeros(Float64,K)
+    epsilonR = zeros(Float64,K)
+
+    epsilonL .= LinRange(-W/2,W/2,K)
+    epsilonR .= LinRange(-W/2,W/2,K)
+    Depsilon = W/(K-1)
+    flucutu0 = Depsilon/numvari
+
+    for kk = 1:K
+
+        flucutu = flucutu0*rand(Uniform(-1,1))
+        epsilonL[kk] = epsilonL[kk] + flucutu
+
+        flucutu = flucutu0*rand(Uniform(-1,1))
+        epsilonR[kk] = epsilonR[kk] + flucutu
+
+    end
+
+    return epsilonL, epsilonR
 
 end
 
@@ -128,13 +156,20 @@ function fun_equalDeltaepsilon(K::Int64,W::Int64)
 
 end
 
-function createH_randomDeltaepsilon!(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,matH::SparseMatrixCSC{Float64})
+function createH_Deltaepsilon!(K::Int64,W::Int64,numvari::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,matH::SparseMatrixCSC{Float64})
 
     # matH = sparse(Float64,K*2+1,K*2+1)
     Depsilon = W/(K-1)
 
-    epsilonL, epsilonR = fun_randomDeltaepsilon(K,W)
-    # epsilonL, epsilonR = fun_equalDeltaepsilon(K,W)
+    if numvari == 0
+       epsilonL, epsilonR = fun_equalDeltaepsilon(K,W)
+    elseif numvari == 1
+       epsilonL, epsilonR = fun_randomDeltaepsilon(K,W)
+    else
+       epsilonL, epsilonR = fun_fluctuDeltaepsilon(K,W,numvari)
+    # else
+       # error("Input numvari correctly")
+    end
 
     matH[1,1] = 0.0 # epsilon for the system, probably 0
 
@@ -176,16 +211,7 @@ function calculatequantities2(K::Int64,W::Int64,numvari::Int64,betaL::Float64,be
 
     # Hamiltonian
     matH = spzeros(Float64,K*2+1,K*2+1)
-
-    if numvari == 0
-       createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
-    elseif numvari == 1
-       createH_randomDeltaepsilon!(K,W,betaL,betaR,GammaL,GammaR,matH)
-    elseif numvari == 2
-       createH_fluctuatedDeltaepsilon!(K,W,betaL,betaR,GammaL,GammaR,matH)
-    else
-       error("Input numvari correctly")
-    end
+    createH_Deltaepsilon!(K,W,numvari,betaL,betaR,GammaL,GammaR,matH)
 
     # Hamiltonian is hermitian
     matH = Hermitian(Array(matH))
