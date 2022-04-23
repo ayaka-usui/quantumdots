@@ -23,7 +23,28 @@ function createH!(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float6
 
 end
 
-function funbetamu!(F,x,K::Int64,W::Int64,Ene::Float64,Np::Float64)
+function funbetamu!(F,x,epsilon::Vector{Float64},K::Int64,W::Int64,Ene::Float64,Np::Float64)
+
+    # x[1] = beta, x[2] = mu
+    # Depsilon = W/(K-1)
+
+    for kk = 1:K
+        # epsilonk = (kk-1)*Depsilon - W/2
+        if kk == 1
+           F[1] = 1.0/(exp((epsilon[kk]-x[2])*x[1])+1.0)*epsilon[kk]
+           F[2] = 1.0/(exp((epsilon[kk]-x[2])*x[1])+1.0)
+        else
+           F[1] += 1.0/(exp((epsilon[kk]-x[2])*x[1])+1.0)*epsilon[kk]
+           F[2] += 1.0/(exp((epsilon[kk]-x[2])*x[1])+1.0)
+        end
+    end
+
+    F[1] = F[1] - Ene
+    F[2] = F[2] - Np
+
+end
+
+function funbetamu_uni!(F,x,K::Int64,W::Int64,Ene::Float64,Np::Float64)
 
     # x[1] = beta, x[2] = mu
     Depsilon = W/(K-1)
@@ -44,7 +65,14 @@ function funbetamu!(F,x,K::Int64,W::Int64,Ene::Float64,Np::Float64)
 
 end
 
-function funeffectivebetamu(K::Int64,W::Int64,Ene::Float64,Np::Float64,beta0::Float64,mu0::Float64)
+function funeffectivebetamu(K::Int64,W::Int64,epsilon::Vector{Float64},Ene::Float64,Np::Float64,beta0::Float64,mu0::Float64)
+
+    sol = nlsolve((F,x) ->funbetamu!(F,x,epsilon,K,W,Ene,Np), [beta0; mu0])
+    return sol.zero
+
+end
+
+function funeffectivebetamu_uni(K::Int64,W::Int64,Ene::Float64,Np::Float64,beta0::Float64,mu0::Float64)
 
     sol = nlsolve((F,x) ->funbetamu!(F,x,K,W,Ene,Np), [beta0; mu0])
     return sol.zero
@@ -293,8 +321,11 @@ function calculatequantities2(K::Int64,W::Int64,numvari::Int64,betaL::Float64,be
         vNE[tt] = - sum(val_Ct.*log.(val_Ct)) - sum((1.0 .- val_Ct).*log.(1.0 .- val_Ct))
 
         # effective inverse temperature and chemical potential
-        effparaL[tt,:] .= funeffectivebetamu(K,W,real(E_L[tt]),real(N_L[tt]),betaL,muL)
-        effparaR[tt,:] .= funeffectivebetamu(K,W,real(E_R[tt]),real(N_R[tt]),betaR,muR)
+        effparaL[tt,:] .= funeffectivebetamu(K,W,epsilonLR[2:K+1],real(E_L[tt]),real(N_L[tt]),betaL,muL)
+        effparaR[tt,:] .= funeffectivebetamu(K,W,epsilonLR[K+2+2*K+1],real(E_R[tt]),real(N_R[tt]),betaR,muR)
+
+        # effparaL[tt,:] .= funeffectivebetamu(K,W,real(E_L[tt]),real(N_L[tt]),betaL,muL)
+        # effparaR[tt,:] .= funeffectivebetamu(K,W,real(E_R[tt]),real(N_R[tt]),betaR,muR)
 
     end
 
