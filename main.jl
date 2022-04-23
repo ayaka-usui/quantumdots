@@ -190,10 +190,13 @@ function createH_Deltaepsilon!(K::Int64,W::Int64,numvari::Int64,betaL::Float64,b
     Depsilon = W/(K-1)
 
     if numvari == 0
+       println("Equally spacing")
        epsilonL, epsilonR = fun_equalDeltaepsilon(K,W)
     elseif numvari == 1
+       println("Random spacing")
        epsilonL, epsilonR = fun_randomDeltaepsilon(K,W)
     else
+       println("Fluctuating from equal spacing")
        epsilonL, epsilonR = fun_fluctuDeltaepsilon(K,W,numvari)
     # else
        # error("Input numvari correctly")
@@ -322,7 +325,7 @@ function calculatequantities2(K::Int64,W::Int64,numvari::Int64,betaL::Float64,be
 
         # effective inverse temperature and chemical potential
         effparaL[tt,:] .= funeffectivebetamu(K,W,epsilonLR[2:K+1],real(E_L[tt]),real(N_L[tt]),betaL,muL)
-        effparaR[tt,:] .= funeffectivebetamu(K,W,epsilonLR[K+2+2*K+1],real(E_R[tt]),real(N_R[tt]),betaR,muR)
+        effparaR[tt,:] .= funeffectivebetamu(K,W,epsilonLR[K+2:2*K+1],real(E_R[tt]),real(N_R[tt]),betaR,muR)
 
         # effparaL[tt,:] .= funeffectivebetamu(K,W,real(E_L[tt]),real(N_L[tt]),betaL,muL)
         # effparaR[tt,:] .= funeffectivebetamu(K,W,real(E_R[tt]),real(N_R[tt]),betaR,muR)
