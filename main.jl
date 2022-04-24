@@ -82,7 +82,7 @@ end
 function fun_fluctuDeltaepsilon(K::Int64,W::Int64,numvari::Int64)
 
     if numvari <= 2
-       error("fluctuations may come across the above or blow level")
+       error("fluctuations may come across the above or blow level. Take a bigger numvari such as 4.")
     end
 
     epsilonL = zeros(Float64,K)
