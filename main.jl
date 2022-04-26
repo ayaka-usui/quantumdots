@@ -74,7 +74,7 @@ end
 
 function funeffectivebetamu_uni(K::Int64,W::Int64,Ene::Float64,Np::Float64,beta0::Float64,mu0::Float64)
 
-    sol = nlsolve((F,x) ->funbetamu!(F,x,K,W,Ene,Np), [beta0; mu0])
+    sol = nlsolve((F,x) ->funbetamu_uni!(F,x,K,W,Ene,Np), [beta0; mu0])
     return sol.zero
 
 end
