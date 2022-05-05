@@ -249,9 +249,9 @@ function calculatequantities2(K::Int64,W::Int64,numvari::Int64,betaL::Float64,be
     tunnelL = sqrt(GammaL*Depsilon/(2*pi))
     tunnelR = sqrt(GammaR*Depsilon/(2*pi))
     for kk = 1:K
-        flucutu = tunnelL*rand(Uniform(-1,1))/100
+        flucutu = tunnelL*rand(Uniform(-1,1))/20
         matH[1+kk,1] = tunnelL + flucutu  # tunnel with the bath L
-        flucutu = tunnelR*rand(Uniform(-1,1))/100
+        flucutu = tunnelR*rand(Uniform(-1,1))/20
         matH[1+K+kk,1] = tunnelR + flucutu # tunnel with the bath R
     end
 
