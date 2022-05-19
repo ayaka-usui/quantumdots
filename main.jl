@@ -299,16 +299,15 @@ function calculatequantities3(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
 
         # observational entropy
         # the system
-        S_sys[tt] = -Ct[1,1]*log(Ct[1,1]) - (1-Ct[1,1])*log(1-Ct[1,1])
+        Sobs_sys[tt] = -Ct[1,1]*log(Ct[1,1])
         diag_Ct_E .= diag(Ct[2:end,2:end])
         Sobs_E[tt] = - sum(diag_Ct_E.*log.(diag_Ct_E)) - sum((1.0 .- diag_Ct_E).*log.(1.0 .- diag_Ct_E))
         diag_Ct .= diag(Ct)
         Sobs_SE[tt] = - sum(diag_Ct.*log.(diag_Ct)) - sum((1.0 .- diag_Ct).*log.(1.0 .- diag_Ct))
-        I_SE[tt] = S_sys[tt] - S_sys[1] + Sobs_E[tt] - Sobs_E[1] - (Sobs_SE[tt] - Sobs_SE[1])
-
-        
+        # I_SE[tt] = S_sys[tt] - S_sys[1] + Sobs_E[tt] - Sobs_E[1] - (Sobs_SE[tt] - Sobs_SE[1])
 
         # vNE
+        SvNE_sys[tt] = -Ct[1,1]*log(Ct[1,1]) - (1-Ct[1,1])*log(1-Ct[1,1])
         # Ct_E .= Ct[2:end,2:end]
         # val_Ct_E .= eigvals(Ct_E)
         # vNE_E[tt] = - sum(val_Ct_E.*log.(val_Ct_E)) - sum((1.0 .- val_Ct_E).*log.(1.0 .- val_Ct_E))
@@ -320,24 +319,6 @@ function calculatequantities3(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
 
         # entropy production
         sigma[tt] = S_sys[tt] - S_sys[1] - betaQL[tt] - betaQR[tt]
-
-
-
-
-
-
-        # I_SE
-        I_SE[tt] = vNE_sys[tt] - vNE_sys[1] + vNE_E[tt] - vNE_E[1]
-
-
-
-        # relative entropy
-        Drel[tt] = - betaQL[tt] - betaQR[tt] - (vNE_E[tt] - vNE_E[1])
-
-        # mutual information describing the intraenvironment correlations
-        diag_Ct_E = diag(Ct_E)
-        vNE_alphak[tt] = - sum(diag_Ct_E.*log.(diag_Ct_E)) - sum((1.0 .- diag_Ct_E).*log.(1.0 .- diag_Ct_E))
-        I_env[tt] = vNE_alphak[tt] - vNE_E[tt]
 
     end
 
