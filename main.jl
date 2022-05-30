@@ -269,11 +269,12 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
     diag_Ct_L = zeros(Float64,K,Nt)
     diag_Ct_R = zeros(Float64,K,Nt)
 
-    count_L1 = zeros(Int64,K,Nt)
-    count_L0 = zeros(Int64,K,Nt)
+    count_L = zeros(Int64,K)
+    # count_L1 = zeros(Int64,K)
+    # count_L0 = zeros(Int64,K)
     pL = zeros(Float64,K,Nt)
-    pL_part = zeros(Float64,K)
-    check = 0
+    pL_part = zeros(Int64,K)
+    criterion = 0.1
 
     for tt = 1:Nt
 
@@ -286,28 +287,44 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
         diag_Ct_R[:,tt] .= real(diag(Ct[K+2:end,K+2:end]))
 
         #
+        count_L .= 0
+        count_L1 = 0
+        count_L0 = 0
+        ind = 0
         for jj = 1:K
-            if diag_Ct_L[jj,tt] > 0.9
-               count_L1[jj,tt] = 1
-               pL_part[jj] = diag_Ct_L[jj,tt]
-            elseif diag_Ct_L[jj,tt] < 0.1
-               count_L0[jj,tt] = 1
-               pL_part[jj] = 1.0 - diag_Ct_L[jj,tt]
+            if diag_Ct_L[jj,tt] > 1.0 - criterion
+               pL_part[jj] = 1.0
+               count_L1 += 1
+            elseif diag_Ct_L[jj,tt] < criterion
+               pL_part[jj] = 0.0
+               count_L0 += 1
+            else
+               ind += 1
+               count_L[ind] = jj
             end
         end
-        NLmin = sum(count_L1[:,tt])
-        NLmax = K - sum(count_L0[:,tt])
-        pL[1:NLmin-1,tt] = 0.0
-        pL[NLmax+1:end,tt] = 0.0
 
-        pL_part .= 0.0
+        pL[1:count_L1-1,tt] = 0.0
+        pL[K-count_L0+1:end,tt] = 0.0
 
-        for jj = 0:NLmax-NLmin
+        for jj = 0:K-count_L0-count_L1 #count_L1:K-count_L0
+
+            if jj == 0
+               combind = 0
+            else
+               combind = collect(combinations(count_L[1:ind],jj))
+            end
+
+            Ncombind = length(combind)
+            for ii = 1:Ncombind
+                
+            end
+
 
             check .= 0
             for ii = 1:K
-                if count_L1[ii,tt] == 0 && count_L0[ii,tt] == 0
-                   if check < jj
+                if count_L1[ii] == 0 && count_L0[ii] == 0
+                   if check < jj-NLmin
                       pL_part[ii] = diag_Ct_L[ii,tt]
                       check += 1
                    else
@@ -315,7 +332,7 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
                    end
                 end
             end
-            pL[NLmin+jj,tt] = prod(pL_part)
+            pL[jj,tt] = prod(pL_part)
 
             # for ii = 1:K
             #     if count_L1[ii,tt] == 1
