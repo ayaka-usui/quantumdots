@@ -266,8 +266,14 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
     epsilonLR = diag(matH)
 
     Ct = zeros(ComplexF64,K*2+1,K*2+1)
-    diag_Ct_L = zeros(ComplexF64,K*2,Nt)
-    diag_Ct_R = zeros(ComplexF64,K*2,Nt)
+    diag_Ct_L = zeros(Float64,K,Nt)
+    diag_Ct_R = zeros(Float64,K,Nt)
+
+    count_L1 = zeros(Int64,K,Nt)
+    count_L0 = zeros(Int64,K,Nt)
+    pL = zeros(Float64,K,Nt)
+    pL_part = zeros(Float64,K)
+    check = 0
 
     for tt = 1:Nt
 
@@ -276,12 +282,91 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
         Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
 
         #
-        diag_Ct_L[:,tt] .= diag(Ct[2:K+1,2:K+1])
-        diag_Ct_R[:,tt] .= diag(Ct[K+2:end,K+2:end])
+        diag_Ct_L[:,tt] .= real(diag(Ct[2:K+1,2:K+1]))
+        diag_Ct_R[:,tt] .= real(diag(Ct[K+2:end,K+2:end]))
+
+        #
+        for jj = 1:K
+            if diag_Ct_L[jj,tt] > 0.9
+               count_L1[jj,tt] = 1
+               pL_part[jj] = diag_Ct_L[jj,tt]
+            elseif diag_Ct_L[jj,tt] < 0.1
+               count_L0[jj,tt] = 1
+               pL_part[jj] = 1.0 - diag_Ct_L[jj,tt]
+            end
+        end
+        NLmin = sum(count_L1[:,tt])
+        NLmax = K - sum(count_L0[:,tt])
+        pL[1:NLmin-1,tt] = 0.0
+        pL[NLmax+1:end,tt] = 0.0
+
+        pL_part .= 0.0
+
+        for jj = 0:NLmax-NLmin
+
+            check .= 0
+            for ii = 1:K
+                if count_L1[ii,tt] == 0 && count_L0[ii,tt] == 0
+                   if check < jj
+                      pL_part[ii] = diag_Ct_L[ii,tt]
+                      check += 1
+                   else
+                      pL_part[ii] = 1.0-diag_Ct_L[ii,tt]
+                   end
+                end
+            end
+            pL[NLmin+jj,tt] = prod(pL_part)
+
+            # for ii = 1:K
+            #     if count_L1[ii,tt] == 1
+            #        pL_part[ii] = diag_Ct_L[ii,tt]
+            #     elseif count_L0[ii,tt] == 1
+            #        pL_part[ii] = 1-diag_Ct_L[ii,tt]
+            #     else
+            #        pL_part[ii] = 1-diag_Ct_L[ii,tt]
+            #     end
+            # end
+            # pL[NLmin,tt] = prod(pL_part)
+            #
+            # check .= 0
+            # for ii = 1:K
+            #     if count_L1[ii,tt] == 1
+            #        pL_part[ii] = diag_Ct_L[ii,tt]
+            #     elseif count_L0[ii,tt] == 1
+            #        pL_part[ii] = 1-diag_Ct_L[ii,tt]
+            #     else
+            #        if check < 1
+            #           pL_part[ii] = diag_Ct_L[ii,tt]
+            #           check += 1
+            #        else
+            #           pL_part[ii] = 1-diag_Ct_L[ii,tt]
+            #        end
+            #     end
+            # end
+            # pL[NLmin+1,tt] = prod(pL_part)
+            #
+            # check .= 0
+            # for ii = 1:K
+            #     if count_L1[ii,tt] == 1
+            #        pL_part[ii] = diag_Ct_L[ii,tt]
+            #     elseif count_L0[ii,tt] == 1
+            #        pL_part[ii] = 1-diag_Ct_L[ii,tt]
+            #     else
+            #        if check < 2
+            #           pL_part[ii] = diag_Ct_L[ii,tt]
+            #           check += 1
+            #        else
+            #           pL_part[ii] = 1-diag_Ct_L[ii,tt]
+            #        end
+            #     end
+            # end
+            # pL[NLmin+2,tt] = prod(pL_part)
+
+        end
 
     end
 
-    return time, diag_Ct_L, diag_Ct_R
+    return time, diag_Ct_L, count_L
 
 end
 
