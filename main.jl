@@ -238,7 +238,7 @@ function createH_Deltaepsilon!(K::Int64,W::Int64,numvari::Int64,betaL::Float64,b
 
 end
 
-function calculatequantities3(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # Hamiltonian
     matH = spzeros(Float64,K*2+1,K*2+1)
@@ -266,30 +266,8 @@ function calculatequantities3(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
     epsilonLR = diag(matH)
 
     Ct = zeros(ComplexF64,K*2+1,K*2+1)
-    dCt = zeros(ComplexF64,K*2+1)
-    Ct_E = zeros(ComplexF64,K*2,K*2)
-    val_Ct_E = zeros(ComplexF64,K*2)
-    diag_Ct_E = zeros(ComplexF64,K*2)
-    diag_Ct = zeros(ComplexF64,K*2)
-
-    sigma = zeros(ComplexF64,Nt)
-
-    S_sys = zeros(ComplexF64,Nt)
-    Sobs_E = zeros(ComplexF64,Nt)
-    Sobs_SE = zeros(ComplexF64,Nt)
-
-    vNE_E = zeros(ComplexF64,Nt)
-
-    I_ = zeros(ComplexF64,Nt)
-
-
-    S_E = zeros(ComplexF64,Nt)
-    S_alphak = zeros(ComplexF64,Nt)
-    I_SE = zeros(ComplexF64,Nt)
-    betaQL = zeros(ComplexF64,Nt)
-    betaQR = zeros(ComplexF64,Nt)
-    Drel = zeros(ComplexF64,Nt)
-    I_env = zeros(ComplexF64,Nt)
+    diag_Ct_L = zeros(ComplexF64,K*2,Nt)
+    diag_Ct_R = zeros(ComplexF64,K*2,Nt)
 
     for tt = 1:Nt
 
@@ -297,32 +275,13 @@ function calculatequantities3(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
         Ct .= Ct*C0
         Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
 
-        # observational entropy
-        # the system
-        Sobs_sys[tt] = -Ct[1,1]*log(Ct[1,1])
-        diag_Ct_E .= diag(Ct[2:end,2:end])
-        Sobs_E[tt] = - sum(diag_Ct_E.*log.(diag_Ct_E)) - sum((1.0 .- diag_Ct_E).*log.(1.0 .- diag_Ct_E))
-        diag_Ct .= diag(Ct)
-        Sobs_SE[tt] = - sum(diag_Ct.*log.(diag_Ct)) - sum((1.0 .- diag_Ct).*log.(1.0 .- diag_Ct))
-        # I_SE[tt] = S_sys[tt] - S_sys[1] + Sobs_E[tt] - Sobs_E[1] - (Sobs_SE[tt] - Sobs_SE[1])
-
-        # vNE
-        SvNE_sys[tt] = -Ct[1,1]*log(Ct[1,1]) - (1-Ct[1,1])*log(1-Ct[1,1])
-        # Ct_E .= Ct[2:end,2:end]
-        # val_Ct_E .= eigvals(Ct_E)
-        # vNE_E[tt] = - sum(val_Ct_E.*log.(val_Ct_E)) - sum((1.0 .- val_Ct_E).*log.(1.0 .- val_Ct_E))
-
-        # heat
-        dCt .= diag(Ct - C0)
-        betaQL[tt] = -sum(dCt[2:K+1].*(epsilonLR[2:K+1] .- muL))*betaL
-        betaQR[tt] = -sum(dCt[K+2:2*K+1].*(epsilonLR[K+2:2*K+1] .- muR))*betaR
-
-        # entropy production
-        sigma[tt] = S_sys[tt] - S_sys[1] - betaQL[tt] - betaQR[tt]
+        #
+        diag_Ct_L[:,tt] .= diag(Ct[2:K+1,2:K+1])
+        diag_Ct_R[:,tt] .= diag(Ct[K+2:end,K+2:end])
 
     end
 
-    return time, vNE_E.-vNE_E[1], I_SE, betaQL, betaQR, sigma, Drel, I_env
+    return time, diag_Ct_L, diag_Ct_R
 
 end
 
