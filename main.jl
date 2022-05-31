@@ -264,32 +264,41 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
 
     # epsilonLR = zeros(ComplexF64,K*2+1)
     epsilonLR = diag(matH)
+    epsilonL = epsilonLR[2:K+1]
+    epsilonR = epsilonLR[K+2:2*K+1]
 
     Ct = zeros(ComplexF64,K*2+1,K*2+1)
     diag_Ct_L = zeros(Float64,K,Nt)
     diag_Ct_R = zeros(Float64,K,Nt)
 
     count_L = zeros(Int64,K)
-    pL = zeros(Float64,K,Nt)
+    count_L1 = 0
+    count_L0 = 0
+    counteps_L1 = 0.0
+    counteps_L = 0.0
+    pL = zeros(Float64,K,K,Nt)
     pL_part = zeros(Float64,K)
     pL_part_comb = zeros(Float64,K)
     criterion = 0.1
+    ind = 0
 
     for tt = 1:Nt
 
+        # time evolution of correlation matrix
         Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
         Ct .= Ct*C0
         Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
 
-        #
+        # Tr[n_j rho] for j = L,R
         diag_Ct_L[:,tt] .= real(diag(Ct[2:K+1,2:K+1]))
         diag_Ct_R[:,tt] .= real(diag(Ct[K+2:end,K+2:end]))
 
-        #
+        # count the number of Tr[n_j rho] close to 1 or 0
+        pL_part .= 0.0
         count_L .= 0
-        count_L1 = 0
-        count_L0 = 0
-        ind = 0
+        count_L1 .= 0
+        count_L0 .= 0
+        ind .= 0
         for jj = 1:K
             if diag_Ct_L[jj,tt] > 1.0 - criterion
                pL_part[jj] = 1.0
@@ -304,27 +313,29 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
             end
         end
 
-        pL[1:count_L1-1,tt] .= 0.0
-        pL[K-count_L0+1:end,tt] .= 0.0
+        # the probability is zero for N_j < count_L1 or N_j > count_L0
+        pL[1:count_L1-1,:,tt] .= 0.0
+        pL[K-count_L0+1:end,:,tt] .= 0.0
 
-        for jj = 0:K-count_L0-count_L1 #count_L1:K-count_L0
+        # the probability is zero for E_j < count_L1.*epsilon or E_j > count_L0*epsilon
+        pL[:,1:count_L1-1,tt] .= 0.0
+        pL[:,K-count_L0+1:end,tt] .= 0.0
 
-            if jj == 0
-               pL[count_L1,tt] = prod(pL_part[:])
-               continue
-            end
+        pL[count_L1,count_L1,tt] = prod(pL_part[:]) # for N_j = count_L1
+        pL[count_L1,count_L1+1:K-count_L0,tt] .= 0.0
+        pL[count_L1+1:K-count_L0,count_L1,tt] .= 0.0 # for E_j = count_L1*epsilon
 
-            combind = collect(combinations(count_L[1:ind],jj))
-            Ncombind = length(combind)
-            for ii = 1:Ncombind
+        for jjN = 1:K-count_L0-count_L1 #count_L1+1:K-count_L0
+
+            combindN = collect(combinations(count_L[1:ind],jjN))
+            McombindN = length(combindN)
+            for iiN = 1:McombindN
                 pL_part_comb .= pL_part
-                for kk = 1:jj
-                    pL_part_comb[combind[ii][kk]] = diag_Ct_L[combind[ii][kk],tt]
+                for kk = 1:jjN
+                    pL_part_comb[combind[iiN][kk]] = diag_Ct_L[combind[iiN][kk],tt]
                 end
-                pL[count_L1+jj,tt] += prod(pL_part_comb[:])
+                pL[count_L1+jjN,count_L1+iiN,tt] += prod(pL_part_comb[:])
             end
-
-            println("jj=",jj)
 
         end
 
