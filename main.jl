@@ -4,6 +4,7 @@ using Arpack, SparseArrays, LinearAlgebra
 using NLsolve
 using Plots
 using Distributions, Random
+using JLD
 
 function createH!(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,matH::SparseMatrixCSC{Float64})
 
@@ -323,6 +324,8 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
             end
         end
 
+        # println(count_L1+count_L0)
+
         # the probability is zero for N_j < count_L1 or N_j > count_L0
         pL[1:count_L1-1,:,tt] .= 0.0
         pL[K-count_L0+1:end,:,tt] .= 0.0
@@ -337,6 +340,8 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
 
         for jjN = 1:K-count_L0-count_L1 #count_L1+1:K-count_L0
 
+            @time begin
+
             combind = collect(combinations(count_L[1:ind],jjN))
             Mcombind = length(combind)
             for iiN = 1:Mcombind
@@ -349,11 +354,16 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
                 pL[count_L1+jjN,counteps_L1+indE,tt] += prod(pL_part_comb[:])
             end
 
+            end
+            println("jjN=",jjN)
+
         end
 
     end
 
     return time, diag_Ct_L, pL
+
+    # technically, N_j=0 and E_j=0 should be considered, but let me ignore it since p_{0,0}=0
 
 end
 
@@ -361,7 +371,21 @@ function calculatep_test_save(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
 
     time, diag_Ct_L, pL = calculatep_test(K,W,betaL,betaR,GammaL,GammaR,muL,muR,tf,Nt)
 
-    save()
+    save("data_bathprobability_K$K.jld", "time", time, "diag_Ct_L", diag_Ct_L, "pL", pL)
+
+end
+
+function calculateSobs_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+
+    time, diag_Ct_L, pL = calculatep_test(K,W,betaL,betaR,GammaL,GammaR,muL,muR,tf,Nt)
+
+    SobsL = zeros(Float64,Nt)
+
+    for tt = 1:Nt
+        SobsL[tt] = -sum(pL[:,:,tt].*log10.(pL[:,:,tt]))
+    end
+
+    return time, diag_Ct_L, pL, SobsL
 
 end
 
