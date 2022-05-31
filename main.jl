@@ -270,10 +270,9 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
     diag_Ct_R = zeros(Float64,K,Nt)
 
     count_L = zeros(Int64,K)
-    # count_L1 = zeros(Int64,K)
-    # count_L0 = zeros(Int64,K)
     pL = zeros(Float64,K,Nt)
-    pL_part = zeros(Int64,K)
+    pL_part = zeros(Float64,K)
+    pL_part_comb = zeros(Float64,K)
     criterion = 0.1
 
     for tt = 1:Nt
@@ -296,94 +295,42 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
                pL_part[jj] = 1.0
                count_L1 += 1
             elseif diag_Ct_L[jj,tt] < criterion
-               pL_part[jj] = 0.0
+               pL_part[jj] = 1.0 - 0.0
                count_L0 += 1
             else
+               pL_part[jj] = 1.0 - diag_Ct_L[jj,tt]
                ind += 1
                count_L[ind] = jj
             end
         end
 
-        pL[1:count_L1-1,tt] = 0.0
-        pL[K-count_L0+1:end,tt] = 0.0
+        pL[1:count_L1-1,tt] .= 0.0
+        pL[K-count_L0+1:end,tt] .= 0.0
 
         for jj = 0:K-count_L0-count_L1 #count_L1:K-count_L0
 
             if jj == 0
-               combind = 0
-            else
-               combind = collect(combinations(count_L[1:ind],jj))
+               pL[count_L1,tt] = prod(pL_part[:])
+               continue
             end
 
+            combind = collect(combinations(count_L[1:ind],jj))
             Ncombind = length(combind)
             for ii = 1:Ncombind
-                
-            end
-
-
-            check .= 0
-            for ii = 1:K
-                if count_L1[ii] == 0 && count_L0[ii] == 0
-                   if check < jj-NLmin
-                      pL_part[ii] = diag_Ct_L[ii,tt]
-                      check += 1
-                   else
-                      pL_part[ii] = 1.0-diag_Ct_L[ii,tt]
-                   end
+                pL_part_comb .= pL_part
+                for kk = 1:jj
+                    pL_part_comb[combind[ii][kk]] = diag_Ct_L[combind[ii][kk],tt]
                 end
+                pL[count_L1+jj,tt] += prod(pL_part_comb[:])
             end
-            pL[jj,tt] = prod(pL_part)
 
-            # for ii = 1:K
-            #     if count_L1[ii,tt] == 1
-            #        pL_part[ii] = diag_Ct_L[ii,tt]
-            #     elseif count_L0[ii,tt] == 1
-            #        pL_part[ii] = 1-diag_Ct_L[ii,tt]
-            #     else
-            #        pL_part[ii] = 1-diag_Ct_L[ii,tt]
-            #     end
-            # end
-            # pL[NLmin,tt] = prod(pL_part)
-            #
-            # check .= 0
-            # for ii = 1:K
-            #     if count_L1[ii,tt] == 1
-            #        pL_part[ii] = diag_Ct_L[ii,tt]
-            #     elseif count_L0[ii,tt] == 1
-            #        pL_part[ii] = 1-diag_Ct_L[ii,tt]
-            #     else
-            #        if check < 1
-            #           pL_part[ii] = diag_Ct_L[ii,tt]
-            #           check += 1
-            #        else
-            #           pL_part[ii] = 1-diag_Ct_L[ii,tt]
-            #        end
-            #     end
-            # end
-            # pL[NLmin+1,tt] = prod(pL_part)
-            #
-            # check .= 0
-            # for ii = 1:K
-            #     if count_L1[ii,tt] == 1
-            #        pL_part[ii] = diag_Ct_L[ii,tt]
-            #     elseif count_L0[ii,tt] == 1
-            #        pL_part[ii] = 1-diag_Ct_L[ii,tt]
-            #     else
-            #        if check < 2
-            #           pL_part[ii] = diag_Ct_L[ii,tt]
-            #           check += 1
-            #        else
-            #           pL_part[ii] = 1-diag_Ct_L[ii,tt]
-            #        end
-            #     end
-            # end
-            # pL[NLmin+2,tt] = prod(pL_part)
+            println("jj=",jj)
 
         end
 
     end
 
-    return time, diag_Ct_L, count_L
+    return time, diag_Ct_L, pL
 
 end
 
