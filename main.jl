@@ -273,16 +273,20 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
     diag_Ct_L = zeros(Float64,K,Nt)
     diag_Ct_R = zeros(Float64,K,Nt)
 
-    count_L = zeros(Int64,K)
-    count_L1 = 0
-    count_L0 = 0
-    counteps_L1 = 0.0
-    counteps_L = 0.0
-    pL = zeros(Float64,K,K,Nt)
+    Nenebath = Int64(K*(K+1)/2)
+    pL = zeros(Float64,K,Nenebath,Nt)
     pL_part = zeros(Float64,K)
     pL_part_comb = zeros(Float64,K)
     criterion = 0.1
+
+    count_L = zeros(Int64,K)
+    count_L1 = 0
+    count_L0 = 0
+
     ind = 0
+    counteps_L1 = 0 #zeros(Int64,K)
+    counteps_L0 = 0
+    indE = 0
 
     for tt = 1:Nt
 
@@ -298,16 +302,20 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
         # count the number of Tr[n_j rho] close to 1 or 0
         pL_part .= 0.0
         count_L .= 0
-        count_L1 .= 0
-        count_L0 .= 0
-        ind .= 0
+        count_L1 = 0
+        count_L0 = 0
+        ind = 0
+        counteps_L1 = 0
+        counteps_L0 = 0
         for jj = 1:K
             if diag_Ct_L[jj,tt] > 1.0 - criterion
                pL_part[jj] = 1.0
                count_L1 += 1
+               counteps_L1 += jj
             elseif diag_Ct_L[jj,tt] < criterion
                pL_part[jj] = 1.0 - 0.0
                count_L0 += 1
+               counteps_L0 += jj
             else
                pL_part[jj] = 1.0 - diag_Ct_L[jj,tt]
                ind += 1
@@ -319,24 +327,26 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
         pL[1:count_L1-1,:,tt] .= 0.0
         pL[K-count_L0+1:end,:,tt] .= 0.0
 
-        # the probability is zero for E_j < count_L1.*epsilon or E_j > count_L0*epsilon
-        pL[:,1:count_L1-1,tt] .= 0.0
-        pL[:,K-count_L0+1:end,tt] .= 0.0
+        # the probability is zero for E_j < counteps_L1 or E_j > Nenebath-counteps_L0
+        pL[:,1:counteps_L1-1,tt] .= 0.0
+        pL[:,Nenebath-counteps_L0+1:end,tt] .= 0.0
 
-        pL[count_L1,count_L1,tt] = prod(pL_part[:]) # for N_j = count_L1
-        pL[count_L1,count_L1+1:K-count_L0,tt] .= 0.0
-        pL[count_L1+1:K-count_L0,count_L1,tt] .= 0.0 # for E_j = count_L1*epsilon
+        pL[count_L1,counteps_L1,tt] = prod(pL_part[:]) # for N_j = count_L1 and E_j = counteps_L1
+        pL[count_L1,counteps_L1+1:Nenebath-counteps_L0,tt] .= 0.0
+        pL[count_L1+1:K-count_L0,counteps_L1,tt] .= 0.0
 
         for jjN = 1:K-count_L0-count_L1 #count_L1+1:K-count_L0
 
-            combindN = collect(combinations(count_L[1:ind],jjN))
-            McombindN = length(combindN)
-            for iiN = 1:McombindN
+            combind = collect(combinations(count_L[1:ind],jjN))
+            Mcombind = length(combind)
+            for iiN = 1:Mcombind
                 pL_part_comb .= pL_part
-                for kk = 1:jjN
-                    pL_part_comb[combind[iiN][kk]] = diag_Ct_L[combind[iiN][kk],tt]
+                indE = 0
+                for kkN = 1:jjN
+                    pL_part_comb[combind[iiN][kkN]] = diag_Ct_L[combind[iiN][kkN],tt]
+                    indE += combind[iiN][kkN]
                 end
-                pL[count_L1+jjN,count_L1+iiN,tt] += prod(pL_part_comb[:])
+                pL[count_L1+jjN,counteps_L1+indE,tt] += prod(pL_part_comb[:])
             end
 
         end
@@ -344,6 +354,14 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
     end
 
     return time, diag_Ct_L, pL
+
+end
+
+function calculatep_test_save(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+
+    time, diag_Ct_L, pL = calculatep_test(K,W,betaL,betaR,GammaL,GammaR,muL,muR,tf,Nt)
+
+    save()
 
 end
 
