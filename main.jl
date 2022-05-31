@@ -244,6 +244,8 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
     matH = spzeros(Float64,K*2+1,K*2+1)
     createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
 
+    # the following calculation for the probability replies on the fact that epsilonL and epsilonR are equally spacing
+
     # Hamiltonian is hermitian
     matH = Hermitian(Array(matH))
     val_matH, vec_matH = eigen(matH)
