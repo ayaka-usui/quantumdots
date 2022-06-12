@@ -437,7 +437,7 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
     arrayEsize = zeros(Int64,Nt)
 
     Depsilon = W/(K-1)
-    epsilonLposi = Array(1:K)*Depsilon
+    epsilonLposi = Array(1:K)*Depsilon #(kk-1)*Depsilon - W/2
 
     for tt = 1:Nt
 
