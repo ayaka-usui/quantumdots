@@ -572,7 +572,7 @@ function calculatep_test_parfor(K::Int64,W::Int64,betaL::Float64,betaR::Float64,
 
 end
 
-function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+function calculatepL_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # Hamiltonian
     matH = spzeros(Float64,K*2+1,K*2+1)
@@ -605,8 +605,10 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
     Ct = zeros(ComplexF64,K*2+1,K*2+1)
     # diag_Ct_L = zeros(Float64,K,Nt)
     # diag_Ct_R = zeros(Float64,K,Nt)
-    eigval_Ct_L = zeros(Float64,K)
-    eigvec_Ct_L = zeros(Float64,K,K)
+    # eigval_Ct_L = zeros(Float64,K)
+    # eigvec_Ct_L = zeros(Float64,K,K)
+    eigval_Ct = zeros(Float64,K)
+    eigvec_Ct = zeros(Float64,K,K)
 
     # Nenebath = Int64(K*(K+1)/2)
     lengthErange = 2^21 #2^23
@@ -632,6 +634,8 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
 
     Depsilon = W/(K-1)
     epsilonLposi = Array(1:K)*Depsilon #(kk-1)*Depsilon - W/2
+    epsilonRposi = Array(1:K)*Depsilon #(kk-1)*Depsilon - W/2
+    epsilonposi = [0.0; epsilonLposi; epsilonRposi]
 
     for tt = 1:Nt
 
@@ -649,22 +653,23 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
         # diag_Ct_R[:,tt] .= real(diag(Ct[K+2:end,K+2:end]))
 
         # Tr[tilde{n}_j rho] for j = L,R
-        lambda, eigvec_Ct_L = eigen(Ct[2:K+1,2:K+1],sortby = x -> -abs(x))
-        eigval_Ct_L .= real.(lambda)
-        # lambda, eigvec_Ct_L = eigen(Ct[2:K+1,2:K+1])
-        # eigval_Ct_L .= sort(real.(lambda),rev=true)
-        # lambda, eigvec_Ct_L = eigen(Ct[2:K+1,2:K+1])
-        # indss0 = sortperm(lambda)
-        # eigval_Ct_L .= real.(lambda[indss0])
-        # eigvec_Ct_L .= eigvec_Ct_L[:,indss0]
+        # lambda, eigvec_Ct_L = eigen(Ct[2:K+1,2:K+1],sortby = x -> -abs(x))
+        # eigval_Ct_L .= real.(lambda)
+
+        # Tr[tilde{n}_total rho]
+        lambda, eigvec_Ct = eigen(Ct[1:2*K+1,1:2*K+1],sortby = x -> -abs(x))
+        eigval_Ct .= real.(lambda)
 
         # tiltde{epsilon}, epsilon in the a basis
-        for ss = 1:K
-            epsilonL_tilde[ss,tt] = sum(abs.(eigvec_Ct_L[:,ss]).^2 .* epsilonLposi)
-        end
+        # for ss = 1:K
+        #     epsilonL_tilde[ss,tt] = sum(abs.(eigvec_Ct_L[:,ss]).^2 .* epsilonLposi)
+        # end
         # indss = sortperm(epsilonL_tilde[:,tt])
         # epsilonL_tilde[:,tt] .= epsilonL_tilde[indss,tt]
         # eigval_Ct_L .= eigval_Ct_L[indss]
+        for ss = 1:2*K+1
+            epsilon_tilde[ss,tt] = sum(abs.(eigvec_Ct[:,ss]).^2 .* epsilonposi)
+        end
 
         # count the number of Tr[n_j rho] close to 1 or 0
         pL_part .= 0.0
@@ -767,6 +772,232 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
 
     # return time, arrayE, arrayEsize, pL, arrayEround, arrayEroundsize, pLround
     return time, arrayEround, arrayEroundsize, arrayN, pLround
+
+    # technically, N_j=0 and E_j=0 should be considered, but let me ignore it since p_{0,0}=0
+
+end
+
+function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+
+    # Hamiltonian
+    matH = spzeros(Float64,K*2+1,K*2+1)
+    createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
+
+    # Hamiltonian is hermitian
+    matH = Hermitian(Array(matH))
+    val_matH, vec_matH = eigen(matH)
+    invvec_matH = inv(vec_matH)
+
+    # time
+    time = LinRange(0.0,tf,Nt)
+
+    # correlation matrix
+    # at initial
+    C0 = zeros(Float64,K*2+1)
+    C0[1] = 0.0 + 1e-15 # n_d(0) # make it not 0 exactly to avoid 0.0 log 0.0 = NaN
+    for kk = 1:K
+        C0[1+kk] = 1.0/(exp((matH[1+kk,1+kk]-muL)*betaL)+1.0)
+        C0[1+K+kk] = 1.0/(exp((matH[1+K+kk,1+K+kk]-muR)*betaR)+1.0)
+    end
+    C0 = diagm(C0)
+
+    # epsilonLR = zeros(ComplexF64,K*2+1)
+    epsilon = diag(matH)
+    epsilonL = epsilonLR[2:K+1]
+    epsilonR = epsilonLR[K+2:2*K+1]
+    epsilon_tilde = zeros(Float64,K,Nt)
+    # epsilonL_tilde = zeros(Float64,K,Nt)
+
+    Ct = zeros(ComplexF64,K*2+1,K*2+1)
+    # diag_Ct_L = zeros(Float64,K,Nt)
+    # diag_Ct_R = zeros(Float64,K,Nt)
+    # eigval_Ct_L = zeros(Float64,K)
+    # eigvec_Ct_L = zeros(Float64,K,K)
+    eigval_Ct = zeros(Float64,2*K+1)
+    eigvec_Ct = zeros(Float64,2*K+1,2*K+1)
+
+    # Nenebath = Int64(K*(K+1)/2)
+    lengthErange = 2^21 #2^23
+    # pL = zeros(Float64,K,lengthErange) #spzeros(Float64,K,lengthErange)
+    # pLround = zeros(Float64,K,lengthErange,Nt)
+    # pL_part = zeros(Float64,K)
+    # pL_part_comb = zeros(Float64,K)
+    ptotal = zeros(Float64,2*K+1,lengthErange) #spzeros(Float64,K,lengthErange)
+    ptotalround = zeros(Float64,2*K+1,lengthErange,Nt)
+    ptotal_part = zeros(Float64,2*K+1)
+    ptotal_part_comb = zeros(Float64,2*K+1)
+    criterion = 0.1
+
+    # count_L = zeros(Int64,K)
+    # count_L1 = 0
+    # count_L0 = 0
+    # counteps_L1 = zeros(Int64,K)
+    count_total = zeros(Int64,2*K+1)
+    count_total1 = 0
+    count_total0 = 0
+    counteps_total1 = zeros(Int64,2*K+1)
+    ind = 0
+
+    indE = 0
+    arrayE = zeros(Float64,lengthErange) #spzeros(Float64,lengthErange)
+    arrayEround = zeros(Float64,lengthErange,Nt)
+    arrayEroundsize = zeros(Int64,Nt)
+    arrayEsize = zeros(Int64,Nt)
+    arrayN = zeros(Int64,2,Nt)
+
+    # Depsilon = W/(K-1)
+    # epsilonLposi = Array(1:K)*Depsilon-W/2 #(kk-1)*Depsilon - W/2
+
+    for tt = 1:Nt
+
+        println("t=",tt)
+
+        @time begin
+
+        # time evolution of correlation matrix
+        Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
+        Ct .= Ct*C0
+        Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
+
+        # Tr[n_j rho] for j = L,R
+        # diag_Ct_L[:,tt] .= real(diag(Ct[2:K+1,2:K+1]))
+        # diag_Ct_R[:,tt] .= real(diag(Ct[K+2:end,K+2:end]))
+
+        # Tr[tilde{n}_j rho] for j = L,R
+        # lambda, eigvec_Ct_L = eigen(Ct[2:K+1,2:K+1],sortby = x -> -abs(x))
+        # eigval_Ct_L .= real.(lambda)
+
+        # Tr[tilde{n}_total rho]
+        lambda, eigvec_Ct = eigen(Ct[1:2*K+1,1:2*K+1],sortby = x -> -abs(x))
+        eigval_Ct .= real.(lambda)
+
+        # tiltde{epsilon}, epsilon in the a basis
+        # for ss = 1:K
+        #     epsilonL_tilde[ss,tt] = sum(abs.(eigvec_Ct_L[:,ss]).^2 .* epsilonLposi)
+        # end
+        # indss = sortperm(epsilonL_tilde[:,tt])
+        # epsilonL_tilde[:,tt] .= epsilonL_tilde[indss,tt]
+        # eigval_Ct_L .= eigval_Ct_L[indss]
+        for ss = 1:2*K+1
+            epsilon_tilde[ss,tt] = sum(abs.(eigvec_Ct[:,ss]).^2 .* epsilon)
+        end
+
+        # count the number of Tr[n_j rho] close to 1 or 0
+        # pL_part .= 0.0
+        # count_L .= 0
+        # count_L1 = 0
+        # count_L0 = 0
+        # ind = 0
+        # counteps_L1 .= 0
+        ptotal_part .= 0.0
+        count_total .= 0
+        count_total1 = 0
+        count_total0 = 0
+        ind = 0
+        counteps_total1 .= 0
+
+        for jj = 1:K
+            if eigval_Ct[jj] > 1.0 - criterion #eigval_Ct_L[jj] > 1.0 - criterion
+               ptotal_part[jj] = 1.0 #pL_part[jj] = 1.0
+               count_total1 += 1 #count_L1 += 1
+               counteps_total1[count_total1] = jj #counteps_L1[count_L1] = jj
+            elseif eigval_Ct[jj] < criterion #eigval_Ct_L[jj] < criterion
+               ptotal_part[jj] = 1.0 - 0.0 #pL_part[jj] = 1.0 - 0.0
+               count_total0 += 1 #count_L0 += 1
+            else
+               ptotal_part[jj] = 1.0 - eigval_Ct[jj] #pL_part[jj] = 1.0 - eigval_Ct_L[jj]
+               ind += 1
+               count_total[ind] = jj #count_L[ind] = jj
+            end
+        end
+
+        Esize = 2^ind
+
+        # the probability is zero for N_j < count_L1 or N_j > count_L0
+        # pL[1:count_L1-1,:,tt] .= 0.0
+        # pL[K-count_L0+1:end,:,tt] .= 0.0
+
+        # the probability is zero for E_j < counteps_L1 or E_j > Nenebath-counteps_L0
+        # pL[:,Esize+1:end,tt] .= 0.0
+
+        ptotal .= 0.0 #pL .= 0.0
+        arrayE .= 0.0
+        indE = 1
+        # pL[count_L1,indE] = prod(pL_part[:]) # for N_j = count_L1 and E_j = counteps_L1
+        ptotal[count_total1,indE] = prod(ptotal_part[:])
+        # arrayE0 = sum(epsilonL_tilde[counteps_L1[1:count_L1],tt])
+        arrayE0 = sum(epsilon_tilde[counteps_total1[1:count_total1],tt])
+        arrayE[indE] = 0.0+arrayE0
+        # arrayN[1,tt] = count_L1
+        # arrayN[2,tt] = count_L1+ind
+        arrayN[1,tt] = count_total1
+        arrayN[2,tt] = count_total1+ind
+
+        for jjN = 1:ind
+
+            # combind = collect(combinations(count_L[1:ind],jjN))
+            combind = collect(combinations(count_total[1:ind],jjN))
+            Mcombind = length(combind)
+
+            for iiN = 1:Mcombind
+                # pL_part_comb .= pL_part
+                ptotal_part_comb .= ptotal_part
+                for kkN = 1:jjN
+                    # pL_part_comb[combind[iiN][kkN]] = eigval_Ct_L[combind[iiN][kkN]]
+                    ptotal_part_comb[combind[iiN][kkN]] = eigval_Ct[combind[iiN][kkN]]
+                end
+                indE += 1
+                # pL[count_L1+jjN,indE] = prod(pL_part_comb[:])
+                ptotal[count_total1+jjN,indE] = prod(ptotal_part_comb[:])
+                # arrayE[indE] = sum(epsilonL_tilde[combind[iiN],tt])+arrayE0
+                arrayE[indE] = sum(epsilon_tilde[combind[iiN],tt])+arrayE0
+            end
+
+        end
+
+        indarrayE = sortperm(arrayE[1:indE])
+        arrayE[1:indE] = arrayE[indarrayE]
+        for jjN = 1:ind
+            # pL[count_L1+jjN,1:indE] = pL[count_L1+jjN,indarrayE]
+            ptotal[count_total1+jjN,1:indE] = ptotal[count_total1+jjN,indarrayE]
+        end
+        arrayEsize[tt] = indE
+
+        # round E
+        check0 = arrayE[1]
+        indcheck0 = 0
+        indround = 0
+        for jjE = 2:indE
+
+            if arrayE[jjE]-check0 < 10^(-10)*check0
+               indcheck0 += 1
+            else
+               indround += 1
+               arrayEround[indround,tt] = check0
+               for jjN = 1:ind
+                   # pLround[count_L1+jjN,indround,tt] = sum(pL[count_L1+jjN,jjE-1-indcheck0:jjE-1])
+                   ptotalround[count_total1+jjN,indround,tt] = sum(ptotal[count_total1+jjN,jjE-1-indcheck0:jjE-1])
+               end
+               check0 = arrayE[jjE]
+               indcheck0 = 0
+            end
+
+        end
+        indround += 1
+        arrayEround[indround,tt] = check0 #arrayE[indE]
+        for jjN = 1:ind
+            # pLround[count_L1+jjN,indround,tt] = sum(pL[count_L1+jjN,indE-indcheck0:indE])
+            ptotalround[count_total1+jjN,indround,tt] = sum(ptotal[count_total1+jjN,indE-indcheck0:indE])
+        end
+        arrayEroundsize[tt] = indround
+
+        end
+
+    end
+
+    # return time, arrayE, arrayEsize, pL, arrayEround, arrayEroundsize, pLround
+    # return time, arrayEround, arrayEroundsize, arrayN, pLround
+    return time, arrayEround, arrayEroundsize, arrayN, ptotalround
 
     # technically, N_j=0 and E_j=0 should be considered, but let me ignore it since p_{0,0}=0
 
