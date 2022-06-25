@@ -436,6 +436,7 @@ function calculatep_test_parfor(K::Int64,W::Int64,betaL::Float64,betaR::Float64,
     arrayEround = zeros(Float64,lengthErange,Nt)
     arrayEroundsize = zeros(Int64,Nt)
     arrayEsize = zeros(Int64,Nt)
+    arrayN = zeros(Int64,2,Nt)
 
     Depsilon = W/(K-1)
     epsilonLposi = Array(1:K)*Depsilon #(kk-1)*Depsilon - W/2
@@ -500,13 +501,15 @@ function calculatep_test_parfor(K::Int64,W::Int64,betaL::Float64,betaR::Float64,
         # the probability is zero for E_j < counteps_L1 or E_j > Nenebath-counteps_L0
         # pL[:,Esize+1:end,tt] .= 0.0
 
-        pL = zeros(Float64,K,lengthErange)
-        arrayE = zeros(Float64,lengthErange)
+        pL = spzeros(Float64,K,lengthErange) #zeros(Float64,K,lengthErange)
+        arrayE = spzeros(Float64,lengthErange) #zeros(Float64,lengthErange)
         indE = 1
         pL_part_comb = pL_part
         pL[count_L1,indE] = prod(pL_part[:]) # for N_j = count_L1 and E_j = counteps_L1
         arrayE0 = sum(epsilonL_tilde[counteps_L1[1:count_L1],tt])
         arrayE[indE] = 0.0+arrayE0
+        arrayN[1,tt] = count_L1
+        arrayN[2,tt] = count_L1+ind
 
         for jjN = 1:ind
 
@@ -563,7 +566,7 @@ function calculatep_test_parfor(K::Int64,W::Int64,betaL::Float64,betaR::Float64,
     end
 
     # return time, arrayE, arrayEsize, pL, arrayEround, arrayEroundsize, pLround
-    return time, arrayEround, arrayEroundsize, pLround
+    return time, arrayEround, arrayEroundsize, arrayN, pLround
 
     # technically, N_j=0 and E_j=0 should be considered, but let me ignore it since p_{0,0}=0
 
@@ -608,7 +611,7 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
 
     # Nenebath = Int64(K*(K+1)/2)
     lengthErange = 2^23
-    pL = zeros(Float64,K,lengthErange)
+    pL = zeros(Float64,K,lengthErange) #spzeros(Float64,K,lengthErange)
     pLround = zeros(Float64,K,lengthErange,Nt)
     pL_part = zeros(Float64,K)
     pL_part_comb = zeros(Float64,K)
@@ -622,10 +625,11 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
     counteps_L1 = zeros(Int64,K)
     # counteps_L0 = 0
     indE = 0
-    arrayE = zeros(Float64,lengthErange)
+    arrayE = zeros(Float64,lengthErange) #spzeros(Float64,lengthErange)
     arrayEround = zeros(Float64,lengthErange,Nt)
     arrayEroundsize = zeros(Int64,Nt)
     arrayEsize = zeros(Int64,Nt)
+    arrayN = zeros(Int64,2,Nt)
 
     Depsilon = W/(K-1)
     epsilonLposi = Array(1:K)*Depsilon #(kk-1)*Depsilon - W/2
@@ -705,6 +709,8 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
         pL[count_L1,indE] = prod(pL_part[:]) # for N_j = count_L1 and E_j = counteps_L1
         arrayE0 = sum(epsilonL_tilde[counteps_L1[1:count_L1],tt])
         arrayE[indE] = 0.0+arrayE0
+        arrayN[1,tt] = count_L1
+        arrayN[2,tt] = count_L1+ind
 
         for jjN = 1:ind
 
@@ -761,7 +767,7 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
     end
 
     # return time, arrayE, arrayEsize, pL, arrayEround, arrayEroundsize, pLround
-    return time, arrayEround, arrayEroundsize, pLround
+    return time, arrayEround, arrayEroundsize, arrayN, pLround
 
     # technically, N_j=0 and E_j=0 should be considered, but let me ignore it since p_{0,0}=0
 
@@ -769,15 +775,27 @@ end
 
 function calculateSobs_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
-    time, arrayEround, arrayEroundsize, pLround = calculatep_test(K,W,betaL,betaR,GammaL,GammaR,muL,muR,tf,Nt)
+    time, arrayEround, arrayEroundsize, arrayN, pLround = calculatep_test(K,W,betaL,betaR,GammaL,GammaR,muL,muR,tf,Nt)
 
     SobsL = zeros(Float64,Nt)
 
+    # for tt = 1:Nt
+    #     pop = pLround[arrayN[1,tt]:arrayN[2,tt],1:arrayEroundsize[tt],tt]
+    #     SobsL[tt] = -sum(pop.*log.(pop))
+    # end
+
     for tt = 1:Nt
-        SobsL[tt] = -sum(pL[:,1:arrayEroundsize[tt],tt].*log10.(pL[:,1:arrayEroundsize[tt],tt]))
+        for jjN = arrayN[1,tt]:arrayN[2,tt]
+            for jjE = 1:arrayEroundsize[tt]
+                pop = pLround[jjN,jjE,tt]
+                if abs(pop) != 0.0
+                   SobsL[tt] += -pop*log(pop)
+                end
+            end
+        end
     end
 
-    return time, arrayEround, arrayEroundsize, pLround, SobsL
+    return time, arrayEround, arrayEroundsize, arrayN, pLround, SobsL
 
 end
 
