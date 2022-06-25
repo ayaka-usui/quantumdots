@@ -597,18 +597,18 @@ function calculatepL_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL
     C0 = diagm(C0)
 
     # epsilonLR = zeros(ComplexF64,K*2+1)
-    epsilonLR = diag(matH)
-    epsilonL = epsilonLR[2:K+1]
-    epsilonR = epsilonLR[K+2:2*K+1]
+    epsilon = diag(matH)
+    epsilonL = epsilon[2:K+1]
+    epsilonR = epsilon[K+2:2*K+1]
     epsilonL_tilde = zeros(Float64,K,Nt)
 
     Ct = zeros(ComplexF64,K*2+1,K*2+1)
     # diag_Ct_L = zeros(Float64,K,Nt)
     # diag_Ct_R = zeros(Float64,K,Nt)
-    # eigval_Ct_L = zeros(Float64,K)
-    # eigvec_Ct_L = zeros(Float64,K,K)
-    eigval_Ct = zeros(Float64,K)
-    eigvec_Ct = zeros(Float64,K,K)
+    eigval_Ct_L = zeros(Float64,K)
+    eigvec_Ct_L = zeros(Float64,K,K)
+    # eigval_Ct = zeros(Float64,K)
+    # eigvec_Ct = zeros(Float64,K,K)
 
     # Nenebath = Int64(K*(K+1)/2)
     lengthErange = 2^21 #2^23
@@ -634,8 +634,8 @@ function calculatepL_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL
 
     Depsilon = W/(K-1)
     epsilonLposi = Array(1:K)*Depsilon #(kk-1)*Depsilon - W/2
-    epsilonRposi = Array(1:K)*Depsilon #(kk-1)*Depsilon - W/2
-    epsilonposi = [0.0; epsilonLposi; epsilonRposi]
+    # epsilonRposi = Array(1:K)*Depsilon #(kk-1)*Depsilon - W/2
+    # epsilonposi = [0.0; epsilonLposi; epsilonRposi]
 
     for tt = 1:Nt
 
@@ -653,23 +653,23 @@ function calculatepL_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL
         # diag_Ct_R[:,tt] .= real(diag(Ct[K+2:end,K+2:end]))
 
         # Tr[tilde{n}_j rho] for j = L,R
-        # lambda, eigvec_Ct_L = eigen(Ct[2:K+1,2:K+1],sortby = x -> -abs(x))
-        # eigval_Ct_L .= real.(lambda)
+        lambda, eigvec_Ct_L = eigen(Ct[2:K+1,2:K+1],sortby = x -> -abs(x))
+        eigval_Ct_L .= real.(lambda)
 
         # Tr[tilde{n}_total rho]
-        lambda, eigvec_Ct = eigen(Ct[1:2*K+1,1:2*K+1],sortby = x -> -abs(x))
-        eigval_Ct .= real.(lambda)
+        # lambda, eigvec_Ct = eigen(Ct[1:2*K+1,1:2*K+1],sortby = x -> -abs(x))
+        # eigval_Ct .= real.(lambda)
 
         # tiltde{epsilon}, epsilon in the a basis
-        # for ss = 1:K
-        #     epsilonL_tilde[ss,tt] = sum(abs.(eigvec_Ct_L[:,ss]).^2 .* epsilonLposi)
-        # end
+        for ss = 1:K
+            epsilonL_tilde[ss,tt] = sum(abs.(eigvec_Ct_L[:,ss]).^2 .* epsilonL)
+        end
         # indss = sortperm(epsilonL_tilde[:,tt])
         # epsilonL_tilde[:,tt] .= epsilonL_tilde[indss,tt]
         # eigval_Ct_L .= eigval_Ct_L[indss]
-        for ss = 1:2*K+1
-            epsilon_tilde[ss,tt] = sum(abs.(eigvec_Ct[:,ss]).^2 .* epsilonposi)
-        end
+        # for ss = 1:2*K+1
+            # epsilon_tilde[ss,tt] = sum(abs.(eigvec_Ct[:,ss]).^2 .* epsilonposi)
+        # end
 
         # count the number of Tr[n_j rho] close to 1 or 0
         pL_part .= 0.0
@@ -803,9 +803,9 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
 
     # epsilonLR = zeros(ComplexF64,K*2+1)
     epsilon = diag(matH)
-    epsilonL = epsilonLR[2:K+1]
-    epsilonR = epsilonLR[K+2:2*K+1]
-    epsilon_tilde = zeros(Float64,K,Nt)
+    epsilonL = epsilon[2:K+1]
+    epsilonR = epsilon[K+2:2*K+1]
+    epsilon_tilde = zeros(Float64,2*K+1,Nt)
     # epsilonL_tilde = zeros(Float64,K,Nt)
 
     Ct = zeros(ComplexF64,K*2+1,K*2+1)
@@ -896,7 +896,7 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
         ind = 0
         counteps_total1 .= 0
 
-        for jj = 1:K
+        for jj = 1:2*K+1
             if eigval_Ct[jj] > 1.0 - criterion #eigval_Ct_L[jj] > 1.0 - criterion
                ptotal_part[jj] = 1.0 #pL_part[jj] = 1.0
                count_total1 += 1 #count_L1 += 1
@@ -919,6 +919,8 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
 
         # the probability is zero for E_j < counteps_L1 or E_j > Nenebath-counteps_L0
         # pL[:,Esize+1:end,tt] .= 0.0
+
+        println(prod(ptotal_part[:]))
 
         ptotal .= 0.0 #pL .= 0.0
         arrayE .= 0.0
@@ -1005,9 +1007,10 @@ end
 
 function calculateSobs_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
-    time, arrayEround, arrayEroundsize, arrayN, pLround = calculatep_test(K,W,betaL,betaR,GammaL,GammaR,muL,muR,tf,Nt)
+    time, arrayEround, arrayEroundsize, arrayN, pround = calculateptotal_test(K,W,betaL,betaR,GammaL,GammaR,muL,muR,tf,Nt)
+    # time, arrayEround, arrayEroundsize, arrayN, pround = calculatepL_test(K,W,betaL,betaR,GammaL,GammaR,muL,muR,tf,Nt)
 
-    SobsL = zeros(Float64,Nt)
+    Sobs = zeros(Float64,Nt)
 
     # for tt = 1:Nt
     #     pop = pLround[arrayN[1,tt]:arrayN[2,tt],1:arrayEroundsize[tt],tt]
@@ -1017,15 +1020,15 @@ function calculateSobs_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Gamm
     for tt = 1:Nt
         for jjN = arrayN[1,tt]:arrayN[2,tt]
             for jjE = 1:arrayEroundsize[tt]
-                pop = pLround[jjN,jjE,tt]
+                pop = pround[jjN,jjE,tt]
                 if abs(pop) != 0.0
-                   SobsL[tt] += -pop*log(pop)
+                   Sobs[tt] += -pop*log(pop)
                 end
             end
         end
     end
 
-    return time, arrayEround, arrayEroundsize, arrayN, pLround, SobsL
+    return time, arrayEround, arrayEroundsize, arrayN, pround, Sobs
 
 end
 
