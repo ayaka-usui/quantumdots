@@ -274,6 +274,7 @@ function calculatep_test0(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL
     epsilonR = epsilonLR[K+2:2*K+1]
 
     Ct = zeros(ComplexF64,K*2+1,K*2+1)
+    diag_Ct = zeros(Float64,K,Nt)
     diag_Ct_L = zeros(Float64,K,Nt)
     diag_Ct_R = zeros(Float64,K,Nt)
 
@@ -306,8 +307,9 @@ function calculatep_test0(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL
         Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
 
         # Tr[n_j rho] for j = L,R
-        diag_Ct_L[:,tt] .= real(diag(Ct[2:K+1,2:K+1]))
-        diag_Ct_R[:,tt] .= real(diag(Ct[K+2:end,K+2:end]))
+        diag_Ct[:,tt] .= real(diag(Ct[1:2*K+1,1:2*K+1]))
+        # diag_Ct_L[:,tt] .= real(diag(Ct[2:K+1,2:K+1]))
+        # diag_Ct_R[:,tt] .= real(diag(Ct[K+2:end,K+2:end]))
 
         # count the number of Tr[n_j rho] close to 1 or 0
         pL_part .= 0.0
@@ -817,7 +819,7 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
     eigvec_Ct = zeros(Float64,2*K+1,2*K+1)
 
     # Nenebath = Int64(K*(K+1)/2)
-    lengthErange = 2^21 #2^23
+    lengthErange = 2^22 #2^21
     # pL = zeros(Float64,K,lengthErange) #spzeros(Float64,K,lengthErange)
     # pLround = zeros(Float64,K,lengthErange,Nt)
     # pL_part = zeros(Float64,K)
@@ -826,7 +828,7 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
     ptotalround = zeros(Float64,2*K+1,lengthErange,Nt)
     ptotal_part = zeros(Float64,2*K+1)
     ptotal_part_comb = zeros(Float64,2*K+1)
-    criterion = 0.1
+    criterion = 0.25
 
     # count_L = zeros(Int64,K)
     # count_L1 = 0
@@ -919,8 +921,6 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
 
         # the probability is zero for E_j < counteps_L1 or E_j > Nenebath-counteps_L0
         # pL[:,Esize+1:end,tt] .= 0.0
-
-        println(prod(ptotal_part[:]))
 
         ptotal .= 0.0 #pL .= 0.0
         arrayE .= 0.0
