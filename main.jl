@@ -572,7 +572,6 @@ function calculatep_test_parfor(K::Int64,W::Int64,betaL::Float64,betaR::Float64,
 
 end
 
-
 function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # Hamiltonian
@@ -610,7 +609,7 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
     eigvec_Ct_L = zeros(Float64,K,K)
 
     # Nenebath = Int64(K*(K+1)/2)
-    lengthErange = 2^23
+    lengthErange = 2^21 #2^23
     pL = zeros(Float64,K,lengthErange) #spzeros(Float64,K,lengthErange)
     pLround = zeros(Float64,K,lengthErange,Nt)
     pL_part = zeros(Float64,K)
