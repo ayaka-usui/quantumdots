@@ -242,7 +242,7 @@ end
 
 function calculatep_test0(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
-    # function 
+    # this function works only for thermal states
 
     # Hamiltonian
     matH = spzeros(Float64,K*2+1,K*2+1)
@@ -386,8 +386,6 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
     matH = spzeros(Float64,K*2+1,K*2+1)
     createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
 
-    # the following calculation for the probability replies on the fact that epsilonL and epsilonR are equally spacing
-
     # Hamiltonian is hermitian
     matH = Hermitian(Array(matH))
     val_matH, vec_matH = eigen(matH)
@@ -443,6 +441,10 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
 
     for tt = 1:Nt
 
+        println("t=",tt)
+
+        @time begin
+        
         # time evolution of correlation matrix
         Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
         Ct .= Ct*C0
@@ -567,9 +569,12 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
         end
         arrayEroundsize[tt] = indround
 
+        end
+
     end
 
-    return time, arrayE, arrayEsize, pL, arrayEround, arrayEroundsize, pLround
+    # return time, arrayE, arrayEsize, pL, arrayEround, arrayEroundsize, pLround
+    return time, arrayEround, arrayEroundsize, pLround
 
     # technically, N_j=0 and E_j=0 should be considered, but let me ignore it since p_{0,0}=0
 
@@ -577,9 +582,9 @@ end
 
 function calculatep_test_save(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
-    time, epsilonL_tilde, pL = calculatep_test(K,W,betaL,betaR,GammaL,GammaR,muL,muR,tf,Nt)
+    time, arrayEround, arrayEroundsize, pLround = calculatep_test(K,W,betaL,betaR,GammaL,GammaR,muL,muR,tf,Nt)
 
-    save("data_bathprobability_K$K.jld", "time", time, "epsilonL_tilde", epsilonL_tilde, "pL", pL)
+    save("data_bathprobability_K$K.jld", "time", time, "arrayEround", arrayEround, "arrayEroundsize", arrayEroundsize, "pLround", pLround)
 
 end
 
