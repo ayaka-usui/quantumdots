@@ -417,7 +417,7 @@ function calculatep_test_parfor(K::Int64,W::Int64,betaL::Float64,betaR::Float64,
     # eigvec_Ct_L = zeros(Float64,K,K)
 
     # Nenebath = Int64(K*(K+1)/2)
-    lengthErange = 2^22
+    lengthErange = 2^23
     # pL = zeros(Float64,K,lengthErange)
     pLround = zeros(Float64,K,lengthErange,Nt)
     # pL_part = zeros(Float64,K)
@@ -607,7 +607,7 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
     eigvec_Ct_L = zeros(Float64,K,K)
 
     # Nenebath = Int64(K*(K+1)/2)
-    lengthErange = 2^22
+    lengthErange = 2^23
     pL = zeros(Float64,K,lengthErange)
     pLround = zeros(Float64,K,lengthErange,Nt)
     pL_part = zeros(Float64,K)
@@ -622,7 +622,7 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
     counteps_L1 = zeros(Int64,K)
     # counteps_L0 = 0
     indE = 0
-    # arrayE = zeros(Float64,lengthErange)
+    arrayE = zeros(Float64,lengthErange)
     arrayEround = zeros(Float64,lengthErange,Nt)
     arrayEroundsize = zeros(Int64,Nt)
     arrayEsize = zeros(Int64,Nt)
@@ -700,7 +700,7 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
         # pL[:,Esize+1:end,tt] .= 0.0
 
         pL .= 0.0
-        arrayE = 0.0
+        arrayE .= 0.0
         indE = 1
         pL[count_L1,indE] = prod(pL_part[:]) # for N_j = count_L1 and E_j = counteps_L1
         arrayE0 = sum(epsilonL_tilde[counteps_L1[1:count_L1],tt])
@@ -767,25 +767,17 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
 
 end
 
-# function calculatep_test_save(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
-#
-#     time, arrayEround, arrayEroundsize, pLround = calculatep_test(K,W,betaL,betaR,GammaL,GammaR,muL,muR,tf,Nt)
-#
-#     save("data_bathprobability_K$K.jld", "time", time, "arrayEround", arrayEround, "arrayEroundsize", arrayEroundsize, "pLround", pLround)
-#
-# end
-
 function calculateSobs_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
-    time, diag_Ct_L, pL = calculatep_test_parfor(K,W,betaL,betaR,GammaL,GammaR,muL,muR,tf,Nt)
+    time, arrayEround, arrayEroundsize, pLround = calculatep_test(K,W,betaL,betaR,GammaL,GammaR,muL,muR,tf,Nt)
 
     SobsL = zeros(Float64,Nt)
 
     for tt = 1:Nt
-        SobsL[tt] = -sum(pL[:,:,tt].*log10.(pL[:,:,tt]))
+        SobsL[tt] = -sum(pL[:,1:arrayEroundsize[tt],tt].*log10.(pL[:,1:arrayEroundsize[tt],tt]))
     end
 
-    return time, diag_Ct_L, pL, SobsL
+    return time, arrayEround, arrayEroundsize, pLround, SobsL
 
 end
 
