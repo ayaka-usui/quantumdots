@@ -444,7 +444,7 @@ function calculatep_test_parfor(K::Int64,W::Int64,betaL::Float64,betaR::Float64,
 
         println("t=",tt)
 
-        @time begin
+        # @time begin
 
         # time evolution of correlation matrix
         Ctparfor = vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
@@ -554,7 +554,7 @@ function calculatep_test_parfor(K::Int64,W::Int64,betaL::Float64,betaR::Float64,
         end
         arrayEroundsize[tt] = indround
 
-        end
+        # end
 
     end
 
