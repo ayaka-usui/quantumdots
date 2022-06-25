@@ -242,6 +242,8 @@ end
 
 function calculatep_test0(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
+    # function 
+
     # Hamiltonian
     matH = spzeros(Float64,K*2+1,K*2+1)
     createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
@@ -508,15 +510,18 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
         # pL[:,Nenebath-counteps_L0+1:end,tt] .= 0.0
         pL[:,Esize+1:end,tt] .= 0.0
 
-        pL[count_L1,1,tt] = prod(pL_part[:]) # for N_j = count_L1 and E_j = counteps_L1
-        pL[count_L1,Esize+1:end,tt] .= 0.0
-        pL[count_L1+1:K-count_L0,1,tt] .= 0.0
-        indE = 0
+        indE = 1
+        pL[count_L1,indE,tt] = prod(pL_part[:]) # for N_j = count_L1 and E_j = counteps_L1
+        # pL[count_L1,Esize+1:end,tt] .= 0.0
+        # pL[count_L1+1:K-count_L0,indE,tt] .= 0.0
+        arrayE0 = sum(epsilonL_tilde[counteps_L1[1:count_L1],tt])
+        arrayE[indE,tt] = 0.0+arrayE0
 
         for jjN = 1:ind
 
             combind = collect(combinations(count_L[1:ind],jjN))
             Mcombind = length(combind)
+
             for iiN = 1:Mcombind
                 pL_part_comb .= pL_part
                 for kkN = 1:jjN
@@ -524,7 +529,7 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
                 end
                 indE += 1
                 pL[count_L1+jjN,indE,tt] = prod(pL_part_comb[:])
-                arrayE[indE,tt] = sum(epsilonL_tilde[combind[iiN],tt])
+                arrayE[indE,tt] = sum(epsilonL_tilde[combind[iiN],tt])+arrayE0
             end
 
         end
@@ -556,7 +561,7 @@ function calculatep_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL:
 
         end
         indround += 1
-        arrayEround[indround,tt] = arrayE[indE,tt]
+        arrayEround[indround,tt] = check0 #arrayE[indE,tt]
         for jjN = 1:ind
             pLround[count_L1+jjN,indround,tt] = sum(pL[count_L1+jjN,indE-indcheck0:indE,tt])
         end
