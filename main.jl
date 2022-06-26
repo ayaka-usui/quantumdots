@@ -284,13 +284,13 @@ function calculatep_test0(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL
     epsilon = diag(matH)
     # epsilonL = epsilon[2:K+1]
     # epsilonR = epsilon[K+2:2*K+1]
-    ind_epsilon = zeros(Float64,2*K+1)
+    ind_epsilon = zeros(Int64,2*K+1)
     epsilon_sort = zeros(Float64,2*K+1)
 
     Ct = zeros(ComplexF64,K*2+1,K*2+1)
     diag_Ct = zeros(Float64,2*K+1,Nt)
 
-    Nene = Int64(K/2)^2+1 #Int64(K*(K+1)/2) + Int64(K*(K+1)/2) + 1
+    Nene = 2^10 #Int64(K^2/2)+1
     # Nene = Nenebath*2+1 #(Int64(K/2)^2+1)*2+1
     ptotal = zeros(Float64,2*K+1,Nene,Nt)
     ptotal_part = zeros(Float64,2*K+1)
@@ -305,11 +305,8 @@ function calculatep_test0(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL
     counteps_total0 = zeros(Int64,2*K+1)
     counteps_total = zeros(Int64,2*K+1)
 
-    arrayE0 = zeros(Float64,Nene)
-    Depsilon = W/(K-1)
-    for kk = 1:Nene
-        arrayE0[kk] = Depsilon*(kk-1)-(1/2)*(K/2)^2*W/(K-1)
-    end
+    arrayE = zeros(Float64,Nene)
+    indE = 0
 
     for tt = 1:Nt
 
@@ -351,26 +348,28 @@ function calculatep_test0(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL
             end
         end
 
-        # for N_j = count_total1 and E_j = sum(epsilon[counteps_total1[1:count_total1]])
-        E0 = sum(epsilon[counteps_total1[1:count_total1]])
-        indE0 = energy2index(E0,arrayE0,Nene)
-        ptotal[count_total1,indE0,tt] = prod(ptotal_part[:])
+        # for N_j = count_total1 and E_j = sum(epsilon_sort[counteps_total1[1:count_total1]])
+        indE = 1
+        ptotal[count_total1,indE,tt] = prod(ptotal_part[:])
+        arrayE[indE] = sum(epsilon_sort[counteps_total1[1:count_total1]])
 
         for jjN = 1:2*K+1-count_total0-count_total1 #count_total1+1:2*K+1-count_total0
 
-            combind = collect(combinations(count_total[1:ind],jjN))
+            combind = collect(combinations(counteps_total[1:ind],jjN))
             Mcombind = length(combind)
             for iiN = 1:Mcombind
                 ptotal_part_comb .= ptotal_part
                 for kkN = 1:jjN
                     ptotal_part_comb[combind[iiN][kkN]] = diag_Ct[combind[iiN][kkN],tt]
                 end
-                Ej = E0 + sum(epsilon[combind[iiN]])
-                indEj = energy2index(Ej,arrayE0,Nene)
-                ptotal[count_total1+jjN,indEj,tt] += prod(ptotal_part_comb[:])
+                indE += 1
+                ptotal[count_total1+jjN,indE,tt] += prod(ptotal_part_comb[:])
+                arrayE[indE] = E0 + sum(epsilon_sort[combind[iiN]])
             end
 
         end
+
+
 
     end
 
@@ -814,37 +813,23 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
     end
     C0 = diagm(C0)
 
-    # epsilonLR = zeros(ComplexF64,K*2+1)
     epsilon = diag(matH)
     epsilonL = epsilon[2:K+1]
     epsilonR = epsilon[K+2:2*K+1]
     epsilon_tilde = zeros(Float64,2*K+1,Nt)
-    # epsilonL_tilde = zeros(Float64,K,Nt)
 
     Ct = zeros(ComplexF64,K*2+1,K*2+1)
-    # diag_Ct_L = zeros(Float64,K,Nt)
-    # diag_Ct_R = zeros(Float64,K,Nt)
-    # eigval_Ct_L = zeros(Float64,K)
-    # eigvec_Ct_L = zeros(Float64,K,K)
     eigval_Ct = zeros(Float64,2*K+1)
     eigvec_Ct = zeros(Float64,2*K+1,2*K+1)
 
     # Nenebath = Int64(K*(K+1)/2)
     lengthErange = 2^22 #2^21
-    # pL = zeros(Float64,K,lengthErange) #spzeros(Float64,K,lengthErange)
-    # pLround = zeros(Float64,K,lengthErange,Nt)
-    # pL_part = zeros(Float64,K)
-    # pL_part_comb = zeros(Float64,K)
     ptotal = zeros(Float64,2*K+1,lengthErange) #spzeros(Float64,K,lengthErange)
     ptotalround = zeros(Float64,2*K+1,lengthErange,Nt)
     ptotal_part = zeros(Float64,2*K+1)
     ptotal_part_comb = zeros(Float64,2*K+1)
-    criterion = 0.25
+    criterion = 0.1
 
-    # count_L = zeros(Int64,K)
-    # count_L1 = 0
-    # count_L0 = 0
-    # counteps_L1 = zeros(Int64,K)
     count_total = zeros(Int64,2*K+1)
     count_total1 = 0
     count_total0 = 0
@@ -858,9 +843,6 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
     arrayEsize = zeros(Int64,Nt)
     arrayN = zeros(Int64,2,Nt)
 
-    # Depsilon = W/(K-1)
-    # epsilonLposi = Array(1:K)*Depsilon-W/2 #(kk-1)*Depsilon - W/2
-
     for tt = 1:Nt
 
         println("t=",tt)
@@ -872,36 +854,17 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
         Ct .= Ct*C0
         Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
 
-        # Tr[n_j rho] for j = L,R
-        # diag_Ct_L[:,tt] .= real(diag(Ct[2:K+1,2:K+1]))
-        # diag_Ct_R[:,tt] .= real(diag(Ct[K+2:end,K+2:end]))
-
-        # Tr[tilde{n}_j rho] for j = L,R
-        # lambda, eigvec_Ct_L = eigen(Ct[2:K+1,2:K+1],sortby = x -> -abs(x))
-        # eigval_Ct_L .= real.(lambda)
-
-        # Tr[tilde{n}_total rho]
-        lambda, eigvec_Ct = eigen(Ct[1:2*K+1,1:2*K+1],sortby = x -> -abs(x))
+        lambda, eigvec_Ct = eigen(Ct,sortby = x -> -abs(x))
         eigval_Ct .= real.(lambda)
 
         # tiltde{epsilon}, epsilon in the a basis
-        # for ss = 1:K
-        #     epsilonL_tilde[ss,tt] = sum(abs.(eigvec_Ct_L[:,ss]).^2 .* epsilonLposi)
-        # end
-        # indss = sortperm(epsilonL_tilde[:,tt])
-        # epsilonL_tilde[:,tt] .= epsilonL_tilde[indss,tt]
-        # eigval_Ct_L .= eigval_Ct_L[indss]
         for ss = 1:2*K+1
             epsilon_tilde[ss,tt] = sum(abs.(eigvec_Ct[:,ss]).^2 .* epsilon)
         end
 
+        return epsilon_tilde, epsilon
+
         # count the number of Tr[n_j rho] close to 1 or 0
-        # pL_part .= 0.0
-        # count_L .= 0
-        # count_L1 = 0
-        # count_L0 = 0
-        # ind = 0
-        # counteps_L1 .= 0
         ptotal_part .= 0.0
         count_total .= 0
         count_total1 = 0
