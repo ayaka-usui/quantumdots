@@ -269,22 +269,22 @@ function calculatep_test0(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL
     C0 = diagm(C0)
 
     # epsilonLR = zeros(ComplexF64,K*2+1)
-    epsilonLR = diag(matH)
-    epsilonL = epsilonLR[2:K+1]
-    epsilonR = epsilonLR[K+2:2*K+1]
+    epsilon = diag(matH)
+    # epsilonL = epsilon[2:K+1]
+    # epsilonR = epsilon[K+2:2*K+1]
 
     Ct = zeros(ComplexF64,K*2+1,K*2+1)
-    diag_Ct = zeros(Float64,K,Nt)
-    diag_Ct_L = zeros(Float64,K,Nt)
-    diag_Ct_R = zeros(Float64,K,Nt)
+    diag_Ct = zeros(Float64,2*K+1,Nt)
+    # diag_Ct_L = zeros(Float64,K,Nt)
+    # diag_Ct_R = zeros(Float64,K,Nt)
 
-    Nenebath = Int64(K*(K+1)/2)
-    ptotal = zeros(Float64,K,Nenebath,Nt)
-    ptotal_part = zeros(Float64,K)
-    ptotal_part_comb = zeros(Float64,K)
+    Nenebath = (Int64(K/2)^2+1)*2+1 #Int64(K*(K+1)/2) + Int64(K*(K+1)/2) + 1
+    ptotal = zeros(Float64,2*K+1,Nenebath,Nt)
+    ptotal_part = zeros(Float64,2*K+1)
+    ptotal_part_comb = zeros(Float64,2*K+1)
     criterion = 0.1
 
-    count_total = zeros(Int64,K)
+    count_total = zeros(Int64,2*K+1)
     count_total1 = 0
     count_total0 = 0
 
@@ -296,8 +296,11 @@ function calculatep_test0(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL
     arrayE0 = zeros(Float64,Nenebath)
     Depsilon = W/(K-1)
     for kk = 1:Nenebath
-        arrayE0[kk] = (kk-1)*Depsilon - W/2 #kk*Depsilon
+        arrayE0[kk] = Depsilon*(kk-1)-(1/2)*(K/2)^2*W/(K-1)
     end
+
+    println(arrayE0[1])
+    println(arrayE0[end])
 
     for tt = 1:Nt
 
@@ -319,7 +322,7 @@ function calculatep_test0(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL
         ind = 0
         counteps_total1 = 0
         counteps_total0 = 0
-        for jj = 1:K
+        for jj = 1:2*K+1
             if diag_Ct[jj,tt] > 1.0 - criterion
                ptotal_part[jj] = 1.0
                count_total1 += 1
@@ -335,21 +338,19 @@ function calculatep_test0(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL
             end
         end
 
-        # println(count_L1+count_L0)
-
         # the probability is zero for N_j < count_L1 or N_j > count_L0
-        ptotal[1:count_total1-1,:,tt] .= 0.0
-        ptotal[K-count_total0+1:end,:,tt] .= 0.0
+        # ptotal[1:count_total1-1,:,tt] .= 0.0
+        # ptotal[2*K+1-count_total0+1:end,:,tt] .= 0.0
 
         # the probability is zero for E_j < counteps_L1 or E_j > Nenebath-counteps_L0
-        ptotal[:,1:counteps_total1-1,tt] .= 0.0
-        ptotal[:,Nenebath-counteps_total0+1:end,tt] .= 0.0
+        # ptotal[:,1:counteps_total1-1,tt] .= 0.0
+        # ptotal[:,Nenebath-counteps_total0+1:end,tt] .= 0.0
 
         ptotal[count_total1,counteps_total1,tt] = prod(ptotal_part[:]) # for N_j = count_L1 and E_j = counteps_L1
-        ptotal[count_total1,counteps_total1+1:Nenebath-counteps_total0,tt] .= 0.0
-        ptotal[count_total1+1:K-count_total0,counteps_total1,tt] .= 0.0
+        # ptotal[count_total1,counteps_total1+1:Nenebath-counteps_total0,tt] .= 0.0
+        # ptotal[count_total1+1:2*K+1-count_total0,counteps_total1,tt] .= 0.0
 
-        for jjN = 1:K-count_total0-count_total1 #count_L1+1:K-count_L0
+        for jjN = 1:2*K+1-count_total0-count_total1 #count_total1+1:2*K+1-count_total0
 
             # @time begin
 
@@ -374,9 +375,20 @@ function calculatep_test0(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL
 
     end
 
-    # arrayE0[counteps_L1:Nenebath-counteps_L0]
+    Sobs = zeros(Float64,Nt)
+    for tt = 1:Nt
+        for jjN = count_total1+1:2*K+1-count_total0
+            for jjE = counteps_total1+1:Nenebath-counteps_total0
+                pop = ptotal[jjN,jjE,tt]
+                if abs(pop) != 0.0
+                   Sobs[tt] += -pop*log(pop)
+                end
+            end
+        end
+    end
 
-    return time, arrayE0, ptotal
+
+    return time, arrayE0, ptotal, Sobs
 
     # technically, N_j=0 and E_j=0 should be considered, but let me ignore it since p_{0,0}=0
 
