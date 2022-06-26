@@ -279,24 +279,24 @@ function calculatep_test0(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL
     diag_Ct_R = zeros(Float64,K,Nt)
 
     Nenebath = Int64(K*(K+1)/2)
-    pL = zeros(Float64,K,Nenebath,Nt)
-    pL_part = zeros(Float64,K)
-    pL_part_comb = zeros(Float64,K)
+    ptotal = zeros(Float64,K,Nenebath,Nt)
+    ptotal_part = zeros(Float64,K)
+    ptotal_part_comb = zeros(Float64,K)
     criterion = 0.1
 
-    count_L = zeros(Int64,K)
-    count_L1 = 0
-    count_L0 = 0
+    count_total = zeros(Int64,K)
+    count_total1 = 0
+    count_total0 = 0
 
     ind = 0
-    counteps_L1 = 0 #zeros(Int64,K)
-    counteps_L0 = 0
+    counteps_total1 = 0 #zeros(Int64,K)
+    counteps_total0 = 0
     indE = 0
 
     arrayE0 = zeros(Float64,Nenebath)
     Depsilon = W/(K-1)
     for kk = 1:Nenebath
-        arrayE0[kk] = kk*Depsilon #(kk-1)*Depsilon - W/2
+        arrayE0[kk] = (kk-1)*Depsilon - W/2 #kk*Depsilon
     end
 
     for tt = 1:Nt
@@ -312,57 +312,57 @@ function calculatep_test0(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL
         # diag_Ct_R[:,tt] .= real(diag(Ct[K+2:end,K+2:end]))
 
         # count the number of Tr[n_j rho] close to 1 or 0
-        pL_part .= 0.0
-        count_L .= 0
-        count_L1 = 0
-        count_L0 = 0
+        ptotal_part .= 0.0
+        count_total .= 0
+        count_total1 = 0
+        count_total0 = 0
         ind = 0
-        counteps_L1 = 0
-        counteps_L0 = 0
+        counteps_total1 = 0
+        counteps_total0 = 0
         for jj = 1:K
-            if diag_Ct_L[jj,tt] > 1.0 - criterion
-               pL_part[jj] = 1.0
-               count_L1 += 1
-               counteps_L1 += jj
-            elseif diag_Ct_L[jj,tt] < criterion
-               pL_part[jj] = 1.0 - 0.0
-               count_L0 += 1
-               counteps_L0 += jj
+            if diag_Ct[jj,tt] > 1.0 - criterion
+               ptotal_part[jj] = 1.0
+               count_total1 += 1
+               counteps_total1 += jj
+            elseif diag_Ct[jj,tt] < criterion
+               ptotal_part[jj] = 1.0 - 0.0
+               count_total0 += 1
+               counteps_total0 += jj
             else
-               pL_part[jj] = 1.0 - diag_Ct_L[jj,tt]
+               ptotal_part[jj] = 1.0 - diag_Ct[jj,tt]
                ind += 1
-               count_L[ind] = jj
+               count_total[ind] = jj
             end
         end
 
         # println(count_L1+count_L0)
 
         # the probability is zero for N_j < count_L1 or N_j > count_L0
-        pL[1:count_L1-1,:,tt] .= 0.0
-        pL[K-count_L0+1:end,:,tt] .= 0.0
+        ptotal[1:count_total1-1,:,tt] .= 0.0
+        ptotal[K-count_total0+1:end,:,tt] .= 0.0
 
         # the probability is zero for E_j < counteps_L1 or E_j > Nenebath-counteps_L0
-        pL[:,1:counteps_L1-1,tt] .= 0.0
-        pL[:,Nenebath-counteps_L0+1:end,tt] .= 0.0
+        ptotal[:,1:counteps_total1-1,tt] .= 0.0
+        ptotal[:,Nenebath-counteps_total0+1:end,tt] .= 0.0
 
-        pL[count_L1,counteps_L1,tt] = prod(pL_part[:]) # for N_j = count_L1 and E_j = counteps_L1
-        pL[count_L1,counteps_L1+1:Nenebath-counteps_L0,tt] .= 0.0
-        pL[count_L1+1:K-count_L0,counteps_L1,tt] .= 0.0
+        ptotal[count_total1,counteps_total1,tt] = prod(ptotal_part[:]) # for N_j = count_L1 and E_j = counteps_L1
+        ptotal[count_total1,counteps_total1+1:Nenebath-counteps_total0,tt] .= 0.0
+        ptotal[count_total1+1:K-count_total0,counteps_total1,tt] .= 0.0
 
-        for jjN = 1:K-count_L0-count_L1 #count_L1+1:K-count_L0
+        for jjN = 1:K-count_total0-count_total1 #count_L1+1:K-count_L0
 
             # @time begin
 
-            combind = collect(combinations(count_L[1:ind],jjN))
+            combind = collect(combinations(count_total[1:ind],jjN))
             Mcombind = length(combind)
             for iiN = 1:Mcombind
-                pL_part_comb .= pL_part
+                ptotal_part_comb .= ptotal_part
                 indE = 0
                 for kkN = 1:jjN
-                    pL_part_comb[combind[iiN][kkN]] = diag_Ct_L[combind[iiN][kkN],tt]
+                    ptotal_part_comb[combind[iiN][kkN]] = diag_Ct[combind[iiN][kkN],tt]
                     indE += combind[iiN][kkN]
                 end
-                pL[count_L1+jjN,counteps_L1+indE,tt] += prod(pL_part_comb[:])
+                ptotal[count_total1+jjN,counteps_total1+indE,tt] += prod(ptotal_part_comb[:])
             end
 
             # end
@@ -376,7 +376,7 @@ function calculatep_test0(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL
 
     # arrayE0[counteps_L1:Nenebath-counteps_L0]
 
-    return time, arrayE0, pL
+    return time, arrayE0, ptotal
 
     # technically, N_j=0 and E_j=0 should be considered, but let me ignore it since p_{0,0}=0
 
