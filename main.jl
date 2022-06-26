@@ -240,6 +240,19 @@ function createH_Deltaepsilon!(K::Int64,W::Int64,numvari::Int64,betaL::Float64,b
 
 end
 
+function energy2index(Ej::Float64,arrayE0::Vector{Float64},Nene::Int64)
+
+    diff = 0.0
+
+    for jj = 1:Nene
+        diff = abs(Ej - arrayE0[jj])
+        if diff < 10^(-10)
+           return arrayE0[jj]
+        end
+    end
+
+end
+
 function calculatep_test0(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # this function works only for thermal states
@@ -268,39 +281,35 @@ function calculatep_test0(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL
     end
     C0 = diagm(C0)
 
-    # epsilonLR = zeros(ComplexF64,K*2+1)
     epsilon = diag(matH)
     # epsilonL = epsilon[2:K+1]
     # epsilonR = epsilon[K+2:2*K+1]
+    ind_epsilon = zeros(Float64,2*K+1)
+    epsilon_sort = zeros(Float64,2*K+1)
 
     Ct = zeros(ComplexF64,K*2+1,K*2+1)
     diag_Ct = zeros(Float64,2*K+1,Nt)
-    # diag_Ct_L = zeros(Float64,K,Nt)
-    # diag_Ct_R = zeros(Float64,K,Nt)
 
-    Nenebath = (Int64(K/2)^2+1)*2+1 #Int64(K*(K+1)/2) + Int64(K*(K+1)/2) + 1
-    ptotal = zeros(Float64,2*K+1,Nenebath,Nt)
+    Nene = Int64(K/2)^2+1 #Int64(K*(K+1)/2) + Int64(K*(K+1)/2) + 1
+    # Nene = Nenebath*2+1 #(Int64(K/2)^2+1)*2+1
+    ptotal = zeros(Float64,2*K+1,Nene,Nt)
     ptotal_part = zeros(Float64,2*K+1)
     ptotal_part_comb = zeros(Float64,2*K+1)
     criterion = 0.1
 
-    count_total = zeros(Int64,2*K+1)
     count_total1 = 0
     count_total0 = 0
-
     ind = 0
-    counteps_total1 = 0 #zeros(Int64,K)
-    counteps_total0 = 0
-    indE = 0
 
-    arrayE0 = zeros(Float64,Nenebath)
+    counteps_total1 = zeros(Int64,2*K+1)
+    counteps_total0 = zeros(Int64,2*K+1)
+    counteps_total = zeros(Int64,2*K+1)
+
+    arrayE0 = zeros(Float64,Nene)
     Depsilon = W/(K-1)
-    for kk = 1:Nenebath
+    for kk = 1:Nene
         arrayE0[kk] = Depsilon*(kk-1)-(1/2)*(K/2)^2*W/(K-1)
     end
-
-    println(arrayE0[1])
-    println(arrayE0[end])
 
     for tt = 1:Nt
 
@@ -314,71 +323,61 @@ function calculatep_test0(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL
         # diag_Ct_L[:,tt] .= real(diag(Ct[2:K+1,2:K+1]))
         # diag_Ct_R[:,tt] .= real(diag(Ct[K+2:end,K+2:end]))
 
+        ind_epsilon .= sortperm(epsilon)
+        epsilon_sort .= epsilon[ind_epsilon]
+        diag_Ct[:,tt] .= diag_Ct[ind_epsilon,tt]
+
         # count the number of Tr[n_j rho] close to 1 or 0
         ptotal_part .= 0.0
-        count_total .= 0
         count_total1 = 0
+        counteps_total1 .= 0
         count_total0 = 0
+        counteps_total0 .= 0
         ind = 0
-        counteps_total1 = 0
-        counteps_total0 = 0
+        counteps_total .= 0
         for jj = 1:2*K+1
             if diag_Ct[jj,tt] > 1.0 - criterion
                ptotal_part[jj] = 1.0
                count_total1 += 1
-               counteps_total1 += jj
+               counteps_total1[count_total1] = jj
             elseif diag_Ct[jj,tt] < criterion
                ptotal_part[jj] = 1.0 - 0.0
                count_total0 += 1
-               counteps_total0 += jj
+               counteps_total0[count_total0] = jj
             else
                ptotal_part[jj] = 1.0 - diag_Ct[jj,tt]
                ind += 1
-               count_total[ind] = jj
+               counteps_total[ind] = jj
             end
         end
 
-        # the probability is zero for N_j < count_L1 or N_j > count_L0
-        # ptotal[1:count_total1-1,:,tt] .= 0.0
-        # ptotal[2*K+1-count_total0+1:end,:,tt] .= 0.0
-
-        # the probability is zero for E_j < counteps_L1 or E_j > Nenebath-counteps_L0
-        # ptotal[:,1:counteps_total1-1,tt] .= 0.0
-        # ptotal[:,Nenebath-counteps_total0+1:end,tt] .= 0.0
-
-        ptotal[count_total1,counteps_total1,tt] = prod(ptotal_part[:]) # for N_j = count_L1 and E_j = counteps_L1
-        # ptotal[count_total1,counteps_total1+1:Nenebath-counteps_total0,tt] .= 0.0
-        # ptotal[count_total1+1:2*K+1-count_total0,counteps_total1,tt] .= 0.0
+        # for N_j = count_total1 and E_j = sum(epsilon[counteps_total1[1:count_total1]])
+        E0 = sum(epsilon[counteps_total1[1:count_total1]])
+        indE0 = energy2index(E0,arrayE0,Nene)
+        ptotal[count_total1,indE0,tt] = prod(ptotal_part[:])
 
         for jjN = 1:2*K+1-count_total0-count_total1 #count_total1+1:2*K+1-count_total0
-
-            # @time begin
 
             combind = collect(combinations(count_total[1:ind],jjN))
             Mcombind = length(combind)
             for iiN = 1:Mcombind
                 ptotal_part_comb .= ptotal_part
-                indE = 0
                 for kkN = 1:jjN
                     ptotal_part_comb[combind[iiN][kkN]] = diag_Ct[combind[iiN][kkN],tt]
-                    indE += combind[iiN][kkN]
                 end
-                ptotal[count_total1+jjN,counteps_total1+indE,tt] += prod(ptotal_part_comb[:])
+                Ej = E0 + sum(epsilon[combind[iiN]])
+                indEj = energy2index(Ej,arrayE0,Nene)
+                ptotal[count_total1+jjN,indEj,tt] += prod(ptotal_part_comb[:])
             end
 
-            # end
-            # println("jjN=",jjN)
-
         end
-
-        # println(K-count_L0-count_L1-1)
 
     end
 
     Sobs = zeros(Float64,Nt)
     for tt = 1:Nt
         for jjN = count_total1+1:2*K+1-count_total0
-            for jjE = counteps_total1+1:Nenebath-counteps_total0
+            for jjE = 1:Nene
                 pop = ptotal[jjN,jjE,tt]
                 if abs(pop) != 0.0
                    Sobs[tt] += -pop*log(pop)
