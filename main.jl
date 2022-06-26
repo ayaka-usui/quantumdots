@@ -247,7 +247,7 @@ function energy2index(Ej::Float64,arrayE0::Vector{Float64},Nene::Int64)
     for jj = 1:Nene
         diff = abs(Ej - arrayE0[jj])
         if diff < 10^(-10)
-           return arrayE0[jj]
+           return jj
         end
     end
 
