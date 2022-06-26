@@ -925,7 +925,7 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
 
         indarrayE = sortperm(arrayE[1:indE])
         arrayE[1:indE] = arrayE[indarrayE]
-        for jjN = 1:ind
+        for jjN = 0:ind
             ptotal[1+count_total1+jjN,1:indE] = ptotal[1+count_total1+jjN,indarrayE]
         end
         arrayEsize[tt] = indE
@@ -941,7 +941,7 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
             else
                indround += 1
                arrayEround[indround,tt] = check0
-               for jjN = 1:ind
+               for jjN = 0:ind
                    ptotalround[1+count_total1+jjN,indround,tt] = sum(ptotal[1+count_total1+jjN,jjE-1-indcheck0:jjE-1])
                end
                check0 = arrayE[jjE]
@@ -951,7 +951,7 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
         end
         indround += 1
         arrayEround[indround,tt] = check0
-        for jjN = 1:ind
+        for jjN = 0:ind
             ptotalround[1+count_total1+jjN,indround,tt] = sum(ptotal[1+count_total1+jjN,indE-indcheck0:indE])
         end
         arrayEroundsize[tt] = indround
