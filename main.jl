@@ -817,6 +817,7 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
     epsilonL = epsilon[2:K+1]
     epsilonR = epsilon[K+2:2*K+1]
     epsilon_tilde = zeros(Float64,2*K+1,Nt)
+    indtilde = zeros(Int64,2*K+1)
 
     Ct = zeros(ComplexF64,K*2+1,K*2+1)
     eigval_Ct = zeros(Float64,2*K+1)
@@ -828,7 +829,7 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
     ptotalround = zeros(Float64,2*K+1,lengthErange,Nt)
     ptotal_part = zeros(Float64,2*K+1)
     ptotal_part_comb = zeros(Float64,2*K+1)
-    criterion = 0.1
+    criterion = 0.0
 
     count_total = zeros(Int64,2*K+1)
     count_total1 = 0
@@ -849,20 +850,27 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
 
         @time begin
 
-        # time evolution of correlation matrix
-        Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
-        Ct .= Ct*C0
-        Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
+        # # time evolution of correlation matrix
+        # Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
+        # Ct .= Ct*C0
+        # Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
+        #
+        # lambda, eigvec_Ct = eigen(Ct) #eigen(Ct,sortby = x -> -abs(x))
+        # eigval_Ct .= real.(lambda)
+        #
+        # # tiltde{epsilon}, epsilon in the a basis
+        # for ss = 1:2*K+1
+        #     epsilon_tilde[ss,tt] = sum(abs.(eigvec_Ct[:,ss]).^2 .* epsilon)
+        # end
+        # indtilde .= sortperm(epsilon_tilde[:,tt])
+        # epsilon_tilde[:,tt] .= epsilon_tilde[indtilde,tt]
+        # eigval_Ct .= eigval_Ct[indtilde]
 
-        lambda, eigvec_Ct = eigen(Ct,sortby = x -> -abs(x))
-        eigval_Ct .= real.(lambda)
-
-        # tiltde{epsilon}, epsilon in the a basis
-        for ss = 1:2*K+1
-            epsilon_tilde[ss,tt] = sum(abs.(eigvec_Ct[:,ss]).^2 .* epsilon)
-        end
-
-        return epsilon_tilde, epsilon
+        eigval_Ct .= diag(C0)
+        epsilon_tilde[:,tt] = epsilon
+        indtilde .= sortperm(epsilon_tilde[:,tt])
+        epsilon_tilde[:,tt] .= epsilon_tilde[indtilde,tt]
+        eigval_Ct .= eigval_Ct[indtilde]
 
         # count the number of Tr[n_j rho] close to 1 or 0
         ptotal_part .= 0.0
@@ -873,59 +881,48 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
         counteps_total1 .= 0
 
         for jj = 1:2*K+1
-            if eigval_Ct[jj] > 1.0 - criterion #eigval_Ct_L[jj] > 1.0 - criterion
-               ptotal_part[jj] = 1.0 #pL_part[jj] = 1.0
-               count_total1 += 1 #count_L1 += 1
-               counteps_total1[count_total1] = jj #counteps_L1[count_L1] = jj
-            elseif eigval_Ct[jj] < criterion #eigval_Ct_L[jj] < criterion
-               ptotal_part[jj] = 1.0 - 0.0 #pL_part[jj] = 1.0 - 0.0
-               count_total0 += 1 #count_L0 += 1
+            if eigval_Ct[jj] > 1.0 - criterion
+               ptotal_part[jj] = 1.0
+               count_total1 += 1
+               counteps_total1[count_total1] = jj
+            elseif eigval_Ct[jj] < criterion
+               ptotal_part[jj] = 1.0 - 0.0
+               count_total0 += 1
             else
-               ptotal_part[jj] = 1.0 - eigval_Ct[jj] #pL_part[jj] = 1.0 - eigval_Ct_L[jj]
+               ptotal_part[jj] = 1.0 - eigval_Ct[jj]
                ind += 1
-               count_total[ind] = jj #count_L[ind] = jj
+               count_total[ind] = jj
             end
         end
 
-        Esize = 2^ind
-
-        # the probability is zero for N_j < count_L1 or N_j > count_L0
-        # pL[1:count_L1-1,:,tt] .= 0.0
-        # pL[K-count_L0+1:end,:,tt] .= 0.0
-
-        # the probability is zero for E_j < counteps_L1 or E_j > Nenebath-counteps_L0
-        # pL[:,Esize+1:end,tt] .= 0.0
-
-        ptotal .= 0.0 #pL .= 0.0
+        ptotal .= 0.0
         arrayE .= 0.0
-        indE = 1
-        # pL[count_L1,indE] = prod(pL_part[:]) # for N_j = count_L1 and E_j = counteps_L1
-        ptotal[count_total1,indE] = prod(ptotal_part[:])
-        # arrayE0 = sum(epsilonL_tilde[counteps_L1[1:count_L1],tt])
-        arrayE0 = sum(epsilon_tilde[counteps_total1[1:count_total1],tt])
-        arrayE[indE] = 0.0+arrayE0
-        # arrayN[1,tt] = count_L1
-        # arrayN[2,tt] = count_L1+ind
-        arrayN[1,tt] = count_total1
-        arrayN[2,tt] = count_total1+ind
+        indE = 0
+        arrayE0 = 0.0
+        if count_total1 > 0
+           indE += 1
+           ptotal[count_total1,indE] = prod(ptotal_part[:])
+           arrayE0 = sum(epsilon_tilde[counteps_total1[1:count_total1],tt])
+           arrayE[indE] = arrayE0
+           arrayN[1,tt] = count_total1
+           arrayN[2,tt] = count_total1+ind
+        else
+           arrayN[1,tt] = 1
+           arrayN[2,tt] = ind
+        end
 
         for jjN = 1:ind
 
-            # combind = collect(combinations(count_L[1:ind],jjN))
             combind = collect(combinations(count_total[1:ind],jjN))
             Mcombind = length(combind)
 
             for iiN = 1:Mcombind
-                # pL_part_comb .= pL_part
                 ptotal_part_comb .= ptotal_part
                 for kkN = 1:jjN
-                    # pL_part_comb[combind[iiN][kkN]] = eigval_Ct_L[combind[iiN][kkN]]
                     ptotal_part_comb[combind[iiN][kkN]] = eigval_Ct[combind[iiN][kkN]]
                 end
                 indE += 1
-                # pL[count_L1+jjN,indE] = prod(pL_part_comb[:])
                 ptotal[count_total1+jjN,indE] = prod(ptotal_part_comb[:])
-                # arrayE[indE] = sum(epsilonL_tilde[combind[iiN],tt])+arrayE0
                 arrayE[indE] = sum(epsilon_tilde[combind[iiN],tt])+arrayE0
             end
 
@@ -934,7 +931,6 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
         indarrayE = sortperm(arrayE[1:indE])
         arrayE[1:indE] = arrayE[indarrayE]
         for jjN = 1:ind
-            # pL[count_L1+jjN,1:indE] = pL[count_L1+jjN,indarrayE]
             ptotal[count_total1+jjN,1:indE] = ptotal[count_total1+jjN,indarrayE]
         end
         arrayEsize[tt] = indE
@@ -945,13 +941,12 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
         indround = 0
         for jjE = 2:indE
 
-            if arrayE[jjE]-check0 < 10^(-10)*check0
+            if abs(arrayE[jjE]-check0) < 10^(-10)*check0
                indcheck0 += 1
             else
                indround += 1
                arrayEround[indround,tt] = check0
                for jjN = 1:ind
-                   # pLround[count_L1+jjN,indround,tt] = sum(pL[count_L1+jjN,jjE-1-indcheck0:jjE-1])
                    ptotalround[count_total1+jjN,indround,tt] = sum(ptotal[count_total1+jjN,jjE-1-indcheck0:jjE-1])
                end
                check0 = arrayE[jjE]
@@ -960,9 +955,8 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
 
         end
         indround += 1
-        arrayEround[indround,tt] = check0 #arrayE[indE]
+        arrayEround[indround,tt] = check0
         for jjN = 1:ind
-            # pLround[count_L1+jjN,indround,tt] = sum(pL[count_L1+jjN,indE-indcheck0:indE])
             ptotalround[count_total1+jjN,indround,tt] = sum(ptotal[count_total1+jjN,indE-indcheck0:indE])
         end
         arrayEroundsize[tt] = indround
@@ -971,11 +965,87 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
 
     end
 
-    # return time, arrayE, arrayEsize, pL, arrayEround, arrayEroundsize, pLround
-    # return time, arrayEround, arrayEroundsize, arrayN, pLround
     return time, arrayEround, arrayEroundsize, arrayN, ptotalround
 
-    # technically, N_j=0 and E_j=0 should be considered, but let me ignore it since p_{0,0}=0
+end
+
+function calculateptotal_test2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+
+    # Hamiltonian
+    matH = spzeros(Float64,K*2+1,K*2+1)
+    createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
+
+    # correlation matrix
+    # at initial
+    C0 = zeros(Float64,K*2+1)
+    C0[1] = 0.0 + 1e-15 # n_d(0) # make it not 0 exactly to avoid 0.0 log 0.0 = NaN
+    for kk = 1:K
+        C0[1+kk] = 1.0/(exp((matH[1+kk,1+kk]-muL)*betaL)+1.0)
+        C0[1+K+kk] = 1.0/(exp((matH[1+K+kk,1+K+kk]-muR)*betaR)+1.0)
+    end
+    # C0 = diagm(C0)
+    epsilon = Array(diag(matH))
+    arrayE = [epsilon[2]+epsilon[4],epsilon[2],epsilon[1],epsilon[3],epsilon[3]+epsilon[5]]
+    ptotal = zeros(Float64,5,5)
+
+    println(arrayE)
+    println(C0)
+
+    # ptotal[5,3] += C0[1]*C0[2]*C0[3]*C0[4]*C0[5]
+    # ptotal[4,2] += C0[1]*C0[2]*C0[3]*C0[4]*(1-C0[5])
+    #
+    # ptotal[4,4] += C0[1]*C0[2]*C0[3]*(1-C0[4])*C0[5]
+    # ptotal[3,3] += C0[1]*C0[2]*C0[3]*(1-C0[4])*(1-C0[5])
+    #
+    # ptotal[4,2] += C0[1]*C0[2]*(1-C0[3])*C0[4]*C0[5]
+    # ptotal[3,1] += C0[1]*C0[2]*(1-C0[3])*C0[4]*(1-C0[5])
+    # ptotal[3,3] += C0[1]*C0[2]*(1-C0[3])*(1-C0[4])*C0[5]
+    # ptotal[2,2] += C0[1]*C0[2]*(1-C0[3])*(1-C0[4])*(1-C0[5])
+    #
+    # ptotal[4,4] += C0[1]*(1-C0[2])*C0[3]*C0[4]*C0[5]
+    # ptotal[3,3] += C0[1]*(1-C0[2])*C0[3]*C0[4]*(1-C0[5])
+    # ptotal[3,5] += C0[1]*(1-C0[2])*C0[3]*(1-C0[4])*C0[5]
+    # ptotal[2,4] += C0[1]*(1-C0[2])*C0[3]*(1-C0[4])*(1-C0[5])
+    # ptotal[3,3] += C0[1]*(1-C0[2])*(1-C0[3])*C0[4]*C0[5]
+    # ptotal[2,2] += C0[1]*(1-C0[2])*(1-C0[3])*C0[4]*(1-C0[5])
+    # ptotal[2,4] += C0[1]*(1-C0[2])*(1-C0[3])*(1-C0[4])*C0[5]
+    # ptotal[1,3] += C0[1]*(1-C0[2])*(1-C0[3])*(1-C0[4])*(1-C0[5])
+
+    ptotal[4,3] += (1-C0[1])*C0[2]*C0[3]*C0[4]*C0[5]
+    ptotal[3,2] += (1-C0[1])*C0[2]*C0[3]*C0[4]*(1-C0[5])
+    ptotal[3,4] += (1-C0[1])*C0[2]*C0[3]*(1-C0[4])*C0[5]
+    ptotal[2,3] += (1-C0[1])*C0[2]*C0[3]*(1-C0[4])*(1-C0[5])
+    ptotal[3,2] += (1-C0[1])*C0[2]*(1-C0[3])*C0[4]*C0[5]
+    ptotal[2,1] += (1-C0[1])*C0[2]*(1-C0[3])*C0[4]*(1-C0[5])
+    ptotal[2,3] += (1-C0[1])*C0[2]*(1-C0[3])*(1-C0[4])*C0[5]
+    ptotal[1,2] += (1-C0[1])*C0[2]*(1-C0[3])*(1-C0[4])*(1-C0[5])
+    ptotal[3,4] += (1-C0[1])*(1-C0[2])*C0[3]*C0[4]*C0[5]
+    ptotal[2,3] += (1-C0[1])*(1-C0[2])*C0[3]*C0[4]*(1-C0[5])
+    ptotal[2,5] += (1-C0[1])*(1-C0[2])*C0[3]*(1-C0[4])*C0[5]
+    ptotal[1,4] += (1-C0[1])*(1-C0[2])*C0[3]*(1-C0[4])*(1-C0[5])
+    ptotal[2,3] += (1-C0[1])*(1-C0[2])*(1-C0[3])*C0[4]*C0[5]
+    ptotal[1,2] += (1-C0[1])*(1-C0[2])*(1-C0[3])*C0[4]*(1-C0[5])
+    ptotal[1,4] += (1-C0[1])*(1-C0[2])*(1-C0[3])*(1-C0[4])*C0[5]
+    # ptotal[0,3] += (1-C0[1])*(1-C0[2])*(1-C0[3])*(1-C0[4])*(1-C0[5])
+
+    ptotal0 = (1-C0[1])*(1-C0[2])*(1-C0[3])*(1-C0[4])*(1-C0[5])
+    test0 = zeros(Float64,1,5)
+    test0[1,3] = ptotal0
+    ptotal = [test0;ptotal]
+    # ptotal = ptotal .+ 1e-15
+
+    Sobs = 0.0
+    for jj1 = 1:6
+        for jj2 = 1:5
+            pop = ptotal[jj1,jj2]
+            if abs(pop) != 0.0
+               Sobs += -pop*log(pop)
+            end
+        end
+    end
+
+    # return ptotal
+    return Sobs
 
 end
 
@@ -985,11 +1055,6 @@ function calculateSobs_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Gamm
     # time, arrayEround, arrayEroundsize, arrayN, pround = calculatepL_test(K,W,betaL,betaR,GammaL,GammaR,muL,muR,tf,Nt)
 
     Sobs = zeros(Float64,Nt)
-
-    # for tt = 1:Nt
-    #     pop = pLround[arrayN[1,tt]:arrayN[2,tt],1:arrayEroundsize[tt],tt]
-    #     SobsL[tt] = -sum(pop.*log.(pop))
-    # end
 
     for tt = 1:Nt
         for jjN = arrayN[1,tt]:arrayN[2,tt]
