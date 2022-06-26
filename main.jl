@@ -825,10 +825,10 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
 
     # Nenebath = Int64(K*(K+1)/2)
     lengthErange = 2^22 #2^21
-    ptotal = zeros(Float64,2*K+1,lengthErange) #spzeros(Float64,K,lengthErange)
-    ptotalround = zeros(Float64,2*K+1,lengthErange,Nt)
-    ptotal_part = zeros(Float64,2*K+1)
-    ptotal_part_comb = zeros(Float64,2*K+1)
+    ptotal = zeros(Float64,2*K+1+1,lengthErange)
+    ptotalround = zeros(Float64,2*K+1+1,lengthErange,Nt)
+    ptotal_part = zeros(Float64,2*K+1+1)
+    ptotal_part_comb = zeros(Float64,2*K+1+1)
     criterion = 0.0
 
     count_total = zeros(Int64,2*K+1)
@@ -899,17 +899,12 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
         arrayE .= 0.0
         indE = 0
         arrayE0 = 0.0
-        if count_total1 > 0
-           indE += 1
-           ptotal[count_total1,indE] = prod(ptotal_part[:])
-           arrayE0 = sum(epsilon_tilde[counteps_total1[1:count_total1],tt])
-           arrayE[indE] = arrayE0
-           arrayN[1,tt] = count_total1
-           arrayN[2,tt] = count_total1+ind
-        else
-           arrayN[1,tt] = 1
-           arrayN[2,tt] = ind
-        end
+        indE += 1
+        ptotal[1+count_total1,indE] = prod(ptotal_part[:])
+        arrayE0 = sum(epsilon_tilde[counteps_total1[1:count_total1],tt])
+        arrayE[indE] = arrayE0
+        arrayN[1,tt] = count_total1
+        arrayN[2,tt] = count_total1+ind
 
         for jjN = 1:ind
 
@@ -922,7 +917,7 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
                     ptotal_part_comb[combind[iiN][kkN]] = eigval_Ct[combind[iiN][kkN]]
                 end
                 indE += 1
-                ptotal[count_total1+jjN,indE] = prod(ptotal_part_comb[:])
+                ptotal[1+count_total1+jjN,indE] = prod(ptotal_part_comb[:])
                 arrayE[indE] = sum(epsilon_tilde[combind[iiN],tt])+arrayE0
             end
 
@@ -931,7 +926,7 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
         indarrayE = sortperm(arrayE[1:indE])
         arrayE[1:indE] = arrayE[indarrayE]
         for jjN = 1:ind
-            ptotal[count_total1+jjN,1:indE] = ptotal[count_total1+jjN,indarrayE]
+            ptotal[1+count_total1+jjN,1:indE] = ptotal[1+count_total1+jjN,indarrayE]
         end
         arrayEsize[tt] = indE
 
@@ -947,7 +942,7 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
                indround += 1
                arrayEround[indround,tt] = check0
                for jjN = 1:ind
-                   ptotalround[count_total1+jjN,indround,tt] = sum(ptotal[count_total1+jjN,jjE-1-indcheck0:jjE-1])
+                   ptotalround[1+count_total1+jjN,indround,tt] = sum(ptotal[1+count_total1+jjN,jjE-1-indcheck0:jjE-1])
                end
                check0 = arrayE[jjE]
                indcheck0 = 0
@@ -957,7 +952,7 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
         indround += 1
         arrayEround[indround,tt] = check0
         for jjN = 1:ind
-            ptotalround[count_total1+jjN,indround,tt] = sum(ptotal[count_total1+jjN,indE-indcheck0:indE])
+            ptotalround[1+count_total1+jjN,indround,tt] = sum(ptotal[1+count_total1+jjN,indE-indcheck0:indE])
         end
         arrayEroundsize[tt] = indround
 
@@ -1059,7 +1054,7 @@ function calculateSobs_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Gamm
     for tt = 1:Nt
         for jjN = arrayN[1,tt]:arrayN[2,tt]
             for jjE = 1:arrayEroundsize[tt]
-                pop = pround[jjN,jjE,tt]
+                pop = pround[1+jjN,jjE,tt]
                 if abs(pop) != 0.0
                    Sobs[tt] += -pop*log(pop)
                 end
