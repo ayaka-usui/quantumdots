@@ -1030,7 +1030,7 @@ function popdistri_degenreate!(p::Matrix{Float64},arrayE::Vector{Float64},counte
         p[1+count_1+jjN,1:indE] = p[1+count_1+jjN,indarrayE]
     end
 
-    return indE, count_1, count_1+ind
+    return indE, [count_1, count_1+ind]
 
 end
 
@@ -1061,7 +1061,7 @@ function roundarrayE!(arrayE::Vector{Float64},indE::Int64,arrayEround::Vector{Fl
         pround[1+count_1+jjN,indround] = sum(p[1+count_1+jjN,indE-indcheck0:indE])
     end
 
-    return indround, arrayEround[1:indround], pround[1+count_1,1+count_1+ind]
+    return indround, arrayEround, pround
 
 end
 
@@ -1143,10 +1143,10 @@ function calculateptotal_test3(K::Int64,W::Int64,betaL::Float64,betaR::Float64,G
         ind, count_total1, count_total0 = roundeigval_Ct!(eigval_Ct,ptotal_part,count_total,counteps_total1,K,criterion)
 
         # construct population distribution
-        indE, arrayN[1,tt], arrayN[2,tt] = popdistri_degenreate!(ptotal,arrayE,counteps_total1,count_total1,ptotal_part,epsilon_tilde[:,tt],ind,count_total,ptotal_part_comb)
+        indE, arrayN[:,tt] = popdistri_degenreate!(ptotal,arrayE,counteps_total1,count_total1,ptotal_part,epsilon_tilde[:,tt],ind,count_total,ptotal_part_comb)
 
         # round E
-        arrayEroundsize[tt], arrayEround[1:arrayEroundsize[tt],tt], ptotalround[arrayN[:,tt].+1,1:arrayEroundsize[tt],tt] = roundarrayE!(arrayE[1:indE],indE,arrayEround[1:indE,tt],ind,ptotalround[arrayN[:,tt].+1,1:indE,tt],count_total1,ptotal)
+        arrayEroundsize[tt], arrayEround[:,tt], ptotalround[:,:,tt] = roundarrayE!(arrayE,indE,arrayEround[:,tt],ind,ptotalround[:,:,tt],count_total1,ptotal)
 
     end
 
@@ -1258,6 +1258,8 @@ end
 
 function calculateptotal_test2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
+    # only for K=2
+
     # Hamiltonian
     matH = spzeros(Float64,K*2+1,K*2+1)
     createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
@@ -1331,8 +1333,90 @@ function calculateptotal_test2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,G
         end
     end
 
-    return ptotal
-    # return Sobs
+    # return ptotal
+    return Sobs
+
+end
+
+function calculateptotal_test3(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+
+    # only for K=3
+
+    # Hamiltonian
+    matH = spzeros(Float64,K*2+1,K*2+1)
+    createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
+
+    # correlation matrix
+    # at initial
+    C0 = zeros(Float64,K*2+1)
+    C0[1] = 0.0 + 1e-15 # n_d(0) # make it not 0 exactly to avoid 0.0 log 0.0 = NaN
+    for kk = 1:K
+        C0[1+kk] = 1.0/(exp((matH[1+kk,1+kk]-muL)*betaL)+1.0)
+        C0[1+K+kk] = 1.0/(exp((matH[1+K+kk,1+K+kk]-muR)*betaR)+1.0)
+    end
+    # C0 = diagm(C0)
+    epsilon = Array(diag(matH))
+    arrayE = [epsilon[2]+epsilon[4],epsilon[2],epsilon[1],epsilon[3],epsilon[3]+epsilon[5]]
+    ptotal = zeros(Float64,5,5)
+
+    println(arrayE)
+    println(C0)
+
+    ptotal[5,3] += C0[1]*C0[2]*C0[3]*C0[4]*C0[5]
+    ptotal[4,2] += C0[1]*C0[2]*C0[3]*C0[4]*(1-C0[5])
+
+    ptotal[4,4] += C0[1]*C0[2]*C0[3]*(1-C0[4])*C0[5]
+    ptotal[3,3] += C0[1]*C0[2]*C0[3]*(1-C0[4])*(1-C0[5])
+
+    ptotal[4,2] += C0[1]*C0[2]*(1-C0[3])*C0[4]*C0[5]
+    ptotal[3,1] += C0[1]*C0[2]*(1-C0[3])*C0[4]*(1-C0[5])
+    ptotal[3,3] += C0[1]*C0[2]*(1-C0[3])*(1-C0[4])*C0[5]
+    ptotal[2,2] += C0[1]*C0[2]*(1-C0[3])*(1-C0[4])*(1-C0[5])
+
+    ptotal[4,4] += C0[1]*(1-C0[2])*C0[3]*C0[4]*C0[5]
+    ptotal[3,3] += C0[1]*(1-C0[2])*C0[3]*C0[4]*(1-C0[5])
+    ptotal[3,5] += C0[1]*(1-C0[2])*C0[3]*(1-C0[4])*C0[5]
+    ptotal[2,4] += C0[1]*(1-C0[2])*C0[3]*(1-C0[4])*(1-C0[5])
+    ptotal[3,3] += C0[1]*(1-C0[2])*(1-C0[3])*C0[4]*C0[5]
+    ptotal[2,2] += C0[1]*(1-C0[2])*(1-C0[3])*C0[4]*(1-C0[5])
+    ptotal[2,4] += C0[1]*(1-C0[2])*(1-C0[3])*(1-C0[4])*C0[5]
+    ptotal[1,3] += C0[1]*(1-C0[2])*(1-C0[3])*(1-C0[4])*(1-C0[5])
+
+    ptotal[4,3] += (1-C0[1])*C0[2]*C0[3]*C0[4]*C0[5]
+    ptotal[3,2] += (1-C0[1])*C0[2]*C0[3]*C0[4]*(1-C0[5])
+    ptotal[3,4] += (1-C0[1])*C0[2]*C0[3]*(1-C0[4])*C0[5]
+    ptotal[2,3] += (1-C0[1])*C0[2]*C0[3]*(1-C0[4])*(1-C0[5])
+    ptotal[3,2] += (1-C0[1])*C0[2]*(1-C0[3])*C0[4]*C0[5]
+    ptotal[2,1] += (1-C0[1])*C0[2]*(1-C0[3])*C0[4]*(1-C0[5])
+    ptotal[2,3] += (1-C0[1])*C0[2]*(1-C0[3])*(1-C0[4])*C0[5]
+    ptotal[1,2] += (1-C0[1])*C0[2]*(1-C0[3])*(1-C0[4])*(1-C0[5])
+    ptotal[3,4] += (1-C0[1])*(1-C0[2])*C0[3]*C0[4]*C0[5]
+    ptotal[2,3] += (1-C0[1])*(1-C0[2])*C0[3]*C0[4]*(1-C0[5])
+    ptotal[2,5] += (1-C0[1])*(1-C0[2])*C0[3]*(1-C0[4])*C0[5]
+    ptotal[1,4] += (1-C0[1])*(1-C0[2])*C0[3]*(1-C0[4])*(1-C0[5])
+    ptotal[2,3] += (1-C0[1])*(1-C0[2])*(1-C0[3])*C0[4]*C0[5]
+    ptotal[1,2] += (1-C0[1])*(1-C0[2])*(1-C0[3])*C0[4]*(1-C0[5])
+    ptotal[1,4] += (1-C0[1])*(1-C0[2])*(1-C0[3])*(1-C0[4])*C0[5]
+    # ptotal[0,3] += (1-C0[1])*(1-C0[2])*(1-C0[3])*(1-C0[4])*(1-C0[5])
+
+    ptotal0 = (1-C0[1])*(1-C0[2])*(1-C0[3])*(1-C0[4])*(1-C0[5])
+    test0 = zeros(Float64,1,5)
+    test0[1,3] = ptotal0
+    ptotal = [test0;ptotal]
+    # ptotal = ptotal .+ 1e-15
+
+    Sobs = 0.0
+    for jj1 = 1:6
+        for jj2 = 1:5
+            pop = ptotal[jj1,jj2]
+            if abs(pop) != 0.0
+               Sobs += -pop*log(pop)
+            end
+        end
+    end
+
+    # return ptotal
+    return Sobs
 
 end
 
