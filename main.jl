@@ -965,6 +965,204 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
 
 end
 
+function roundeigval_Ct!(eigval_Ct::Vector{Float64},p_part::Vector{Float64},count::Vector{Int64},count_1::Int64,count_0::Int64,ind::Int64,counteps_1::Vector{Float64},K::Int64,criterion::Float64)
+
+    # count the number of Tr[n_j rho] close to 1 or 0
+    p_part .= 0.0
+    count .= 0
+    count_1 = 0
+    count_0 = 0
+    ind = 0
+    counteps_1 .= 0
+
+    for jj = 1:2*K+1
+        if eigval_Ct[jj] > 1.0 - criterion
+           p_part[jj] = 1.0
+           count_1 += 1
+           counteps_1[count_1] = jj
+        elseif eigval_Ct[jj] < criterion
+           p_part[jj] = 1.0 - 0.0
+           count_0 += 1
+        else
+           p_part[jj] = 1.0 - eigval_Ct[jj]
+           ind += 1
+           count[ind] = jj
+        end
+    end
+
+end
+
+function popdistri_degenreate!(p::Matrix{Float64},arrayE::Vector{Float64},indE::Int64,arrayE0::Float64,count_1::Int64,p_part::Vector{Float64},epsilon_tilde::Vector{Float64},ind::Int64,p_part_comb::Vector{Float64})
+
+    p .= 0.0
+    arrayE .= 0.0
+    indE = 0
+    arrayE0 = 0.0
+
+    indE += 1
+    p[1+count_1,indE] = prod(p_part[:])
+    arrayE0 = sum(epsilon_tilde[counteps_1[1:count_1]])
+    arrayE[indE] = arrayE0
+
+    for jjN = 1:ind
+
+        combind = collect(combinations(count[1:ind],jjN))
+        Mcombind = length(combind)
+
+        for iiN = 1:Mcombind
+            p_part_comb .= p_part
+            for kkN = 1:jjN
+                p_part_comb[combind[iiN][kkN]] = eigval_Ct[combind[iiN][kkN]]
+            end
+            indE += 1
+            p[1+count_1+jjN,indE] += prod(p_part_comb[:])
+            arrayE[indE] = sum(epsilon_tilde[combind[iiN]])+arrayE0
+        end
+
+    end
+
+    # sort arrayE as well as others
+    indarrayE = sortperm(arrayE[1:indE])
+    arrayE[1:indE] = arrayE[indarrayE]
+    for jjN = 0:ind
+        p[1+count_1+jjN,1:indE] = p[1+count_1+jjN,indarrayE]
+    end
+
+end
+
+function roundarrayE!(arrayE::Vector{Float64},indE::Int64,arrayEround::Vector{Float64},ind::Int64,pround::Vector{Float64},count_1::Int64,p::Vector{Float64},indLround::Int64)
+
+    check0 = arrayE[1]
+    indcheck0 = 0
+    indround = 0
+    for jjE = 2:indE
+
+        if abs(arrayE[jjE]-check0) < 10^(-10)
+           indcheck0 += 1
+        else
+           indround += 1
+           arrayEround[indround,tt] = check0
+
+           for jjN = 0:ind
+               pround[1+count_1+jjN,indround] = sum(p[1+count_1+jjN,jjE-1-indcheck0:jjE-1])
+           end
+           check0 = arrayE[jjE]
+           indcheck0 = 0
+        end
+
+    end
+    indround += 1
+    arrayEround[indround,tt] = check0
+    for jjN = 0:ind
+        pround[1+count_1+jjN,indround] = sum(p[1+count_1+jjN,indE-indcheck0:indE])
+    end
+
+end
+
+function calculateSigmaobs_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+
+    # Hamiltonian
+    matH = spzeros(Float64,K*2+1,K*2+1)
+    createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
+
+    # Hamiltonian is hermitian
+    matH = Hermitian(Array(matH))
+    val_matH, vec_matH = eigen(matH)
+    invvec_matH = inv(vec_matH)
+
+    # time
+    time = LinRange(0.0,tf,Nt)
+
+    # correlation matrix
+    # at initial
+    C0 = zeros(Float64,K*2+1)
+    C0[1] = 0.0 + 1e-15 # n_d(0) # make it not 0 exactly to avoid 0.0 log 0.0 = NaN
+    for kk = 1:K
+        C0[1+kk] = 1.0/(exp((matH[1+kk,1+kk]-muL)*betaL)+1.0)
+        C0[1+K+kk] = 1.0/(exp((matH[1+K+kk,1+K+kk]-muR)*betaR)+1.0)
+    end
+    C0 = diagm(C0)
+
+    epsilon = diag(matH)
+    epsilonL = epsilon[2:K+1]
+    epsilonR = epsilon[K+2:2*K+1]
+    epsilon_tilde = zeros(Float64,2*K+1,Nt)
+    indtilde = zeros(Int64,2*K+1)
+
+    Ct = zeros(ComplexF64,K*2+1,K*2+1)
+    eigval_Ct = zeros(Float64,2*K+1)
+    eigvec_Ct = zeros(Float64,2*K+1,2*K+1)
+
+    # Nenebath = Int64(K*(K+1)/2)
+    lengthErange = 2^22 #2^21
+    ptotal = zeros(Float64,2*K+1+1,lengthErange)
+    ptotalround = zeros(Float64,2*K+1+1,lengthErange,Nt)
+    ptotal_part = zeros(Float64,2*K+1)
+    ptotal_part_comb = zeros(Float64,2*K+1)
+    criterion = 0.00001
+
+    count_total = zeros(Int64,2*K+1)
+    count_total1 = 0
+    count_total0 = 0
+    counteps_total1 = zeros(Int64,2*K+1)
+    ind = 0
+
+    indE = 0
+    arrayE = zeros(Float64,lengthErange) #spzeros(Float64,lengthErange)
+    arrayEround = zeros(Float64,lengthErange,Nt)
+    arrayEroundsize = zeros(Int64,Nt)
+    arrayEsize = zeros(Int64,Nt)
+    arrayN = zeros(Int64,2,Nt)
+
+    for tt = 1:Nt
+
+        println("t=",tt)
+
+        @time begin
+
+        # time evolution of correlation matrix
+        Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
+        Ct .= Ct*C0
+        Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
+
+        # bath L
+        lambda, eigvec_Ct_L = eigen(Ct[2:K+1,2:K+1])
+        eigval_Ct_L .= real.(lambda)
+
+        # bath R
+        lambda, eigvec_Ct_R = eigen(Ct[K+2:2*K+1,K+2:2*K+1])
+        eigval_Ct_R .= real.(lambda)
+
+        # tiltde{epsilon}, epsilon in the a basis
+        for ss = 1:2*K+1
+            epsilonL_tilde[ss,tt] = sum(abs.(eigvec_Ct_L[:,ss]).^2 .* epsilon)
+            epsilonR_tilde[ss,tt] = sum(abs.(eigvec_Ct_R[:,ss]).^2 .* epsilon)
+        end
+
+        # count the number of Tr[n_j rho] close to 1 or 0
+        roundeigval_Ct!(eigval_Ct_L,pL_part,count_L,count_L1,count_L0,indL,counteps_L1,K,criterion)
+        roundeigval_Ct!(eigval_Ct_R,pR_part,count_R,count_R1,count_R0,indR,counteps_R1,K,criterion)
+
+        # construct population distribution
+        popdistri_degenreate!(pL,arrayEL,indEL,arrayEL0,count_L1,pL_part,epsilonL_tilde[:,tt],indL,pL_part_comb)
+        arrayNL[1,tt] = count_L1
+        arrayNL[2,tt] = count_L1+indL
+        popdistri_degenreate!(pR,arrayER,indER,arrayER0,count_R1,pR_part,epsilonR_tilde[:,tt],indR,pR_part_comb)
+        arrayNR[1,tt] = count_R1
+        arrayNR[2,tt] = count_R1+indR
+
+        # round E
+        roundarrayE!(arrayEL,indEL,arrayELround,indL,pLround,count_L1,pL,indLround)
+        arrayELroundsize[tt] = indLround
+        roundarrayE!(arrayER,indER,arrayERround,indR,pRround,count_R1,pR,indRround)
+        arrayERroundsize[tt] = indRround
+
+    end
+
+    return time, arrayEround, arrayEroundsize, arrayN, ptotalround
+
+end
+
 function calculateptotal_test2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # Hamiltonian
