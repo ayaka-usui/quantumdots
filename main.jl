@@ -827,9 +827,9 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
     lengthErange = 2^22 #2^21
     ptotal = zeros(Float64,2*K+1+1,lengthErange)
     ptotalround = zeros(Float64,2*K+1+1,lengthErange,Nt)
-    ptotal_part = zeros(Float64,2*K+1+1)
-    ptotal_part_comb = zeros(Float64,2*K+1+1)
-    criterion = 0.0
+    ptotal_part = zeros(Float64,2*K+1)
+    ptotal_part_comb = zeros(Float64,2*K+1)
+    criterion = 0.00001
 
     count_total = zeros(Int64,2*K+1)
     count_total1 = 0
@@ -850,27 +850,27 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
 
         @time begin
 
-        # # time evolution of correlation matrix
-        # Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
-        # Ct .= Ct*C0
-        # Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
-        #
-        # lambda, eigvec_Ct = eigen(Ct) #eigen(Ct,sortby = x -> -abs(x))
-        # eigval_Ct .= real.(lambda)
-        #
-        # # tiltde{epsilon}, epsilon in the a basis
-        # for ss = 1:2*K+1
-        #     epsilon_tilde[ss,tt] = sum(abs.(eigvec_Ct[:,ss]).^2 .* epsilon)
-        # end
-        # indtilde .= sortperm(epsilon_tilde[:,tt])
-        # epsilon_tilde[:,tt] .= epsilon_tilde[indtilde,tt]
-        # eigval_Ct .= eigval_Ct[indtilde]
+        # time evolution of correlation matrix
+        Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
+        Ct .= Ct*C0
+        Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
 
-        eigval_Ct .= diag(C0)
-        epsilon_tilde[:,tt] = epsilon
+        lambda, eigvec_Ct = eigen(Ct) #eigen(Ct,sortby = x -> -abs(x))
+        eigval_Ct .= real.(lambda)
+
+        # tiltde{epsilon}, epsilon in the a basis
+        for ss = 1:2*K+1
+            epsilon_tilde[ss,tt] = sum(abs.(eigvec_Ct[:,ss]).^2 .* epsilon)
+        end
         indtilde .= sortperm(epsilon_tilde[:,tt])
         epsilon_tilde[:,tt] .= epsilon_tilde[indtilde,tt]
         eigval_Ct .= eigval_Ct[indtilde]
+
+        # eigval_Ct .= diag(C0)
+        # epsilon_tilde[:,tt] = epsilon
+        # indtilde .= sortperm(epsilon_tilde[:,tt])
+        # epsilon_tilde[:,tt] .= epsilon_tilde[indtilde,tt]
+        # eigval_Ct .= eigval_Ct[indtilde]
 
         # count the number of Tr[n_j rho] close to 1 or 0
         ptotal_part .= 0.0
@@ -917,7 +917,7 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
                     ptotal_part_comb[combind[iiN][kkN]] = eigval_Ct[combind[iiN][kkN]]
                 end
                 indE += 1
-                ptotal[1+count_total1+jjN,indE] = prod(ptotal_part_comb[:])
+                ptotal[1+count_total1+jjN,indE] += prod(ptotal_part_comb[:])
                 arrayE[indE] = sum(epsilon_tilde[combind[iiN],tt])+arrayE0
             end
 
@@ -936,11 +936,12 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
         indround = 0
         for jjE = 2:indE
 
-            if abs(arrayE[jjE]-check0) < 10^(-10)*check0
+            if abs(arrayE[jjE]-check0) < 10^(-10)
                indcheck0 += 1
             else
                indround += 1
                arrayEround[indround,tt] = check0
+
                for jjN = 0:ind
                    ptotalround[1+count_total1+jjN,indround,tt] = sum(ptotal[1+count_total1+jjN,jjE-1-indcheck0:jjE-1])
                end
@@ -986,25 +987,25 @@ function calculateptotal_test2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,G
     println(arrayE)
     println(C0)
 
-    # ptotal[5,3] += C0[1]*C0[2]*C0[3]*C0[4]*C0[5]
-    # ptotal[4,2] += C0[1]*C0[2]*C0[3]*C0[4]*(1-C0[5])
-    #
-    # ptotal[4,4] += C0[1]*C0[2]*C0[3]*(1-C0[4])*C0[5]
-    # ptotal[3,3] += C0[1]*C0[2]*C0[3]*(1-C0[4])*(1-C0[5])
-    #
-    # ptotal[4,2] += C0[1]*C0[2]*(1-C0[3])*C0[4]*C0[5]
-    # ptotal[3,1] += C0[1]*C0[2]*(1-C0[3])*C0[4]*(1-C0[5])
-    # ptotal[3,3] += C0[1]*C0[2]*(1-C0[3])*(1-C0[4])*C0[5]
-    # ptotal[2,2] += C0[1]*C0[2]*(1-C0[3])*(1-C0[4])*(1-C0[5])
-    #
-    # ptotal[4,4] += C0[1]*(1-C0[2])*C0[3]*C0[4]*C0[5]
-    # ptotal[3,3] += C0[1]*(1-C0[2])*C0[3]*C0[4]*(1-C0[5])
-    # ptotal[3,5] += C0[1]*(1-C0[2])*C0[3]*(1-C0[4])*C0[5]
-    # ptotal[2,4] += C0[1]*(1-C0[2])*C0[3]*(1-C0[4])*(1-C0[5])
-    # ptotal[3,3] += C0[1]*(1-C0[2])*(1-C0[3])*C0[4]*C0[5]
-    # ptotal[2,2] += C0[1]*(1-C0[2])*(1-C0[3])*C0[4]*(1-C0[5])
-    # ptotal[2,4] += C0[1]*(1-C0[2])*(1-C0[3])*(1-C0[4])*C0[5]
-    # ptotal[1,3] += C0[1]*(1-C0[2])*(1-C0[3])*(1-C0[4])*(1-C0[5])
+    ptotal[5,3] += C0[1]*C0[2]*C0[3]*C0[4]*C0[5]
+    ptotal[4,2] += C0[1]*C0[2]*C0[3]*C0[4]*(1-C0[5])
+
+    ptotal[4,4] += C0[1]*C0[2]*C0[3]*(1-C0[4])*C0[5]
+    ptotal[3,3] += C0[1]*C0[2]*C0[3]*(1-C0[4])*(1-C0[5])
+
+    ptotal[4,2] += C0[1]*C0[2]*(1-C0[3])*C0[4]*C0[5]
+    ptotal[3,1] += C0[1]*C0[2]*(1-C0[3])*C0[4]*(1-C0[5])
+    ptotal[3,3] += C0[1]*C0[2]*(1-C0[3])*(1-C0[4])*C0[5]
+    ptotal[2,2] += C0[1]*C0[2]*(1-C0[3])*(1-C0[4])*(1-C0[5])
+
+    ptotal[4,4] += C0[1]*(1-C0[2])*C0[3]*C0[4]*C0[5]
+    ptotal[3,3] += C0[1]*(1-C0[2])*C0[3]*C0[4]*(1-C0[5])
+    ptotal[3,5] += C0[1]*(1-C0[2])*C0[3]*(1-C0[4])*C0[5]
+    ptotal[2,4] += C0[1]*(1-C0[2])*C0[3]*(1-C0[4])*(1-C0[5])
+    ptotal[3,3] += C0[1]*(1-C0[2])*(1-C0[3])*C0[4]*C0[5]
+    ptotal[2,2] += C0[1]*(1-C0[2])*(1-C0[3])*C0[4]*(1-C0[5])
+    ptotal[2,4] += C0[1]*(1-C0[2])*(1-C0[3])*(1-C0[4])*C0[5]
+    ptotal[1,3] += C0[1]*(1-C0[2])*(1-C0[3])*(1-C0[4])*(1-C0[5])
 
     ptotal[4,3] += (1-C0[1])*C0[2]*C0[3]*C0[4]*C0[5]
     ptotal[3,2] += (1-C0[1])*C0[2]*C0[3]*C0[4]*(1-C0[5])
