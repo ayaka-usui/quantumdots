@@ -1065,6 +1065,23 @@ function roundarrayE!(arrayE::Vector{Float64},indE::Int64,arrayEround::Vector{Fl
 
 end
 
+function obsentropy(pround::Matrix{Float64},ind::Int64,indround::Int64,count_1::Int64)
+
+    Sobs = 0.0
+
+    for jjN = 0:ind
+        for jjE = 1:indround
+            pop = pround[1+count_1+jjN,jjE]
+            if pop != 0.0
+               Sobs += -pop*log(pop)
+            end
+        end
+    end
+
+    return Sobs
+
+end
+
 function calculateptotal_test3(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # Hamiltonian
@@ -1121,6 +1138,8 @@ function calculateptotal_test3(K::Int64,W::Int64,betaL::Float64,betaR::Float64,G
     arrayN = zeros(Int64,2,Nt)
     indround = 0
 
+    Sobstotal = zeros(Float64,Nt)
+
     for tt = 1:Nt
 
         println("t=",tt)
@@ -1148,9 +1167,106 @@ function calculateptotal_test3(K::Int64,W::Int64,betaL::Float64,betaR::Float64,G
         # round E
         arrayEroundsize[tt], arrayEround[:,tt], ptotalround[:,:,tt] = roundarrayE!(arrayE,indE,arrayEround[:,tt],ind,ptotalround[:,:,tt],count_total1,ptotal)
 
+        # Sobs
+        Sobstotal[tt] = obsentropy(ptotalround[:,:,tt],ind,arrayEroundsize[tt],count_total1)
+
     end
 
-    return time, arrayEround, arrayEroundsize, arrayN, ptotalround
+    return time, arrayEround, arrayEroundsize, arrayN, ptotalround, Sobstotal
+
+end
+
+function calculateptotal_test5(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+
+    # Hamiltonian
+    matH = spzeros(Float64,K*2+1,K*2+1)
+    createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
+
+    # Hamiltonian is hermitian
+    matH = Hermitian(Array(matH))
+    val_matH, vec_matH = eigen(matH)
+    invvec_matH = inv(vec_matH)
+
+    # time
+    time = LinRange(0.0,tf,Nt)
+
+    # correlation matrix
+    # at initial
+    C0 = zeros(Float64,K*2+1)
+    C0[1] = 0.0 + 1e-15 # n_d(0) # make it not 0 exactly to avoid 0.0 log 0.0 = NaN
+    for kk = 1:K
+        C0[1+kk] = 1.0/(exp((matH[1+kk,1+kk]-muL)*betaL)+1.0)
+        C0[1+K+kk] = 1.0/(exp((matH[1+K+kk,1+K+kk]-muR)*betaR)+1.0)
+    end
+    C0 = diagm(C0)
+
+    epsilon = diag(matH)
+    epsilonL = epsilon[2:K+1]
+    epsilonR = epsilon[K+2:2*K+1]
+    epsilon_tilde = zeros(Float64,2*K+1,Nt)
+    indtilde = zeros(Int64,2*K+1)
+
+    Ct = zeros(ComplexF64,K*2+1,K*2+1)
+    eigval_Ct = zeros(Float64,2*K+1)
+    eigvec_Ct = zeros(Float64,2*K+1,2*K+1)
+
+    # Nenebath = Int64(K*(K+1)/2)
+    lengthErange = 2^22 #2^21
+    ptotal = zeros(Float64,2*K+1+1,lengthErange)
+    ptotalround = zeros(Float64,2*K+1+1,lengthErange,Nt)
+    ptotal_part = zeros(Float64,2*K+1)
+    ptotal_part_comb = zeros(Float64,2*K+1)
+    criterion = 0.0
+
+    count_total = zeros(Int64,2*K+1)
+    count_total1 = 0
+    count_total0 = 0
+    counteps_total1 = zeros(Int64,2*K+1)
+    ind = 0
+
+    indE = 0
+    arrayE = zeros(Float64,lengthErange) #spzeros(Float64,lengthErange)
+    arrayEround = zeros(Float64,lengthErange,Nt)
+    arrayEroundsize = zeros(Int64,Nt)
+    arrayEsize = zeros(Int64,Nt)
+    arrayN = zeros(Int64,2,Nt)
+    indround = 0
+
+    Sobstotal = zeros(Float64,Nt)
+
+    for tt = 1:Nt
+
+        println("t=",tt)
+
+        # time evolution of correlation matrix
+        Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
+        Ct .= Ct*C0
+        Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
+
+        #
+        lambda, eigvec_Ct = eigen(Ct)
+        eigval_Ct .= real.(lambda)
+
+        # tiltde{epsilon}, epsilon in the a basis
+        for ss = 1:2*K+1
+            epsilon_tilde[ss,tt] = sum(abs.(eigvec_Ct[:,ss]).^2 .* epsilon)
+        end
+
+        # count the number of Tr[n_j rho] close to 1 or 0
+        ind, count_total1, count_total0 = roundeigval_Ct!(eigval_Ct,ptotal_part,count_total,counteps_total1,K,criterion)
+
+        # construct population distribution
+        indE, arrayN[:,tt] = popdistri_degenreate!(ptotal,arrayE,counteps_total1,count_total1,ptotal_part,epsilon_tilde[:,tt],ind,count_total,ptotal_part_comb)
+
+        # round E
+        arrayEroundsize[tt], arrayEround[:,tt], ptotalround[:,:,tt] = roundarrayE!(arrayE,indE,arrayEround[:,tt],ind,ptotalround[:,:,tt],count_total1,ptotal)
+
+        # Sobs
+        Sobstotal[tt] = obsentropy(ptotalround[:,:,tt],ind,arrayEroundsize[tt],count_total1)
+
+    end
+
+    return time, arrayEround, arrayEroundsize, arrayN, ptotalround, Sobstotal
 
 end
 
@@ -1448,8 +1564,8 @@ function calculateptotal_test4(K::Int64,W::Int64,betaL::Float64,betaR::Float64,G
         end
     end
 
-    return ptotal
-    # return Sobs
+    # return ptotal
+    return Sobs
 
 end
 
