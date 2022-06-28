@@ -1159,7 +1159,7 @@ function calculateptotal_test3(K::Int64,W::Int64,betaL::Float64,betaR::Float64,G
         end
 
         # count the number of Tr[n_j rho] close to 1 or 0
-        ind, count_total1, count_total0 = roundeigval_Ct!(eigval_Ct,ptotal_part,count_total,counteps_total1,K,criterion)
+        ind, count_total1 = roundeigval_Ct!(eigval_Ct,ptotal_part,count_total,counteps_total1,criterion)
 
         # construct population distribution
         indE, arrayN[:,tt] = popdistri_degenreate!(ptotal,arrayE,counteps_total1,count_total1,ptotal_part,epsilon_tilde[:,tt],ind,count_total,ptotal_part_comb)
@@ -1176,13 +1176,15 @@ function calculateptotal_test3(K::Int64,W::Int64,betaL::Float64,betaR::Float64,G
 
 end
 
-function relentropy(pround::Matrix{Float64},ind::Int64,indround::Int64,count_1::Int64,state::Matrix{Float64})
+function relentropy(pround::Matrix{Float64},jjN01tt::Vector{Int64},jjEendtt::Int64,arrayEroundtt::Vector{Float64},state::Matrix{Float64},jjN01::Vector{Int64},jjEend::Int64,arrayEround::Vector{Float64})
 
     Drel = 0.0
 
-    for jjN = 0:ind
+
+
+    for jjN = jjN01tt[1]:jjN01tt[2]
         for jjE = 1:indround
-            pop = pround[1+count_1+jjN,jjE]
+            pop = pround[jjN,jjE]
             popstate = state[1+count_1+jjN,jjE]
             if pop != 0.0 && popstate != 0.0
                Drel += pop*(log(pop)-log(popstate))
@@ -1194,7 +1196,7 @@ function relentropy(pround::Matrix{Float64},ind::Int64,indround::Int64,count_1::
 
 end
 
-function calculateptotal_test5(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+function calculatepLR_test5(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # Hamiltonian
     matH = spzeros(Float64,K*2+1,K*2+1)
@@ -1263,9 +1265,10 @@ function calculateptotal_test5(K::Int64,W::Int64,betaL::Float64,betaR::Float64,G
     SobsL = zeros(Float64,Nt)
     SobsR = zeros(Float64,Nt)
 
-    stateL =
-    DrelL = zeros(Float64,Nt)
-    DrelR = zeros(Float64,Nt)
+    # stateL = zeros(Float64,K+1,lengthErange)
+    # DrelL = zeros(Float64,Nt)
+    # stateR = zeros(Float64,K+1,lengthErange)
+    # DrelR = zeros(Float64,Nt)
 
     for tt = 1:Nt
 
@@ -1307,12 +1310,12 @@ function calculateptotal_test5(K::Int64,W::Int64,betaL::Float64,betaR::Float64,G
         SobsR[tt] = obsentropy(pRround[:,:,tt],indR,arrayERroundsize[tt],count_R1)
 
         # Drel
-        DrelL[tt] = relentropy(pLround[:,:,tt],indL,arrayELroundsize[tt],count_L1,stateL)
-        DrelR[tt] = relentropy(pRround[:,:,tt],indR,arrayERroundsize[tt],count_R1,stateR)
+        # DrelL[tt] = relentropy(pLround[:,:,tt],arrayNL[:,tt].+1,arrayELroundsize[tt],arrayELround[:,tt],stateL,arrayNL[:,1].+1,arrayELroundsize[1],arrayELround[:,1])
+        # DrelR[tt] = relentropy(pRround[:,:,tt],arrayNR[:,tt].+1,arrayERroundsize[tt],arrayERround[:,tt],stateR,arrayNR[:,1].+1,arrayERroundsize[1],arrayERround[:,1])
 
     end
 
-    return time, arrayELround, arrayERround, arrayELroundsize, arrayERroundsize, arrayNL, arrayNR, pLround, pRround, SobsL, SobsR, DrelL, DrelR
+    return time, arrayELround, arrayERround, arrayELroundsize, arrayERroundsize, arrayNL, arrayNR, pLround, pRround, SobsL, SobsR
 
 end
 
@@ -1497,6 +1500,340 @@ function calculateptotal_test2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,G
 
     # return ptotal
     return Sobs
+
+end
+
+function calculatepLR_test2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+
+    # only for K=2
+
+    # Hamiltonian
+    matH = spzeros(Float64,K*2+1,K*2+1)
+    createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
+
+    # Hamiltonian is hermitian
+    matH = Hermitian(Array(matH))
+    val_matH, vec_matH = eigen(matH)
+    invvec_matH = inv(vec_matH)
+
+    # time
+    time = LinRange(0.0,tf,Nt)
+
+    # correlation matrix
+    # at initial
+    C0 = zeros(Float64,K*2+1)
+    C0[1] = 0.0 + 1e-15 # n_d(0) # make it not 0 exactly to avoid 0.0 log 0.0 = NaN
+    for kk = 1:K
+        C0[1+kk] = 1.0/(exp((matH[1+kk,1+kk]-muL)*betaL)+1.0)
+        C0[1+K+kk] = 1.0/(exp((matH[1+K+kk,1+K+kk]-muR)*betaR)+1.0)
+    end
+
+    epsilon = diag(matH)
+    epsilonL = epsilon[2:K+1]
+    epsilonR = epsilon[K+2:2*K+1]
+    epsilonL_tilde = zeros(Float64,K,Nt)
+    epsilonR_tilde = zeros(Float64,K,Nt)
+
+    Ct = zeros(ComplexF64,2*K+1,2*K+1)
+
+    eigval_Ct_L = zeros(Float64,K)
+    eigvec_Ct_L = zeros(Float64,K,K)
+    eigval_Ct_R = zeros(Float64,K)
+    eigvec_Ct_R = zeros(Float64,K,K)
+
+    arrayELR = [-W/2,0.0,W/2]
+    pL = zeros(Float64,2,3)
+    pR = zeros(Float64,2,3)
+
+    println(arrayELR)
+    # println(C0)
+
+    pL[2,2] += C0[2]*C0[3]
+    pL[1,1] += C0[2]*(1-C0[3])
+
+    pL[1,3] += (1-C0[2])*C0[3]
+    # pL[0,2] += (1-C0[2])*(1-C0[3])
+    pL0 = (1-C0[2])*(1-C0[3])
+
+    pR[2,2] += C0[4]*C0[5]
+    pR[1,1] += C0[4]*(1-C0[5])
+
+    pR[1,3] += (1-C0[4])*C0[5]
+    # pR[0,2] += (1-C0[4])*(1-C0[5])
+    pR0 = (1-C0[4])*(1-C0[5])
+
+    test0 = zeros(Float64,1,3)
+    test0[1,2] = pL0
+    pL = [test0;pL]
+
+    test0 = zeros(Float64,1,3)
+    test0[1,2] = pR0
+    pR = [test0;pR]
+
+    SobsL = 0.0
+    SobsR = 0.0
+    for jj1 = 1:3
+        for jj2 = 1:3
+            pop = pL[jj1,jj2]
+            if abs(pop) != 0.0
+               SobsL += -pop*log(pop)
+            end
+            pop = pR[jj1,jj2]
+            if abs(pop) != 0.0
+               SobsR += -pop*log(pop)
+            end
+        end
+    end
+    println(SobsL)
+    println(SobsR)
+
+    C0 = diagm(C0)
+
+    for tt = 1:Nt
+
+        # time evolution of correlation matrix
+        Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
+        Ct .= Ct*C0
+        Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
+
+        # L
+        lambda, eigvec_Ct_L = eigen(Ct[2:K+1,2:K+1])
+        eigval_Ct_L .= real.(lambda)
+
+        # R
+        lambda, eigvec_Ct_R = eigen(Ct[K+2:2*K+1,K+2:2*K+1])
+        eigval_Ct_R .= real.(lambda)
+
+        # tiltde{epsilon}, epsilon in the a basis
+        for ss = 1:K
+            epsilonL_tilde[ss,tt] = sum(abs.(eigvec_Ct_L[:,ss]).^2 .* epsilonL)
+            epsilonR_tilde[ss,tt] = sum(abs.(eigvec_Ct_R[:,ss]).^2 .* epsilonR)
+        end
+
+        indL = sortperm(epsilonL_tilde[:,tt])
+        epsilonL_tilde[:,tt] = epsilonL_tilde[indL,tt]
+        eigval_Ct_L = eigval_Ct_L[indL]
+        arrayEL = [epsilonL_tilde[1,tt],sum(epsilonL_tilde[:,tt]),epsilonL_tilde[2,tt]]
+        println(arrayEL)
+
+        indR = sortperm(epsilonR_tilde[:,tt])
+        epsilonR_tilde[:,tt] = epsilonR_tilde[indR,tt]
+        eigval_Ct_R = eigval_Ct_R[indR]
+        arrayER = [epsilonR_tilde[1,tt],sum(epsilonR_tilde[:,tt]),epsilonR_tilde[2,tt]]
+        println(arrayER)
+
+        pL .= 0.0
+        pL[2,2] += eigval_Ct_L[1]*eigval_Ct_L[2]
+        pL[1,1] += eigval_Ct_L[1]*(1-eigval_Ct_L[2])
+        pL[1,3] += (1-eigval_Ct_L[1])*eigval_Ct_L[2]
+        pL0 = (1-eigval_Ct_L[1])*(1-eigval_Ct_L[2])
+        test0 = zeros(Float64,1,3)
+        test0[1,2] = pL0
+        pL = [test0;pL]
+
+        pR .= 0.0
+        pR[2,2] += eigval_Ct_R[1]*eigval_Ct_R[2]
+        pR[1,1] += eigval_Ct_R[1]*(1-eigval_Ct_R[2])
+        pR[1,3] += (1-eigval_Ct_R[1])*eigval_Ct_R[2]
+        pR0 = (1-eigval_Ct_R[1])*(1-eigval_Ct_R[2])
+        test0 = zeros(Float64,1,3)
+        test0[1,2] = pR0
+        pR = [test0;pR]
+
+        SobsL = 0.0
+        SobsR = 0.0
+        for jj1 = 1:3
+            for jj2 = 1:3
+                pop = pL[jj1,jj2]
+                if abs(pop) != 0.0
+                   SobsL += -pop*log(pop)
+                end
+                pop = pR[jj1,jj2]
+                if abs(pop) != 0.0
+                   SobsR += -pop*log(pop)
+                end
+            end
+        end
+        println(SobsL)
+        println(SobsR)
+
+    end
+
+    # return SobsL, SobsR
+
+end
+
+function calculatepLR_test4(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+
+    # only for K=3
+
+    # Hamiltonian
+    matH = spzeros(Float64,K*2+1,K*2+1)
+    createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
+
+    # Hamiltonian is hermitian
+    matH = Hermitian(Array(matH))
+    val_matH, vec_matH = eigen(matH)
+    invvec_matH = inv(vec_matH)
+
+    # time
+    time = LinRange(0.0,tf,Nt)
+
+    # correlation matrix
+    # at initial
+    C0 = zeros(Float64,K*2+1)
+    C0[1] = 0.0 + 1e-15 # n_d(0) # make it not 0 exactly to avoid 0.0 log 0.0 = NaN
+    for kk = 1:K
+        C0[1+kk] = 1.0/(exp((matH[1+kk,1+kk]-muL)*betaL)+1.0)
+        C0[1+K+kk] = 1.0/(exp((matH[1+K+kk,1+K+kk]-muR)*betaR)+1.0)
+    end
+
+    epsilon = diag(matH)
+    epsilonL = epsilon[2:K+1]
+    epsilonR = epsilon[K+2:2*K+1]
+    epsilonL_tilde = zeros(Float64,K,Nt)
+    epsilonR_tilde = zeros(Float64,K,Nt)
+
+    Ct = zeros(ComplexF64,2*K+1,2*K+1)
+
+    eigval_Ct_L = zeros(Float64,K)
+    eigvec_Ct_L = zeros(Float64,K,K)
+    eigval_Ct_R = zeros(Float64,K)
+    eigvec_Ct_R = zeros(Float64,K,K)
+
+    arrayELR = [-W/2,0.0,W/2]
+    pL = zeros(Float64,K,3)
+    pR = zeros(Float64,K,3)
+
+    println(arrayELR)
+    # println(C0)
+
+    pL[3,2] += C0[2]*C0[3]*C0[4]
+    pL[2,1] += C0[2]*C0[3]*(1-C0[4])
+    pL[2,2] += C0[2]*(1-C0[3])*C0[4]
+    pL[1,1] += C0[2]*(1-C0[3])*(1-C0[4])
+    pL[2,3] += (1-C0[2])*C0[3]*C0[4]
+    pL[1,2] += (1-C0[2])*C0[3]*(1-C0[4])
+    pL[1,3] += (1-C0[2])*(1-C0[3])*C0[4]
+    # pL[0,0] += (1-C0[2])*(1-C0[3])*(1-C0[4])
+    pL0 = (1-C0[2])*(1-C0[3])*(1-C0[4])
+
+    test0 = zeros(Float64,1,3)
+    test0[1,2] = pL0
+    pL = [test0;pL]
+
+    pR[3,2] += C0[5]*C0[6]*C0[7]
+    pR[2,1] += C0[5]*C0[6]*(1-C0[7])
+    pR[2,2] += C0[5]*(1-C0[6])*C0[7]
+    pR[1,1] += C0[5]*(1-C0[6])*(1-C0[7])
+    pR[2,3] += (1-C0[5])*C0[6]*C0[7]
+    pR[1,2] += (1-C0[5])*C0[6]*(1-C0[7])
+    pR[1,3] += (1-C0[5])*(1-C0[6])*C0[7]
+    # pR[0,0] += (1-C0[5])*(1-C0[6])*(1-C0[7])
+    pR0 = (1-C0[5])*(1-C0[6])*(1-C0[7])
+
+    test0 = zeros(Float64,1,3)
+    test0[1,2] = pR0
+    pR = [test0;pR]
+
+    SobsL = 0.0
+    SobsR = 0.0
+    for jj1 = 1:4
+        for jj2 = 1:3
+            pop = pL[jj1,jj2]
+            if abs(pop) != 0.0
+               SobsL += -pop*log(pop)
+            end
+            pop = pR[jj1,jj2]
+            if abs(pop) != 0.0
+               SobsR += -pop*log(pop)
+            end
+        end
+    end
+    println(SobsL)
+    println(SobsR)
+
+    C0 = diagm(C0)
+
+    for tt = 1:Nt
+
+        # time evolution of correlation matrix
+        Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
+        Ct .= Ct*C0
+        Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
+
+        # L
+        lambda, eigvec_Ct_L = eigen(Ct[2:K+1,2:K+1])
+        eigval_Ct_L .= real.(lambda)
+
+        # R
+        lambda, eigvec_Ct_R = eigen(Ct[K+2:2*K+1,K+2:2*K+1])
+        eigval_Ct_R .= real.(lambda)
+
+        # tiltde{epsilon}, epsilon in the a basis
+        for ss = 1:K
+            epsilonL_tilde[ss,tt] = sum(abs.(eigvec_Ct_L[:,ss]).^2 .* epsilonL)
+            epsilonR_tilde[ss,tt] = sum(abs.(eigvec_Ct_R[:,ss]).^2 .* epsilonR)
+        end
+
+        indL = sortperm(epsilonL_tilde[:,tt])
+        epsilonL_tilde[:,tt] = epsilonL_tilde[indL,tt]
+        eigval_Ct_L = eigval_Ct_L[indL]
+        arrayEL = [epsilonL_tilde[1,tt],sum(epsilonL_tilde[:,tt]),epsilonL_tilde[2,tt]]
+        println(arrayEL)
+
+        indR = sortperm(epsilonR_tilde[:,tt])
+        epsilonR_tilde[:,tt] = epsilonR_tilde[indR,tt]
+        eigval_Ct_R = eigval_Ct_R[indR]
+        arrayER = [epsilonR_tilde[1,tt],sum(epsilonR_tilde[:,tt]),epsilonR_tilde[2,tt]]
+        println(arrayER)
+
+        pL .= 0.0
+        pL[3,2] += eigval_Ct_L[1]*eigval_Ct_L[2]*eigval_Ct_L[3]
+        pL[2,1] += eigval_Ct_L[1]*eigval_Ct_L[2]*(1-eigval_Ct_L[3])
+        pL[2,2] += eigval_Ct_L[1]*(1-eigval_Ct_L[2])*eigval_Ct_L[3]
+        pL[1,1] += eigval_Ct_L[1]*(1-eigval_Ct_L[2])*(1-eigval_Ct_L[3])
+        pL[2,3] += (1-eigval_Ct_L[1])*eigval_Ct_L[2]*eigval_Ct_L[3]
+        pL[1,2] += (1-eigval_Ct_L[1])*eigval_Ct_L[2]*(1-eigval_Ct_L[3])
+        pL[1,3] += (1-eigval_Ct_L[1])*(1-eigval_Ct_L[2])*eigval_Ct_L[3]
+        pL0 = (1-eigval_Ct_L[1])*(1-eigval_Ct_L[2])*(1-eigval_Ct_L[3])
+        test0 = zeros(Float64,1,3)
+        test0[1,2] = pL0
+        pL = [test0;pL]
+
+        pR .= 0.0
+        pR[3,2] += eigval_Ct_R[1]*eigval_Ct_R[2]*eigval_Ct_R[3]
+        pR[2,1] += eigval_Ct_R[1]*eigval_Ct_R[2]*(1-eigval_Ct_R[3])
+        pR[2,2] += eigval_Ct_R[1]*(1-eigval_Ct_R[2])*eigval_Ct_R[3]
+        pR[1,1] += eigval_Ct_R[1]*(1-eigval_Ct_R[2])*(1-eigval_Ct_R[3])
+        pR[2,3] += (1-eigval_Ct_R[1])*eigval_Ct_R[2]*eigval_Ct_R[3]
+        pR[1,2] += (1-eigval_Ct_R[1])*eigval_Ct_R[2]*(1-eigval_Ct_R[3])
+        pR[1,3] += (1-eigval_Ct_R[1])*(1-eigval_Ct_R[2])*eigval_Ct_R[3]
+        pR0 = (1-eigval_Ct_R[1])*(1-eigval_Ct_R[2])*(1-eigval_Ct_R[3])
+        test0 = zeros(Float64,1,3)
+        test0[1,2] = pR0
+        pR = [test0;pR]
+
+        SobsL = 0.0
+        SobsR = 0.0
+        for jj1 = 1:4
+            for jj2 = 1:3
+                pop = pL[jj1,jj2]
+                if abs(pop) != 0.0
+                   SobsL += -pop*log(pop)
+                end
+                pop = pR[jj1,jj2]
+                if abs(pop) != 0.0
+                   SobsR += -pop*log(pop)
+                end
+            end
+        end
+        println(SobsL)
+        println(SobsR)
+
+    end
+
+    # return SobsL, SobsR
 
 end
 
