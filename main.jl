@@ -965,24 +965,24 @@ function calculateptotal_test(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Ga
 
 end
 
-function roundeigval_Ct!(eigval_Ct::Vector{Float64},p_part::Vector{Float64},count::Vector{Int64},counteps_1::Vector{Int64},K::Int64,criterion::Float64)
+function roundeigval_Ct!(eigval_Ct::Vector{Float64},p_part::Vector{Float64},count::Vector{Int64},counteps_1::Vector{Int64},criterion::Float64)
 
     # count the number of Tr[n_j rho] close to 1 or 0
     p_part .= 0.0
     count .= 0
     count_1 = 0
-    count_0 = 0
+    # count_0 = 0
     ind = 0
     counteps_1 .= 0
 
-    for jj = 1:2*K+1
+    for jj = 1:length(eigval_Ct)
         if eigval_Ct[jj] > 1.0 - criterion
            p_part[jj] = 1.0
            count_1 += 1
            counteps_1[count_1] = jj
         elseif eigval_Ct[jj] < criterion
            p_part[jj] = 1.0 - 0.0
-           count_0 += 1
+           # count_0 += 1
         else
            p_part[jj] = 1.0 - eigval_Ct[jj]
            ind += 1
@@ -990,7 +990,7 @@ function roundeigval_Ct!(eigval_Ct::Vector{Float64},p_part::Vector{Float64},coun
         end
     end
 
-    return ind, count_1, count_0
+    return ind, count_1
 
 end
 
@@ -1176,6 +1176,24 @@ function calculateptotal_test3(K::Int64,W::Int64,betaL::Float64,betaR::Float64,G
 
 end
 
+function relentropy(pround::Matrix{Float64},ind::Int64,indround::Int64,count_1::Int64,state::Matrix{Float64})
+
+    Drel = 0.0
+
+    for jjN = 0:ind
+        for jjE = 1:indround
+            pop = pround[1+count_1+jjN,jjE]
+            popstate = state[1+count_1+jjN,jjE]
+            if pop != 0.0 && popstate != 0.0
+               Drel += pop*(log(pop)-log(popstate))
+            end
+        end
+    end
+
+    return Drel
+
+end
+
 function calculateptotal_test5(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # Hamiltonian
@@ -1203,36 +1221,51 @@ function calculateptotal_test5(K::Int64,W::Int64,betaL::Float64,betaR::Float64,G
     epsilon = diag(matH)
     epsilonL = epsilon[2:K+1]
     epsilonR = epsilon[K+2:2*K+1]
-    epsilon_tilde = zeros(Float64,2*K+1,Nt)
-    indtilde = zeros(Int64,2*K+1)
+    epsilonL_tilde = zeros(Float64,K,Nt)
+    epsilonR_tilde = zeros(Float64,K,Nt)
 
-    Ct = zeros(ComplexF64,K*2+1,K*2+1)
-    eigval_Ct = zeros(Float64,2*K+1)
-    eigvec_Ct = zeros(Float64,2*K+1,2*K+1)
+    Ct = zeros(ComplexF64,2*K+1,2*K+1)
 
-    # Nenebath = Int64(K*(K+1)/2)
+    eigval_Ct_L = zeros(Float64,K)
+    eigvec_Ct_L = zeros(Float64,K,K)
+    eigval_Ct_R = zeros(Float64,K)
+    eigvec_Ct_R = zeros(Float64,K,K)
+
     lengthErange = 2^22 #2^21
-    ptotal = zeros(Float64,2*K+1+1,lengthErange)
-    ptotalround = zeros(Float64,2*K+1+1,lengthErange,Nt)
-    ptotal_part = zeros(Float64,2*K+1)
-    ptotal_part_comb = zeros(Float64,2*K+1)
+    pL = zeros(Float64,K+1,lengthErange) # N_j counts from N_j=0 and so the index is N_j+1
+    pLround = zeros(Float64,K+1,lengthErange,Nt)
+    pL_part = zeros(Float64,K)
+    pL_part_comb = zeros(Float64,K)
+    pR = zeros(Float64,K+1,lengthErange)
+    pRround = zeros(Float64,K+1,lengthErange,Nt)
+    pR_part = zeros(Float64,K)
+    pR_part_comb = zeros(Float64,K)
     criterion = 0.0
 
-    count_total = zeros(Int64,2*K+1)
-    count_total1 = 0
-    count_total0 = 0
-    counteps_total1 = zeros(Int64,2*K+1)
-    ind = 0
+    count_L = zeros(Int64,K)
+    counteps_L1 = zeros(Int64,K)
+    count_R = zeros(Int64,K)
+    counteps_R1 = zeros(Int64,K)
 
-    indE = 0
-    arrayE = zeros(Float64,lengthErange) #spzeros(Float64,lengthErange)
-    arrayEround = zeros(Float64,lengthErange,Nt)
-    arrayEroundsize = zeros(Int64,Nt)
-    arrayEsize = zeros(Int64,Nt)
-    arrayN = zeros(Int64,2,Nt)
-    indround = 0
+    arrayEL = zeros(Float64,lengthErange) #spzeros(Float64,lengthErange)
+    arrayELround = zeros(Float64,lengthErange,Nt)
+    arrayELroundsize = zeros(Int64,Nt)
+    arrayELsize = zeros(Int64,Nt)
+    arrayNL = zeros(Int64,2,Nt)
+    indLround = 0
+    arrayER = zeros(Float64,lengthErange)
+    arrayERround = zeros(Float64,lengthErange,Nt)
+    arrayERroundsize = zeros(Int64,Nt)
+    arrayERsize = zeros(Int64,Nt)
+    arrayNR = zeros(Int64,2,Nt)
+    indRround = 0
 
-    Sobstotal = zeros(Float64,Nt)
+    SobsL = zeros(Float64,Nt)
+    SobsR = zeros(Float64,Nt)
+
+    stateL =
+    DrelL = zeros(Float64,Nt)
+    DrelR = zeros(Float64,Nt)
 
     for tt = 1:Nt
 
@@ -1243,30 +1276,43 @@ function calculateptotal_test5(K::Int64,W::Int64,betaL::Float64,betaR::Float64,G
         Ct .= Ct*C0
         Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
 
-        #
-        lambda, eigvec_Ct = eigen(Ct)
-        eigval_Ct .= real.(lambda)
+        # L
+        lambda, eigvec_Ct_L = eigen(Ct[2:K+1,2:K+1])
+        eigval_Ct_L .= real.(lambda)
+
+        # R
+        lambda, eigvec_Ct_R = eigen(Ct[K+2:2*K+1,K+2:2*K+1])
+        eigval_Ct_R .= real.(lambda)
 
         # tiltde{epsilon}, epsilon in the a basis
-        for ss = 1:2*K+1
-            epsilon_tilde[ss,tt] = sum(abs.(eigvec_Ct[:,ss]).^2 .* epsilon)
+        for ss = 1:K
+            epsilonL_tilde[ss,tt] = sum(abs.(eigvec_Ct_L[:,ss]).^2 .* epsilonL)
+            epsilonR_tilde[ss,tt] = sum(abs.(eigvec_Ct_R[:,ss]).^2 .* epsilonR)
         end
 
         # count the number of Tr[n_j rho] close to 1 or 0
-        ind, count_total1, count_total0 = roundeigval_Ct!(eigval_Ct,ptotal_part,count_total,counteps_total1,K,criterion)
+        indL, count_L1 = roundeigval_Ct!(eigval_Ct_L,pL_part,count_L,counteps_L1,criterion)
+        indR, count_R1 = roundeigval_Ct!(eigval_Ct_R,pR_part,count_R,counteps_R1,criterion)
 
         # construct population distribution
-        indE, arrayN[:,tt] = popdistri_degenreate!(ptotal,arrayE,counteps_total1,count_total1,ptotal_part,epsilon_tilde[:,tt],ind,count_total,ptotal_part_comb)
+        indEL, arrayNL[:,tt] = popdistri_degenreate!(pL,arrayEL,counteps_L1,count_L1,pL_part,epsilonL_tilde[:,tt],indL,count_L,pL_part_comb)
+        indER, arrayNR[:,tt] = popdistri_degenreate!(pR,arrayER,counteps_R1,count_R1,pR_part,epsilonR_tilde[:,tt],indR,count_R,pR_part_comb)
 
         # round E
-        arrayEroundsize[tt], arrayEround[:,tt], ptotalround[:,:,tt] = roundarrayE!(arrayE,indE,arrayEround[:,tt],ind,ptotalround[:,:,tt],count_total1,ptotal)
+        arrayELroundsize[tt], arrayELround[:,tt], pLround[:,:,tt] = roundarrayE!(arrayEL,indEL,arrayELround[:,tt],indL,pLround[:,:,tt],count_L1,pL)
+        arrayERroundsize[tt], arrayERround[:,tt], pRround[:,:,tt] = roundarrayE!(arrayER,indER,arrayERround[:,tt],indR,pRround[:,:,tt],count_R1,pR)
 
         # Sobs
-        Sobstotal[tt] = obsentropy(ptotalround[:,:,tt],ind,arrayEroundsize[tt],count_total1)
+        SobsL[tt] = obsentropy(pLround[:,:,tt],indL,arrayELroundsize[tt],count_L1)
+        SobsR[tt] = obsentropy(pRround[:,:,tt],indR,arrayERroundsize[tt],count_R1)
+
+        # Drel
+        DrelL[tt] = relentropy(pLround[:,:,tt],indL,arrayELroundsize[tt],count_L1,stateL)
+        DrelR[tt] = relentropy(pRround[:,:,tt],indR,arrayERroundsize[tt],count_R1,stateR)
 
     end
 
-    return time, arrayEround, arrayEroundsize, arrayN, ptotalround, Sobstotal
+    return time, arrayELround, arrayERround, arrayELroundsize, arrayERroundsize, arrayNL, arrayNR, pLround, pRround, SobsL, SobsR, DrelL, DrelR
 
 end
 
