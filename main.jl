@@ -1438,8 +1438,8 @@ function calculateptotal_test2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,G
         C0[1+K+kk] = 1.0/(exp((matH[1+K+kk,1+K+kk]-muR)*betaR)+1.0)
     end
     # C0 = diagm(C0)
-    epsilon = Array(diag(matH))
-    arrayE = [epsilon[2]+epsilon[4],epsilon[2],epsilon[1],epsilon[3],epsilon[3]+epsilon[5]]
+    # epsilon = Array(diag(matH))
+    arrayE = [-W, -W/2, 0.0, W/2, W]
     ptotal = zeros(Float64,5,5)
 
     println(arrayE)
@@ -1498,8 +1498,195 @@ function calculateptotal_test2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,G
         end
     end
 
+    # vNE
+    vNE = - sum(C0.*log.(C0)) - sum((1.0 .- C0).*log.(1.0 .- C0))
+
+    println(vNE)
+
     # return ptotal
     return Sobs
+
+end
+
+function calculateptotalobsvNE_test2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+
+    # only for K=2
+
+    # Hamiltonian
+    matH = spzeros(Float64,K*2+1,K*2+1)
+    createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
+
+    # correlation matrix
+    # at initial
+    C0 = zeros(Float64,K*2+1)
+    C0[1] = 0.0 + 1e-15 # n_d(0) # make it not 0 exactly to avoid 0.0 log 0.0 = NaN
+    for kk = 1:K
+        C0[1+kk] = 1.0/(exp((matH[1+kk,1+kk]-muL)*betaL)+1.0)
+        C0[1+K+kk] = 1.0/(exp((matH[1+K+kk,1+K+kk]-muR)*betaR)+1.0)
+    end
+    # C0 = diagm(C0)
+    # epsilon = Array(diag(matH))
+    arrayE = [-W, -W/2, 0.0, W/2, W]
+    ptotal = zeros(Float64,5,5)
+
+    println(arrayE)
+    println(C0)
+
+    pop = zeros(Float64,2^5)
+    pop[1] = C0[1]*C0[2]*C0[3]*C0[4]*C0[5]
+    pop[2] = C0[1]*C0[2]*C0[3]*C0[4]*(1-C0[5])
+    pop[3] = C0[1]*C0[2]*C0[3]*(1-C0[4])*C0[5]
+    pop[4] = C0[1]*C0[2]*C0[3]*(1-C0[4])*(1-C0[5])
+
+    pop[5] = C0[1]*C0[2]*(1-C0[3])*C0[4]*C0[5]
+    pop[6] = C0[1]*C0[2]*(1-C0[3])*C0[4]*(1-C0[5])
+    pop[7] = C0[1]*C0[2]*(1-C0[3])*(1-C0[4])*C0[5]
+    pop[8] = C0[1]*C0[2]*(1-C0[3])*(1-C0[4])*(1-C0[5])
+
+    pop[9] = C0[1]*(1-C0[2])*C0[3]*C0[4]*C0[5]
+    pop[10] = C0[1]*(1-C0[2])*C0[3]*C0[4]*(1-C0[5])
+    pop[11] = C0[1]*(1-C0[2])*C0[3]*(1-C0[4])*C0[5]
+    pop[12] = C0[1]*(1-C0[2])*C0[3]*(1-C0[4])*(1-C0[5])
+    pop[13] = C0[1]*(1-C0[2])*(1-C0[3])*C0[4]*C0[5]
+    pop[14] = C0[1]*(1-C0[2])*(1-C0[3])*C0[4]*(1-C0[5])
+    pop[15] = C0[1]*(1-C0[2])*(1-C0[3])*(1-C0[4])*C0[5]
+    pop[16] = C0[1]*(1-C0[2])*(1-C0[3])*(1-C0[4])*(1-C0[5])
+
+    pop[17] = (1-C0[1])*C0[2]*C0[3]*C0[4]*C0[5]
+    pop[18]= (1-C0[1])*C0[2]*C0[3]*C0[4]*(1-C0[5])
+    pop[19]= (1-C0[1])*C0[2]*C0[3]*(1-C0[4])*C0[5]
+    pop[20]= (1-C0[1])*C0[2]*C0[3]*(1-C0[4])*(1-C0[5])
+    pop[21]= (1-C0[1])*C0[2]*(1-C0[3])*C0[4]*C0[5]
+    pop[22]= (1-C0[1])*C0[2]*(1-C0[3])*C0[4]*(1-C0[5])
+    pop[23]= (1-C0[1])*C0[2]*(1-C0[3])*(1-C0[4])*C0[5]
+    pop[24]= (1-C0[1])*C0[2]*(1-C0[3])*(1-C0[4])*(1-C0[5])
+    pop[25]= (1-C0[1])*(1-C0[2])*C0[3]*C0[4]*C0[5]
+    pop[26]= (1-C0[1])*(1-C0[2])*C0[3]*C0[4]*(1-C0[5])
+    pop[27]= (1-C0[1])*(1-C0[2])*C0[3]*(1-C0[4])*C0[5]
+    pop[28]= (1-C0[1])*(1-C0[2])*C0[3]*(1-C0[4])*(1-C0[5])
+    pop[29] = (1-C0[1])*(1-C0[2])*(1-C0[3])*C0[4]*C0[5]
+    pop[30] = (1-C0[1])*(1-C0[2])*(1-C0[3])*C0[4]*(1-C0[5])
+    pop[31] = (1-C0[1])*(1-C0[2])*(1-C0[3])*(1-C0[4])*C0[5]
+    pop[32] = (1-C0[1])*(1-C0[2])*(1-C0[3])*(1-C0[4])*(1-C0[5])
+
+    # test0 = zeros(Float64,1,5)
+    # test0[1,3] = ptotal0
+    # ptotal = [test0;ptotal]
+    # ptotal = ptotal .+ 1e-15
+
+    Sobs = -sum(pop.*log.(pop))
+    println(Sobs)
+
+    # vNE
+    vNE = - sum(C0.*log.(C0)) - sum((1.0 .- C0).*log.(1.0 .- C0))
+    println(vNE)
+
+    return pop
+    # return Sobs
+
+end
+
+function calculateptotaltime_test2(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+
+    # only for K=2
+
+    # Hamiltonian
+    matH = spzeros(Float64,K*2+1,K*2+1)
+    createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
+
+    # Hamiltonian is hermitian
+    matH = Hermitian(Array(matH))
+    val_matH, vec_matH = eigen(matH)
+    invvec_matH = inv(vec_matH)
+
+    # time
+    time = LinRange(0.0,tf,Nt)
+
+    # correlation matrix
+    # at initial
+    C0 = zeros(Float64,K*2+1)
+    C0[1] = 0.0 + 1e-15 # n_d(0) # make it not 0 exactly to avoid 0.0 log 0.0 = NaN
+    for kk = 1:K
+        C0[1+kk] = 1.0/(exp((matH[1+kk,1+kk]-muL)*betaL)+1.0)
+        C0[1+K+kk] = 1.0/(exp((matH[1+K+kk,1+K+kk]-muR)*betaR)+1.0)
+    end
+
+    epsilon = diag(matH)
+    Ct = zeros(ComplexF64,2*K+1,2*K+1)
+    eigval_Ct = zeros(Float64,2*K+1)
+    eigvec_Ct = zeros(Float64,2*K+1,2*K+1)
+
+    ptotal = zeros(Float64,2^(2*K+1))
+    diagC0 = C0
+    C0 = diagm(C0)
+
+    for tt = 1:Nt
+
+        # time evolution of correlation matrix
+        Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
+        Ct .= Ct*C0
+        Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
+
+        # total
+        lambda, eigvec_Ct = eigen(Ct)
+        eigval_Ct .= real.(lambda)
+        # eigval_Ct .= real.(diag(Ct))
+
+        # nj = (abs.(eigvec_Ct).^2)*eigval_Ct
+        # eigval_Ct .= nj
+
+        ptotal .= 0.0
+
+        ptotal[1] = eigval_Ct[1]*eigval_Ct[2]*eigval_Ct[3]*eigval_Ct[4]*eigval_Ct[5]
+        ptotal[2] = eigval_Ct[1]*eigval_Ct[2]*eigval_Ct[3]*eigval_Ct[4]*(1-eigval_Ct[5])
+        ptotal[3] = eigval_Ct[1]*eigval_Ct[2]*eigval_Ct[3]*(1-eigval_Ct[4])*eigval_Ct[5]
+        ptotal[4] = eigval_Ct[1]*eigval_Ct[2]*eigval_Ct[3]*(1-eigval_Ct[4])*(1-eigval_Ct[5])
+
+        ptotal[5] = eigval_Ct[1]*eigval_Ct[2]*(1-eigval_Ct[3])*eigval_Ct[4]*eigval_Ct[5]
+        ptotal[6] = eigval_Ct[1]*eigval_Ct[2]*(1-eigval_Ct[3])*eigval_Ct[4]*(1-eigval_Ct[5])
+        ptotal[7] = eigval_Ct[1]*eigval_Ct[2]*(1-eigval_Ct[3])*(1-eigval_Ct[4])*eigval_Ct[5]
+        ptotal[8] = eigval_Ct[1]*eigval_Ct[2]*(1-eigval_Ct[3])*(1-eigval_Ct[4])*(1-eigval_Ct[5])
+
+        ptotal[9] = eigval_Ct[1]*(1-eigval_Ct[2])*eigval_Ct[3]*eigval_Ct[4]*eigval_Ct[5]
+        ptotal[10] = eigval_Ct[1]*(1-eigval_Ct[2])*eigval_Ct[3]*eigval_Ct[4]*(1-eigval_Ct[5])
+        ptotal[11] = eigval_Ct[1]*(1-eigval_Ct[2])*eigval_Ct[3]*(1-eigval_Ct[4])*eigval_Ct[5]
+        ptotal[12] = eigval_Ct[1]*(1-eigval_Ct[2])*eigval_Ct[3]*(1-eigval_Ct[4])*(1-eigval_Ct[5])
+        ptotal[13] = eigval_Ct[1]*(1-eigval_Ct[2])*(1-eigval_Ct[3])*eigval_Ct[4]*eigval_Ct[5]
+        ptotal[14] = eigval_Ct[1]*(1-eigval_Ct[2])*(1-eigval_Ct[3])*eigval_Ct[4]*(1-eigval_Ct[5])
+        ptotal[15] = eigval_Ct[1]*(1-eigval_Ct[2])*(1-eigval_Ct[3])*(1-eigval_Ct[4])*eigval_Ct[5]
+        ptotal[16] = eigval_Ct[1]*(1-eigval_Ct[2])*(1-eigval_Ct[3])*(1-eigval_Ct[4])*(1-eigval_Ct[5])
+
+        ptotal[17] = (1-eigval_Ct[1])*eigval_Ct[2]*eigval_Ct[3]*eigval_Ct[4]*eigval_Ct[5]
+        ptotal[18]= (1-eigval_Ct[1])*eigval_Ct[2]*eigval_Ct[3]*eigval_Ct[4]*(1-eigval_Ct[5])
+        ptotal[19]= (1-eigval_Ct[1])*eigval_Ct[2]*eigval_Ct[3]*(1-eigval_Ct[4])*eigval_Ct[5]
+        ptotal[20]= (1-eigval_Ct[1])*eigval_Ct[2]*eigval_Ct[3]*(1-eigval_Ct[4])*(1-eigval_Ct[5])
+        ptotal[21]= (1-eigval_Ct[1])*eigval_Ct[2]*(1-eigval_Ct[3])*eigval_Ct[4]*eigval_Ct[5]
+        ptotal[22]= (1-eigval_Ct[1])*eigval_Ct[2]*(1-eigval_Ct[3])*eigval_Ct[4]*(1-eigval_Ct[5])
+        ptotal[23]= (1-eigval_Ct[1])*eigval_Ct[2]*(1-eigval_Ct[3])*(1-eigval_Ct[4])*eigval_Ct[5]
+        ptotal[24]= (1-eigval_Ct[1])*eigval_Ct[2]*(1-eigval_Ct[3])*(1-eigval_Ct[4])*(1-eigval_Ct[5])
+        ptotal[25]= (1-eigval_Ct[1])*(1-eigval_Ct[2])*eigval_Ct[3]*eigval_Ct[4]*eigval_Ct[5]
+        ptotal[26]= (1-eigval_Ct[1])*(1-eigval_Ct[2])*eigval_Ct[3]*eigval_Ct[4]*(1-eigval_Ct[5])
+        ptotal[27]= (1-eigval_Ct[1])*(1-eigval_Ct[2])*eigval_Ct[3]*(1-eigval_Ct[4])*eigval_Ct[5]
+        ptotal[28]= (1-eigval_Ct[1])*(1-eigval_Ct[2])*eigval_Ct[3]*(1-eigval_Ct[4])*(1-eigval_Ct[5])
+        ptotal[29] = (1-eigval_Ct[1])*(1-eigval_Ct[2])*(1-eigval_Ct[3])*eigval_Ct[4]*eigval_Ct[5]
+        ptotal[30] = (1-eigval_Ct[1])*(1-eigval_Ct[2])*(1-eigval_Ct[3])*eigval_Ct[4]*(1-eigval_Ct[5])
+        ptotal[31] = (1-eigval_Ct[1])*(1-eigval_Ct[2])*(1-eigval_Ct[3])*(1-eigval_Ct[4])*eigval_Ct[5]
+        ptotal[32] = (1-eigval_Ct[1])*(1-eigval_Ct[2])*(1-eigval_Ct[3])*(1-eigval_Ct[4])*(1-eigval_Ct[5])
+
+
+        Sobs = -sum(ptotal.*log.(ptotal))
+        println(Sobs)
+
+        # vNE
+        vNE = - sum(diagC0.*log.(diagC0)) - sum((1.0 .- diagC0).*log.(1.0 .- diagC0))
+        println(vNE)
+
+        vNE_sys = -Ct[1,1]*log(Ct[1,1]) - (1-Ct[1,1])*log(1-Ct[1,1])
+        println(vNE_sys)
+
+    end
+
+    # return SobsL, SobsR
 
 end
 
@@ -2058,6 +2245,8 @@ function calculatequantities2(K::Int64,W::Int64,numvari::Int64,betaL::Float64,be
         # vNE for total
         val_Ct .= eigvals(Ct)
         vNE[tt] = - sum(val_Ct.*log.(val_Ct)) - sum((1.0 .- val_Ct).*log.(1.0 .- val_Ct))
+
+        # println(vNE[tt])
 
         # effective inverse temperature and chemical potential
         effparaL[tt,:] .= funeffectivebetamu(K,W,epsilonLR[2:K+1],real(E_L[tt]),real(N_L[tt]),betaL,muL)
