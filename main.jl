@@ -1632,8 +1632,8 @@ function calculateptotaltime_test2(K::Int64,W::Int64,betaL::Float64,betaR::Float
         eigval_Ct .= real.(lambda)
         # eigval_Ct .= real.(diag(Ct))
 
-        # nj = (abs.(eigvec_Ct).^2)*eigval_Ct
-        # eigval_Ct .= nj
+        nj = (abs.(eigvec_Ct).^2)*eigval_Ct
+        eigval_Ct .= nj
 
         ptotal .= 0.0
 
@@ -1681,8 +1681,8 @@ function calculateptotaltime_test2(K::Int64,W::Int64,betaL::Float64,betaR::Float
         vNE = - sum(diagC0.*log.(diagC0)) - sum((1.0 .- diagC0).*log.(1.0 .- diagC0))
         println(vNE)
 
-        vNE_sys = -Ct[1,1]*log(Ct[1,1]) - (1-Ct[1,1])*log(1-Ct[1,1])
-        println(vNE_sys)
+        # vNE_sys = -Ct[1,1]*log(Ct[1,1]) - (1-Ct[1,1])*log(1-Ct[1,1])
+        # println(vNE_sys)
 
     end
 
