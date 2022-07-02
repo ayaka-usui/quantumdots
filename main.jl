@@ -323,7 +323,7 @@ function calculatequantities2(K::Int64,W::Int64,numvari::Int64,betaL::Float64,be
     sigma3 = zeros(ComplexF64,Nt)
     sigma_c = zeros(ComplexF64,Nt)
 
-    for tt = 1:Nt
+    Threads.@threads for tt = 1:Nt
 
         Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
         Ct .= Ct*C0
@@ -386,25 +386,26 @@ function calculatequantities2(K::Int64,W::Int64,numvari::Int64,betaL::Float64,be
         betaQR[tt] = QR[tt]*betaR
 
         #
-        if tt != 1
-           dQLdt[tt] = (QL[tt] - QL[tt-1])/dt
-           dQRdt[tt] = (QR[tt] - QR[tt-1])/dt
-        end
-        betaQLtime[tt] = sum(dQLdt[1:tt].*effparaL[1:tt,1])*dt
-        betaQRtime[tt] = sum(dQRdt[1:tt].*effparaR[1:tt,1])*dt
+        # if tt != 1
+        #    dQLdt[tt] = (QL[tt] - QL[tt-1])/dt
+        #    dQRdt[tt] = (QR[tt] - QR[tt-1])/dt
+        # end
+        # betaQLtime[tt] = sum(dQLdt[1:tt].*effparaL[1:tt,1])*dt
+        # betaQRtime[tt] = sum(dQRdt[1:tt].*effparaR[1:tt,1])*dt
 
         # relative entropy
         Drel[tt] = - betaQL[tt] - betaQR[tt] - (vNE_E[tt] - vNE_E[1])
 
         # entropy production
         sigma[tt] = vNE_sys[tt] - vNE_sys[1] - betaQL[tt] - betaQR[tt]
-        sigma2[tt]= I_SE[tt] + Drel[tt]
+        # sigma2[tt]= I_SE[tt] + Drel[tt]
         sigma3[tt]= I_SE[tt] + I_B[tt] + I_L[tt] + I_R[tt] + (Drel[tt] - I_env[tt])
-        sigma_c[tt]= vNE_sys[tt] - vNE_sys[1] - betaQLtime[tt] - betaQRtime[tt]
+        # sigma_c[tt]= vNE_sys[tt] - vNE_sys[1] - betaQLtime[tt] - betaQRtime[tt]
 
     end
 
-    return time, sigma, sigma_c, effparaL, effparaR, I_B, I_L, I_R
+    return time, vNE_sys, effparaL, effparaR, QL, QR
+    # return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
     # return time, sigma, sigma2, sigma3, sigma_c
     # return time, betaQL, betaQLtime, betaQR, betaQRtime
     # return time, E_sys, E_L, E_R, N_sys, N_L, N_R, E_tot, effparaL, effparaR
