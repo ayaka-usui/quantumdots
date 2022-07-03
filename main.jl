@@ -424,6 +424,8 @@ function calculatequantities2(K::Int64,W::Int64,numvari::Int64,betaL::Float64,be
 
 end
 
+# save("data_calculatequantities2_K128W20betaL1R05GammaL05R05muL1R1tf1000Nt10001.jld", "time", time, "sigma", sigma, "sigma3", sigma3, "sigma_c", sigma_c, "effparaL", effparaL, "effparaR", effparaR, "I_SE", I_SE, "I_B", I_B, "I_L", I_L, "I_R", I_R, "I_env", I_env, "Drel", Drel)
+
 function calculatequantities(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # reproduce the results of Phys. Rev. Lett. 123, 200603 (2019)
