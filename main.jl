@@ -242,11 +242,26 @@ function createH_Deltaepsilon!(K::Int64,W::Int64,numvari::Int64,betaL::Float64,b
 
 end
 
-function calculatequantities2(K::Int64,W::Int64,numvari::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+function calculatequantities2(K::Int64,W::Int64,t_flu::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # Hamiltonian
     matH = spzeros(Float64,K*2+1,K*2+1)
-    createH_Deltaepsilon!(K,W,numvari,betaL,betaR,GammaL,GammaR,matH)
+    createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
+
+    # add fluctuations to tunnelling coupling
+    if t_flu != 0
+       println("add fluctuations to tunnelling coupling")
+       Depsilon = W/(K-1)
+       tunnelL = sqrt(GammaL*Depsilon/(2*pi))
+       tunnelR = sqrt(GammaR*Depsilon/(2*pi))
+       for kk = 1:K
+           flucutu = tunnelL*rand(Uniform(-1,1))/t_flu
+           matH[1+kk,1] = tunnelL + flucutu  # tunnel with the bath L
+           flucutu = tunnelR*rand(Uniform(-1,1))/t_flu
+           matH[1+K+kk,1] = tunnelR + flucutu # tunnel with the bath R
+       end
+       matH .= matH + matH' - spdiagm(diag(matH))
+    end
 
     # Hamiltonian is hermitian
     matH = Hermitian(Array(matH))
@@ -257,7 +272,7 @@ function calculatequantities2(K::Int64,W::Int64,numvari::Int64,betaL::Float64,be
     time = LinRange(0.0,tf,Nt)
     dt = time[2] - time[1]
     println("dt=",dt)
-    println("Note that int beta(t)*dQ/dt*dt depends on dt, so tf/Nt should be small enough.")
+    println("Note that int beta(t)*dQ/dt*dt depends on dt, so dt or tf/Nt should be small enough.")
 
     # correlation matrix
     # at initial
@@ -317,6 +332,8 @@ function calculatequantities2(K::Int64,W::Int64,numvari::Int64,betaL::Float64,be
     betaQRtime = zeros(ComplexF64,Nt)
 
     Drel = zeros(ComplexF64,Nt)
+    Drelnuk = zeros(ComplexF64,Nt)
+    Drelpinuk = zeros(ComplexF64,Nt)
 
     sigma = zeros(ComplexF64,Nt)
     sigma2 = zeros(ComplexF64,Nt)
@@ -329,7 +346,6 @@ function calculatequantities2(K::Int64,W::Int64,numvari::Int64,betaL::Float64,be
         Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
         Ct .= Ct*C0
         Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
-        # Ct = Hermitian(Ct)
 
         # energy
         dCt .= diag(Ct) #diag(Ct - C0)
@@ -363,15 +379,16 @@ function calculatequantities2(K::Int64,W::Int64,numvari::Int64,betaL::Float64,be
         vNE_alphak[tt] = - sum(diag_Ct_E.*log.(diag_Ct_E)) - sum((1.0 .- diag_Ct_E).*log.(1.0 .- diag_Ct_E))
         I_env[tt] = vNE_alphak[tt] - vNE_E[tt]
 
+        # I_B
         val_Ct_L .= eigvals(Ct[2:K+1,2:K+1])
         vNE_L[tt] = - sum(val_Ct_L.*log.(val_Ct_L)) - sum((1.0 .- val_Ct_L).*log.(1.0 .- val_Ct_L))
         val_Ct_R .= eigvals(Ct[K+2:2*K+1,K+2:2*K+1])
         vNE_R[tt] = - sum(val_Ct_R.*log.(val_Ct_R)) - sum((1.0 .- val_Ct_R).*log.(1.0 .- val_Ct_R))
         I_B[tt] = vNE_L[tt] + vNE_R[tt] - vNE_E[tt]
 
+        # I_nu
         vNE_Lk[tt] = - sum(diag_Ct_E[1:K].*log.(diag_Ct_E[1:K])) - sum((1.0 .- diag_Ct_E[1:K]).*log.(1.0 .- diag_Ct_E[1:K]))
         I_L[tt] = vNE_Lk[tt] - vNE_L[tt]
-
         vNE_Rk[tt] = - sum(diag_Ct_E[K+1:2*K].*log.(diag_Ct_E[K+1:2*K])) - sum((1.0 .- diag_Ct_E[K+1:2*K]).*log.(1.0 .- diag_Ct_E[K+1:2*K]))
         I_R[tt] = vNE_Rk[tt] - vNE_R[tt]
 
@@ -394,33 +411,29 @@ function calculatequantities2(K::Int64,W::Int64,numvari::Int64,betaL::Float64,be
         betaQLtime[tt] = sum(dQLdt[1:tt].*effparaL[1:tt,1])*dt
         betaQRtime[tt] = sum(dQRdt[1:tt].*effparaR[1:tt,1])*dt
 
-        # relative entropy
+        # relative entropy between rho_B(t) and rho_B(0)
         Drel[tt] = - betaQL[tt] - betaQR[tt] - (vNE_E[tt] - vNE_E[1])
+
+        # relative entropy between rho_{nu,k}(t) and rho_{nu,k}(0)
+        Drelnuk[tt] = Drel[tt] - I_env[tt]
 
         # entropy production
         sigma[tt] = vNE_sys[tt] - vNE_sys[1] - betaQL[tt] - betaQR[tt]
-        # sigma2[tt]= I_SE[tt] + Drel[tt]
-        sigma3[tt]= I_SE[tt] + I_B[tt] + I_L[tt] + I_R[tt] + (Drel[tt] - I_env[tt])
-        sigma_c[tt]= vNE_sys[tt] - vNE_sys[1] - betaQLtime[tt] - betaQRtime[tt]
+        sigma2[tt] = I_SE[tt] + Drel[tt]
+        sigma3[tt] = I_SE[tt] + I_B[tt] + I_L[tt] + I_R[tt] + Drelnuk[tt]
+        sigma_c[tt] = vNE_sys[tt] - vNE_sys[1] - betaQLtime[tt] - betaQRtime[tt]
+
+        # relative entropy between pi_nuk(t) and pi_nuk(0)
+        Drelpinuk[tt] = sigma[tt] - sigma_c[tt]
 
     end
 
+    return time, sigma, sigma2, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime
     # return time, vNE_sys, effparaL, effparaR, QL, QR
-    return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
+    # return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
     # return time, sigma, sigma2, sigma3, sigma_c
     # return time, betaQL, betaQLtime, betaQR, betaQRtime
     # return time, E_sys, E_L, E_R, N_sys, N_L, N_R, E_tot, effparaL, effparaR
-
-    # println("add fluctuations to tunnelling coupling")
-    # Depsilon = W/(K-1)
-    # tunnelL = sqrt(GammaL*Depsilon/(2*pi))
-    # tunnelR = sqrt(GammaR*Depsilon/(2*pi))
-    # for kk = 1:K
-    #     flucutu = tunnelL*rand(Uniform(-1,1))/20
-    #     matH[1+kk,1] = tunnelL + flucutu  # tunnel with the bath L
-    #     flucutu = tunnelR*rand(Uniform(-1,1))/20
-    #     matH[1+K+kk,1] = tunnelR + flucutu # tunnel with the bath R
-    # end
 
 end
 
