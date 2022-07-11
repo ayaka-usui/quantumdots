@@ -249,7 +249,9 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Int64,betaL::Float64,beta
     createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
 
     # add fluctuations to tunnelling coupling
-    if t_flu != 0
+    if t_flu == 0
+       println("no fluctuations to tunnelling coupling")
+    elseif t_flu != 0
        println("add fluctuations to tunnelling coupling")
        Depsilon = W/(K-1)
        tunnelL = sqrt(GammaL*Depsilon/(2*pi))
