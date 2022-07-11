@@ -12,8 +12,8 @@ using Combinatorics
 function createH!(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,matH::SparseMatrixCSC{Float64})
 
     # matH = sparse(Float64,K*2+1,K*2+1)
+    matH .= 0.0
     Depsilon = W/(K-1)
-
     matH[1,1] = 0.0 # epsilon for the system, probably 0
 
     for kk = 1:K
@@ -242,28 +242,34 @@ function createH_Deltaepsilon!(K::Int64,W::Int64,numvari::Int64,betaL::Float64,b
 
 end
 
-function calculatequantities2(K::Int64,W::Int64,t_flu::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+function createH_fluctuatedt!(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,matH::SparseMatrixCSC{Float64})
 
-    # Hamiltonian
-    matH = spzeros(Float64,K*2+1,K*2+1)
-    createH!(K,W,betaL,betaR,GammaL,GammaR,matH)
+    # matH = sparse(Float64,K*2+1,K*2+1)
+    matH .= 0.0
+    Depsilon = W/(K-1)
+    tunnelL = sqrt(GammaL*Depsilon/(2*pi))
+    tunnelR = sqrt(GammaR*Depsilon/(2*pi))
 
-    # add fluctuations to tunnelling coupling
-    if t_flu == 0
-       println("no fluctuations to tunnelling coupling")
-    elseif t_flu != 0
-       println("add fluctuations to tunnelling coupling")
-       Depsilon = W/(K-1)
-       tunnelL = sqrt(GammaL*Depsilon/(2*pi))
-       tunnelR = sqrt(GammaR*Depsilon/(2*pi))
-       for kk = 1:K
-           flucutu = tunnelL*rand(Uniform(-1,1))/t_flu
-           matH[1+kk,1] = tunnelL + flucutu  # tunnel with the bath L
-           flucutu = tunnelR*rand(Uniform(-1,1))/t_flu
-           matH[1+K+kk,1] = tunnelR + flucutu # tunnel with the bath R
-       end
-       matH .= matH + matH' - spdiagm(diag(matH))
+    matH[1,1] = 0.0 # epsilon for the system, probably 0
+
+    for kk = 1:K
+        matH[1+kk,1+kk] = (kk-1)*Depsilon - W/2 # epsilon for the bath L
+        flucutu = tunnelL*rand(Uniform(-1,1))*t_flu
+        matH[1+kk,1] = tunnelL + flucutu # tunnel with the bath L
+        flucutu = tunnelR*rand(Uniform(-1,1))*t_flu
+        matH[1+K+kk,1] = tunnelR + flucutu # tunnel with the bath R
     end
+    matH[K+2:end,K+2:end] = matH[2:K+1,2:K+1] # epsilon for the bath R
+
+    matH .= matH + matH' - spdiagm(diag(matH))
+
+end
+
+function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+
+    # Hamiltonian + fluctuated t
+    matH = spzeros(Float64,K*2+1,K*2+1)
+    createH_fluctuatedt!(K,W,t_flu,betaL,betaR,GammaL,GammaR,matH)
 
     # Hamiltonian is hermitian
     matH = Hermitian(Array(matH))
