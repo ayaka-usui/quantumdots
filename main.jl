@@ -432,7 +432,7 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
         sigma_c[tt] = vNE_sys[tt] - vNE_sys[1] - betaQLtime[tt] - betaQRtime[tt]
 
         # relative entropy between pi_nuk(t) and pi_nuk(0)
-        Drelpinuk[tt] = sigma[tt] - sigma_c[tt]
+        Drelpinuk[tt] =  Drelnuk[tt] - (sigma[tt] - sigma_c[tt])  #sigma[tt] - sigma_c[tt] 
 
     end
 
