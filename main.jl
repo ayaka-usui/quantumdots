@@ -32,7 +32,7 @@ function funbetamu!(F,x,epsilon::Vector{Float64},Ene::Float64,Np::Float64)
     # x[1] = beta, x[2] = mu
     # Depsilon = W/(K-1)
 
-    for kk = 1:K
+    for kk = 1:length(epsilon)
         # epsilonk = (kk-1)*Depsilon - W/2
         if kk == 1
            F[1] = 1.0/(exp((epsilon[kk]-x[2])*x[1])+1.0)*epsilon[kk]
@@ -284,7 +284,7 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
     # Hamiltonian + fluctuated t
     matH = spzeros(Float64,K*2+1,K*2+1)
     createH_fluctuatedt!(K,W,t_flu,betaL,betaR,GammaL,GammaR,matH)
-    epsilonLR = diag(matH)
+    epsilonLR = diag(Array(matH))
     tLRk = matH[1,1:end]
 
     # Hamiltonian is hermitian
@@ -314,7 +314,8 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
     N_tot0 = sum(dC0[1:2*K+1])
     effpara0 = funeffectivebetamu(epsilonLR,E_tot0,N_tot0,(betaL+betaR)/2,(muL+muR)/2)
 
-    return effpara0
+    println(effpara0[1])
+    println(effpara0[2])
 
     # global Gibbs state
     Cgg = globalGibbsstate(K,val_matH,vec_matH,invvec_matH,effpara0[1],effpara0[2])
@@ -325,6 +326,8 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
     val_Cgg_R = eigvals(Cgg[K+2:2*K+1,K+2:2*K+1])
     vNEgg_R = - sum(val_Cgg_R.*log.(val_Cgg_R)) - sum((1.0 .- val_Cgg_R).*log.(1.0 .- val_Cgg_R))
     Igg_B = vNEgg_L + vNEgg_R - vNEgg_E
+
+    println(Igg_B)
 
     # define space for input
     Ct = zeros(ComplexF64,K*2+1,K*2+1)
@@ -468,7 +471,7 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
 
     end
 
-    return time, sigma, sigma2, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime
+    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime
     # return time, vNE_sys, effparaL, effparaR, QL, QR
     # return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
     # return time, sigma, sigma2, sigma3, sigma_c
