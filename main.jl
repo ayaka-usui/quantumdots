@@ -27,7 +27,7 @@ function createH!(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float6
 
 end
 
-function funbetamu!(F,x,epsilon::Vector{Float64},K::Int64,W::Int64,Ene::Float64,Np::Float64)
+function funbetamu!(F,x,epsilon::Vector{Float64},Ene::Float64,Np::Float64)
 
     # x[1] = beta, x[2] = mu
     # Depsilon = W/(K-1)
@@ -69,9 +69,9 @@ function funbetamu_uni!(F,x,K::Int64,W::Int64,Ene::Float64,Np::Float64)
 
 end
 
-function funeffectivebetamu(K::Int64,W::Int64,epsilon::Vector{Float64},Ene::Float64,Np::Float64,beta0::Float64,mu0::Float64)
+function funeffectivebetamu(epsilon::Vector{Float64},Ene::Float64,Np::Float64,beta0::Float64,mu0::Float64)
 
-    sol = nlsolve((F,x) ->funbetamu!(F,x,epsilon,K,W,Ene,Np), [beta0; mu0])
+    sol = nlsolve((F,x) ->funbetamu!(F,x,epsilon,Ene,Np), [beta0; mu0])
     return sol.zero
 
 end
@@ -265,11 +265,27 @@ function createH_fluctuatedt!(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
 
 end
 
+function globalGibbsstate(K::Int64,val_matH::Vector{Float64},vec_matH::Matrix{Float64},invvec_matH::Matrix{Float64},beta::Float64,mu::Float64)
+
+    # global Gibbs state
+    Cgg = zeros(Float64,K*2+1)
+    for kk = 1:2*K+1
+        Cgg[kk] = 1.0/(exp((val_matH[kk]-mu)*beta)+1.0)
+    end
+    Cgg = diagm(Cgg)
+    Cgg .= vec_matH*Cgg*invvec_matH
+
+    return Cgg
+
+end
+
 function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # Hamiltonian + fluctuated t
     matH = spzeros(Float64,K*2+1,K*2+1)
     createH_fluctuatedt!(K,W,t_flu,betaL,betaR,GammaL,GammaR,matH)
+    epsilonLR = diag(matH)
+    tLRk = matH[1,1:end]
 
     # Hamiltonian is hermitian
     matH = Hermitian(Array(matH))
@@ -292,9 +308,25 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
     end
     C0 = diagm(C0)
 
-    epsilonLR = diag(matH)
-    tLRk = matH[1,1:end]
+    # total enery and particle number, and estimated inverse temperature and chemical potential
+    dC0 = diag(C0)
+    E_tot0 = sum(dC0[1:2*K+1].*epsilonLR[1:2*K+1])
+    N_tot0 = sum(dC0[1:2*K+1])
+    effpara0 = funeffectivebetamu(epsilonLR,E_tot0,N_tot0,(betaL+betaR)/2,(muL+muR)/2)
 
+    return effpara0
+
+    # global Gibbs state
+    Cgg = globalGibbsstate(K,val_matH,vec_matH,invvec_matH,effpara0[1],effpara0[2])
+    val_Cgg_E = eigvals(Cgg[2:2*K+1,2:2*K+1])
+    vNEgg_E = - sum(val_Cgg_E.*log.(val_Cgg_E)) - sum((1.0 .- val_Cgg_E).*log.(1.0 .- val_Cgg_E))
+    val_Cgg_L = eigvals(Cgg[2:K+1,2:K+1])
+    vNEgg_L = - sum(val_Cgg_L.*log.(val_Cgg_L)) - sum((1.0 .- val_Cgg_L).*log.(1.0 .- val_Cgg_L))
+    val_Cgg_R = eigvals(Cgg[K+2:2*K+1,K+2:2*K+1])
+    vNEgg_R = - sum(val_Cgg_R.*log.(val_Cgg_R)) - sum((1.0 .- val_Cgg_R).*log.(1.0 .- val_Cgg_R))
+    Igg_B = vNEgg_L + vNEgg_R - vNEgg_E
+
+    # define space for input
     Ct = zeros(ComplexF64,K*2+1,K*2+1)
     dCt = zeros(ComplexF64,K*2+1)
     dCt1 = zeros(ComplexF64,K*2+1)
@@ -401,8 +433,8 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
         I_R[tt] = vNE_Rk[tt] - vNE_R[tt]
 
         # effective inverse temperature and chemical potential
-        effparaL[tt,:] .= funeffectivebetamu(K,W,epsilonLR[2:K+1],real(E_L[tt]),real(N_L[tt]),betaL,muL)
-        effparaR[tt,:] .= funeffectivebetamu(K,W,epsilonLR[K+2:2*K+1],real(E_R[tt]),real(N_R[tt]),betaR,muR)
+        effparaL[tt,:] .= funeffectivebetamu(epsilonLR[2:K+1],real(E_L[tt]),real(N_L[tt]),betaL,muL)
+        effparaR[tt,:] .= funeffectivebetamu(epsilonLR[K+2:2*K+1],real(E_R[tt]),real(N_R[tt]),betaR,muR)
 
         # heat
         dCt .= diag(Ct - C0)
@@ -432,7 +464,7 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
         sigma_c[tt] = vNE_sys[tt] - vNE_sys[1] - betaQLtime[tt] - betaQRtime[tt]
 
         # relative entropy between pi_nuk(t) and pi_nuk(0)
-        Drelpinuk[tt] =  Drelnuk[tt] - (sigma[tt] - sigma_c[tt])  #sigma[tt] - sigma_c[tt] 
+        Drelpinuk[tt] =  Drelnuk[tt] - (sigma[tt] - sigma_c[tt])  #sigma[tt] - sigma_c[tt]
 
     end
 
