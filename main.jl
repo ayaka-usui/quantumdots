@@ -313,21 +313,38 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
     E_tot0 = sum(dC0[1:2*K+1].*epsilonLR[1:2*K+1])
     N_tot0 = sum(dC0[1:2*K+1])
     effpara0 = funeffectivebetamu(epsilonLR,E_tot0,N_tot0,(betaL+betaR)/2,(muL+muR)/2)
-
-    println(effpara0[1])
-    println(effpara0[2])
+    println("beta_gg=",effpara0[1])
+    println("mu_gg=",effpara0[2])
 
     # global Gibbs state
     Cgg = globalGibbsstate(K,val_matH,vec_matH,invvec_matH,effpara0[1],effpara0[2])
+
+    # mutual info between S and E
+    val_Cgg = eigvals(Cgg)
+    vNEgg = - sum(val_Cgg.*log.(val_Cgg)) - sum((1.0 .- val_Cgg).*log.(1.0 .- val_Cgg))
+    val_Cgg_sys = Cgg[1,1]
+    vNEgg_sys = - val_Cgg_sys.*log.(val_Cgg_sys) - (1.0 .- val_Cgg_sys).*log.(1.0 .- val_Cgg_sys)
     val_Cgg_E = eigvals(Cgg[2:2*K+1,2:2*K+1])
     vNEgg_E = - sum(val_Cgg_E.*log.(val_Cgg_E)) - sum((1.0 .- val_Cgg_E).*log.(1.0 .- val_Cgg_E))
+    Igg_SE = vNEgg_sys + vNEgg_E - vNEgg
+    println("Igg_SE=",Igg_SE)
+
+    # intrabath correlation
     val_Cgg_L = eigvals(Cgg[2:K+1,2:K+1])
     vNEgg_L = - sum(val_Cgg_L.*log.(val_Cgg_L)) - sum((1.0 .- val_Cgg_L).*log.(1.0 .- val_Cgg_L))
     val_Cgg_R = eigvals(Cgg[K+2:2*K+1,K+2:2*K+1])
     vNEgg_R = - sum(val_Cgg_R.*log.(val_Cgg_R)) - sum((1.0 .- val_Cgg_R).*log.(1.0 .- val_Cgg_R))
     Igg_B = vNEgg_L + vNEgg_R - vNEgg_E
+    println("Igg_B=",Igg_B)
 
-    println(Igg_B)
+    # intramode correlation
+    diag_Cgg_E = diag(Cgg[2:end,2:end])
+    vNEgg_Lk = - sum(diag_Cgg_E[1:K].*log.(diag_Cgg_E[1:K])) - sum((1.0 .- diag_Cgg_E[1:K]).*log.(1.0 .- diag_Cgg_E[1:K]))
+    Igg_L = vNEgg_Lk - vNEgg_L
+    vNEgg_Rk = - sum(diag_Cgg_E[K+1:2*K].*log.(diag_Cgg_E[K+1:2*K])) - sum((1.0 .- diag_Cgg_E[K+1:2*K]).*log.(1.0 .- diag_Cgg_E[K+1:2*K]))
+    Igg_R = vNEgg_Rk - vNEgg_R
+    println("Igg_L=",Igg_L)
+    println("Igg_R=",Igg_R)
 
     # define space for input
     Ct = zeros(ComplexF64,K*2+1,K*2+1)
