@@ -400,6 +400,9 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
     sigma3 = zeros(ComplexF64,Nt)
     sigma_c = zeros(ComplexF64,Nt)
 
+    # matCL = zeros(Float64,2,2,Nt)
+    # matCR = zeros(Float64,2,2,Nt)
+
     # Threads.@threads for tt = 1:Nt
     for tt = 1:Nt
 
@@ -420,6 +423,9 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
         N_sys[tt] = dCt[1]
         N_L[tt] = sum(dCt[2:K+1])
         N_R[tt] = sum(dCt[K+2:2*K+1])
+
+        # heat capacity
+        # matCL[1,1,tt] =
 
         # vNE
         # total
