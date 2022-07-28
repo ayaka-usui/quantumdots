@@ -279,6 +279,27 @@ function globalGibbsstate(K::Int64,val_matH::Vector{Float64},vec_matH::Matrix{Fl
 
 end
 
+function heatcapacityeff(C0::Vector{Float64},K::Int64,epsilon::Vector{Float64},beta::Float64,mu::Float64)
+
+    # C0 = zeros(Float64,K)
+    C0 .= 0.0
+    for kk = 1:K
+        C0[kk] = 1.0/(exp((epsilon[kk]-mu)*beta)+1.0)
+    end
+
+    varH = sum(epsilon.^2.*(C0.*(1.0.-C0)))
+    varN = sum(C0.*(1.0.-C0))
+    varHN = sum(epsilon.*(C0.*(1.0.-C0)))
+
+    dUdbeta = -varH + mu*varHN
+    dUdmu = beta*varHN
+    dNdbeta = mu*varN - varHN
+    dNdmu = mu*varN
+
+    return [dUdbeta dUdmu; dNdbeta dNdmu]
+
+end
+
 function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # Hamiltonian + fluctuated t
@@ -400,8 +421,9 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
     sigma3 = zeros(ComplexF64,Nt)
     sigma_c = zeros(ComplexF64,Nt)
 
-    # matCL = zeros(Float64,2,2,Nt)
-    # matCR = zeros(Float64,2,2,Nt)
+    Cbath = zeros(Float64,K)
+    matCL = zeros(Float64,2,2,Nt)
+    matCR = zeros(Float64,2,2,Nt)
 
     # Threads.@threads for tt = 1:Nt
     for tt = 1:Nt
@@ -423,9 +445,6 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
         N_sys[tt] = dCt[1]
         N_L[tt] = sum(dCt[2:K+1])
         N_R[tt] = sum(dCt[K+2:2*K+1])
-
-        # heat capacity
-        # matCL[1,1,tt] =
 
         # vNE
         # total
@@ -477,6 +496,10 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
         betaQLtime[tt] = sum(dQLdt[1:tt].*effparaL[1:tt,1])*dt
         betaQRtime[tt] = sum(dQRdt[1:tt].*effparaR[1:tt,1])*dt
 
+        # heat capacity
+        matCL[:,:,tt] = heatcapacityeff(Cbath,K,epsilonLR[2:K+1],effparaL[tt,1],effparaL[tt,2])
+        matCR[:,:,tt] = heatcapacityeff(Cbath,K,epsilonLR[K+2:2*K+1],effparaR[tt,1],effparaR[tt,2])
+
         # relative entropy between rho_B(t) and rho_B(0)
         Drel[tt] = - betaQL[tt] - betaQR[tt] - (vNE_E[tt] - vNE_E[1])
 
@@ -494,7 +517,7 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
 
     end
 
-    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt
+    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR
     # return time, vNE_sys, effparaL, effparaR, QL, QR
     # return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
     # return time, sigma, sigma2, sigma3, sigma_c
