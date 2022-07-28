@@ -287,7 +287,7 @@ function heatcapacityeff(C0::Vector{Float64},K::Int64,epsilon::Vector{Float64},b
         C0[kk] = 1.0/(exp((epsilon[kk]-mu)*beta)+1.0)
     end
 
-    varH = sum(epsilon.^2.*(C0.*(1.0.-C0)))
+    varH = sum(epsilon.^2 .*(C0.*(1.0.-C0)))
     varN = sum(C0.*(1.0.-C0))
     varHN = sum(epsilon.*(C0.*(1.0.-C0)))
 
