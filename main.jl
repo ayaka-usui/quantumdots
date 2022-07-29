@@ -294,7 +294,7 @@ function heatcapacityeff(C0::Vector{Float64},K::Int64,epsilon::Vector{Float64},b
     dUdbeta = -varH + mu*varHN
     dUdmu = beta*varHN
     dNdbeta = mu*varN - varHN
-    dNdmu = mu*varN
+    dNdmu = beta*varN
 
     return [dUdbeta dUdmu; dNdbeta dNdmu]
 
