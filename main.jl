@@ -48,6 +48,24 @@ function funbetamu!(F,x,epsilon::Vector{Float64},Ene::Float64,Np::Float64)
 
 end
 
+function funbetamu2!(F,x,epsilon::Vector{Float64},Ene::Float64,Np::Float64,Cgg::Vector{Float64},matCgg::Matrix{Float64},K::Int64,val_matH::Vector{Float64},vec_matH::Matrix{Float64},invvec_matH::Matrix{Float64})
+
+    # x[1] = beta, x[2] = mu
+
+    # Cgg = zeros(Float64,K*2+1)
+    Cgg .= 0.0
+    for kk = 1:2*K+1
+        Cgg[kk] = 1.0/(exp((val_matH[kk]-x[2])*x[1])+1.0)
+    end
+    matCgg .= diagm(Cgg) # f basis
+    matCgg .= vec_matH*matCgg*invvec_matH # c basis
+    Cgg .= diag(matCgg)
+
+    F[1] = sum(Cgg.*epsilon) - Ene
+    F[2] = sum(Cgg) - Np
+
+end
+
 function funbetamu_uni!(F,x,K::Int64,W::Int64,Ene::Float64,Np::Float64)
 
     # x[1] = beta, x[2] = mu
@@ -72,6 +90,13 @@ end
 function funeffectivebetamu(epsilon::Vector{Float64},Ene::Float64,Np::Float64,beta0::Float64,mu0::Float64)
 
     sol = nlsolve((F,x) ->funbetamu!(F,x,epsilon,Ene,Np), [beta0; mu0])
+    return sol.zero
+
+end
+
+function funeffectivebetamu2(epsilon::Vector{Float64},Ene::Float64,Np::Float64,beta0::Float64,mu0::Float64,Cgg::Vector{Float64},matCgg::Matrix{Float64},K::Int64,val_matH::Vector{Float64},vec_matH::Matrix{Float64},invvec_matH::Matrix{Float64})
+
+    sol = nlsolve((F,x) ->funbetamu2!(F,x,epsilon,Ene,Np,Cgg,matCgg,K,val_matH,vec_matH,invvec_matH), [beta0; mu0])
     return sol.zero
 
 end
@@ -333,7 +358,10 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
     dC0 = diag(C0)
     E_tot0 = sum(dC0[1:2*K+1].*epsilonLR[1:2*K+1])
     N_tot0 = sum(dC0[1:2*K+1])
-    effpara0 = funeffectivebetamu(epsilonLR,E_tot0,N_tot0,(betaL+betaR)/2,(muL+muR)/2)
+    # effpara0 = funeffectivebetamu(epsilonLR,E_tot0,N_tot0,(betaL+betaR)/2,(muL+muR)/2)
+    Cgg0 = zeros(Float64,K*2+1)
+    matCgg0 = zeros(Float64,K*2+1,K*2+1)
+    effpara0 = funeffectivebetamu2(epsilonLR,E_tot0,N_tot0,(betaL+betaR)/2,(muL+muR)/2,Cgg0,matCgg0,K,val_matH,vec_matH,invvec_matH)
     println("beta_gg=",effpara0[1])
     println("mu_gg=",effpara0[2])
 
@@ -478,8 +506,18 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
         I_R[tt] = vNE_Rk[tt] - vNE_R[tt]
 
         # effective inverse temperature and chemical potential
-        effparaL[tt,:] .= funeffectivebetamu(epsilonLR[2:K+1],real(E_L[tt]),real(N_L[tt]),betaL,muL)
-        effparaR[tt,:] .= funeffectivebetamu(epsilonLR[K+2:2*K+1],real(E_R[tt]),real(N_R[tt]),betaR,muR)
+        betaL0 = betaL
+        betaR0 = betaR
+        muL0 = muL
+        muR0 = muR
+        if tt != 1
+           betaL0 = effparaL[tt-1,1]
+           betaR0 = effparaR[tt-1,1]
+           muL0 = effparaL[tt-1,2]
+           muR0 = effparaR[tt-1,2]
+        end
+        effparaL[tt,:] .= funeffectivebetamu(epsilonLR[2:K+1],real(E_L[tt]),real(N_L[tt]),betaL0,muL0) #betaL,muL
+        effparaR[tt,:] .= funeffectivebetamu(epsilonLR[K+2:2*K+1],real(E_R[tt]),real(N_R[tt]),betaR0,muR0) #betaR,muR
 
         # heat
         dCt .= diag(Ct - C0)
