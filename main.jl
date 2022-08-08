@@ -650,6 +650,24 @@ function calculatequantities(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Gam
 
 end
 
+function movingmean(x::Vector{Float64}, n::Number)
+
+    if iseven(n)
+       error("use an odd number for n to make the resulting moving average symmetric.")
+    end
+
+    m = zeros(Float64,length(x))
+    δ = ceil(Int64,(n-1)/2)
+    for ii = 1:length(x)
+        ii0 = max(ii-δ,1)
+        ii1 = min(ii+δ,length(x))
+        m[ii] = mean(x[ii0:ii1])
+    end
+
+    return m
+
+end
+
 ################ basis functions for obs
 
 function calculate_Sobs_K2(W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
