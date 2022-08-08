@@ -650,14 +650,14 @@ function calculatequantities(K::Int64,W::Int64,betaL::Float64,betaR::Float64,Gam
 
 end
 
-function movingmean(x::Vector{Float64}, n::Number)
+function movingmean(x::Vector{Float64}, n::Int64)
 
     if iseven(n)
        error("use an odd number for n to make the resulting moving average symmetric.")
     end
 
     m = zeros(Float64,length(x))
-    δ = ceil(Int64,(n-1)/2)
+    δ = Int64((n-1)/2) #ceil(Int64,(n-1)/2)
     for ii = 1:length(x)
         ii0 = max(ii-δ,1)
         ii1 = min(ii+δ,length(x))
