@@ -25,3 +25,4 @@ Manifest.toml
 data_bathprobability_K128.jld
 *.jld
 *.png
+.DS_Store

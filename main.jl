@@ -670,6 +670,164 @@ end
 
 ################ basis functions for obs
 
+function calculate_Sobs_test(W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+
+    # only for K=2
+    K = 2
+
+    # Hamiltonian
+    matH = spzeros(Float64,K*2+1,K*2+1)
+    createH_fluctuatedt!(K,W,0.0,betaL,betaR,GammaL,GammaR,matH)
+    epsilonLR = diag(Array(matH))
+    tLRk = matH[1,1:end]
+
+    epsilonL = epsilonLR[2:K+1]
+    epsilonR = epsilonLR[K+2:2*K+1]
+
+    # Hamiltonian is hermitian
+    matH = Hermitian(Array(matH))
+    val_matH, vec_matH = eigen(matH)
+    invvec_matH = inv(vec_matH)
+
+    # time
+    time = LinRange(0.0,tf,Nt)
+
+    # correlation matrix
+    # at initial
+    C0 = zeros(Float64,K*2+1)
+    C0[1] = 0.0 + 1e-15 # n_d(0) # make it not 0 exactly to avoid 0.0 log 0.0 = NaN
+    for kk = 1:K
+        C0[1+kk] = 1.0/(exp((matH[1+kk,1+kk]-muL)*betaL)+1.0)
+        C0[1+K+kk] = 1.0/(exp((matH[1+K+kk,1+K+kk]-muR)*betaR)+1.0)
+    end
+    C0 = diagm(C0)
+
+    Ct = zeros(ComplexF64,2*K+1,2*K+1)
+    # eigval_Ct = zeros(Float64,2*K+1)
+    # eigvec_Ct = zeros(Float64,2*K+1,2*K+1)
+    eigval_Ct_L = zeros(Float64,K)
+    eigvec_Ct_L = zeros(Float64,K,K)
+    eigval_Ct_R = zeros(Float64,K)
+    eigvec_Ct_R = zeros(Float64,K,K)
+
+    pL_n = zeros(Float64,K)
+    epsilonL_tilde = zeros(Float64,K)
+    pL_n0 = zeros(Float64,K)
+
+    pL_NE = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
+    pL_NE_E = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
+    pL_NE_V = zeros(Int64,K+1,binomial(K,floor(Int64,K/2)))
+
+    SobsL = zeros(Float64,Nt)
+
+    for tt = 1:Nt
+
+        # time evolution of correlation matrix
+        Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
+        Ct .= Ct*C0
+        Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
+
+        # total
+        # lambda, eigvec_Ct = eigen(Ct)
+        # eigval_Ct .= real.(lambda)
+
+        # L
+        lambda, eigvec_Ct_L = eigen(Ct[2:K+1,2:K+1])
+        eigval_Ct_L .= real.(lambda)
+        # pL_tilden .= eigval_Ct_L
+        pL_n .= (abs.(eigvec_Ct_L).^2)*eigval_Ct_L
+        # epsilonL_tilde .= sum((abs.(eigvec_Ct_L).^2).*epsilonL,dims=1)
+
+        pL_NE .= NaN
+        pL_NE_E .= NaN
+        pL_NE_V .= 0.0
+
+        # pL_EN for N=0 and so E=0
+        pL_n0 .= 1.0 .- pL_n
+        pL_NE[1,1] = prod(pL_n0)
+        pL_NE_E[1,1] = 0.0
+        pL_NE_V[1,1] = 1
+
+        # only for K=2
+        pL_NE[2,1] = pL_n[1]*(1-pL_n[2])
+        pL_NE_E[2,1] = epsilonL[1]
+        pL_NE_V[2,1] = 1
+
+        pL_NE[2,2] = (1-pL_n[1])*pL_n[2]
+        pL_NE_E[2,2] = epsilonL[2]
+        pL_NE_V[2,2] = 1
+
+        pL_NE[3,1] = pL_n[1]*pL_n[2]
+        pL_NE_E[3,1] = epsilonL[1]+epsilonL[2]
+        pL_NE_V[3,1] = 1
+
+        for jjN = 1:K+1
+            for jjNlabel = 1:binomial(K,jjN-1)
+                if pL_NE_V[jjN,jjNlabel] > 0
+                   SobsL[tt] += pL_NE[jjN,jjNlabel]*(-log(pL_NE[jjN,jjNlabel])+log(pL_NE_V[jjN,jjNlabel]))
+                end
+            end
+        end
+
+        # # pL_EN for N>=1
+        # for jjN = 1:K
+        #     label = collect(combinations(1:K,jjN))
+        #     for jjNlabel = 1:length(label)
+        #
+        #         pL_n0 .= 1.0 .- pL_n
+        #         pL_n0[label[jjNlabel]] = 1.0 .- pL_n0[label[jjNlabel]]
+        #         pL_NE[1+jjN,jjNlabel] = prod(pL_n0)
+        #         pL_NE_E[1+jjN,jjNlabel] = sum(epsilonL_tilde[label[jjNlabel]])
+        #         pL_NE_V[1+jjN,jjNlabel] = 1
+        #
+        #         # coarse-grained energy measurement
+        #         for jjcheck = 1:jjNlabel-1
+        #             if pL_NE_V[1+jjN,jjcheck] > 0 && abs(pL_NE_E[1+jjN,jjcheck] - pL_NE_E[1+jjN,jjNlabel]) < 10^(-10)
+        #                pL_NE_V[1+jjN,jjcheck] += 1
+        #                pL_NE[1+jjN,jjcheck] += pL_NE[1+jjN,jjNlabel]
+        #
+        #                pL_NE_V[1+jjN,jjNlabel] = -1
+        #                pL_NE[1+jjN,jjNlabel] = 0.0
+        #
+        #                break
+        #             end
+        #         end
+        #
+        #     end
+        # end
+
+        # if tt == 1
+        #    pL_NE0 .= pL_NE
+        # end
+
+        # # observational entropy
+        # for jjN = 1:K
+        #     for jjNlabel = 1:binomial(K,jjN)
+        #         if pL_NE_V[1+jjN,jjNlabel] > 0
+        #            SobsL[tt] += pL_NE[1+jjN,jjNlabel]*(-log(pL_NE[1+jjN,jjNlabel])+log(pL_NE_V[1+jjN,jjNlabel]))
+        #         end
+        #     end
+        # end
+
+        # R
+        # ...
+
+        # relative entropy
+        # Drel[tt] = sum(pL.*(log.(pL) .- log.(pL0))) + sum(pR.*(log.(pR) .- log.(pR0)))
+
+        # system
+        # Sobssys[tt] = real(-Ct[1,1]*log(Ct[1,1]) - (1-Ct[1,1])*log(1-Ct[1,1]))
+
+        # entropy production
+        # sigmaobs[tt] = Sobssys[tt] - Sobssys[1] + SobsL[tt] - SobsL[1] + SobsR[tt] - SobsR[1] + Drel[tt]
+
+    end
+
+    return time, SobsL, pL_NE, pL_NE_E, pL_NE_V
+    # return time, Sobs, SobsL, SobsR, Sobssys, Drel, sigmaobs
+
+end
+
 function calculate_Sobs_K2(W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # only for K=2
