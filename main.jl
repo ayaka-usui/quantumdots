@@ -555,6 +555,8 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
 
     end
 
+    # return time, vNE_sys, vNE_L, vNE_R, vNE
+
     return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR
     # return time, vNE_sys, effparaL, effparaR, QL, QR
     # return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
@@ -670,14 +672,316 @@ end
 
 ################ basis functions for obs
 
-function calculate_Sobs_test(W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+function calculate_Sobs_test2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
-    # only for K=2
-    K = 2
+    # only for K=2 or small
+    # K = 6
 
     # Hamiltonian
     matH = spzeros(Float64,K*2+1,K*2+1)
-    createH_fluctuatedt!(K,W,0.0,betaL,betaR,GammaL,GammaR,matH)
+    createH_fluctuatedt!(K,W,t_flu,betaL,betaR,GammaL,GammaR,matH)
+    epsilonLR = diag(Array(matH))
+    tLRk = matH[1,1:end]
+
+    # Hamiltonian is hermitian
+    matH = Hermitian(Array(matH))
+    val_matH, vec_matH = eigen(matH)
+    invvec_matH = inv(vec_matH)
+
+    # time
+    time = LinRange(0.0,tf,Nt)
+
+    # correlation matrix
+    # at initial
+    C0 = zeros(Float64,K*2+1)
+    C0[1] = 0.0 + 1e-15 # n_d(0) # make it not 0 exactly to avoid 0.0 log 0.0 = NaN
+    for kk = 1:K
+        C0[1+kk] = 1.0/(exp((matH[1+kk,1+kk]-muL)*betaL)+1.0)
+        C0[1+K+kk] = 1.0/(exp((matH[1+K+kk,1+K+kk]-muR)*betaR)+1.0)
+    end
+    C0 = diagm(C0)
+
+    Ct = zeros(ComplexF64,2*K+1,2*K+1)
+    eigval_Ct = zeros(Float64,2*K+1)
+    eigvec_Ct = zeros(Float64,2*K+1,2*K+1)
+    eigval_Ct_L = zeros(Float64,K)
+    eigvec_Ct_L = zeros(Float64,K,K)
+    eigval_Ct_R = zeros(Float64,K)
+    eigvec_Ct_R = zeros(Float64,K,K)
+
+    pL_n = zeros(Float64,K)
+    pL_n0 = zeros(Float64,K)
+    pR_n = zeros(Float64,K)
+    pR_n0 = zeros(Float64,K)
+    p_n = zeros(Float64,2*K+1)
+    p_n0 = zeros(Float64,2*K+1)
+
+    pL_NE = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
+    pL_NE_t0 = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
+
+    pR_NE = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
+    pR_NE_t0 = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
+
+    p_sys_NLEL_NRER = zeros(Float64,2,K+1,binomial(K,floor(Int64,K/2)),K+1,binomial(K,floor(Int64,K/2)))
+    p_NLEL_NRER = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)),K+1,binomial(K,floor(Int64,K/2)))
+
+    pLR_NE_E = ones(Int64,K+1,binomial(K,floor(Int64,K/2)))*(-1)
+    pLR_NE_V = zeros(Int64,K+1,binomial(K,floor(Int64,K/2)))
+    pLR_NE_deg = zeros(Int64,2^K,3)
+
+    SobsL = zeros(Float64,Nt)
+    SobsR = zeros(Float64,Nt)
+    DrelL_obs = zeros(Float64,Nt)
+    DrelR_obs = zeros(Float64,Nt)
+    Sobssys = zeros(Float64,Nt)
+    sigmaobs = zeros(Float64,Nt)
+    Sobs = zeros(Float64,Nt)
+    SobsE = zeros(Float64,Nt)
+    Iobs_SE = zeros(Float64,Nt)
+    Iobs_B = zeros(Float64,Nt)
+
+    dCt = zeros(ComplexF64,K*2+1)
+    QL = zeros(ComplexF64,Nt)
+    betaQL = zeros(ComplexF64,Nt)
+    QR = zeros(ComplexF64,Nt)
+    betaQR = zeros(ComplexF64,Nt)
+    sigma = zeros(ComplexF64,Nt)
+    vNE_L = zeros(Float64,Nt)
+    vNE_R = zeros(Float64,Nt)
+    vNE = zeros(Float64,Nt)
+    vNE_E = zeros(Float64,Nt)
+    Drel_vNE = zeros(ComplexF64,Nt)
+
+    # pL_EN_E,V for N=0 and so E=0
+    pLR_NE_E[1,1] = 0
+    pLR_NE_V[1,1] = 1
+    ind = 0
+
+    # pLR_NE_E,V for N>=1
+    for jjN = 1:K
+        label = collect(combinations(1:K,jjN))
+        for jjNlabel = 1:length(label)
+
+            pLR_NE_E[1+jjN,jjNlabel] = sum(label[jjNlabel])
+            pLR_NE_V[1+jjN,jjNlabel] = 1
+
+            # check degenracy
+            for jjcheck = 1:jjNlabel-1
+                if pLR_NE_E[1+jjN,jjcheck] == pLR_NE_E[1+jjN,jjNlabel] #&& pL_NE_V[1+jjN,jjcheck] > 0
+                   ind += 1
+                   pLR_NE_deg[ind,1] = jjN
+                   pLR_NE_deg[ind,2] = jjNlabel
+                   pLR_NE_deg[ind,3] = jjcheck
+                   pLR_NE_V[1+jjN,jjcheck] += 1
+                   pLR_NE_V[1+jjN,jjNlabel] = -1
+                   break
+                end
+            end
+
+        end
+    end
+    pLR_NE_deg = pLR_NE_deg[1:ind,:]
+
+    for tt = 1:Nt
+
+        # time evolution of correlation matrix
+        Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
+        Ct .= Ct*C0
+        Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
+
+        # total
+        lambda, eigvec_Ct = eigen(Ct)
+        eigval_Ct .= real.(lambda)
+
+        # L
+        lambda, eigvec_Ct_L = eigen(Ct[2:K+1,2:K+1])
+        eigval_Ct_L .= real.(lambda)
+
+        # R
+        lambda, eigvec_Ct_R = eigen(Ct[K+2:2*K+1,K+2:2*K+1])
+        eigval_Ct_R .= real.(lambda)
+
+        p_n .= real(diag(Ct))
+        psys_n = p_n[1]
+        pL_n .= p_n[2:K+1] #(abs.(eigvec_Ct_L).^2)*eigval_Ct_L
+        pR_n .= p_n[K+2:2*K+1] #(abs.(eigvec_Ct_R).^2)*eigval_Ct_R
+
+        # pL_EN and pR_EN
+        pL_NE .= 0.0
+        pR_NE .= 0.0
+
+        # for N=0 and so E=0
+        pL_n0 .= 1.0 .- pL_n
+        pL_NE[1,1] = prod(pL_n0)
+        pR_n0 .= 1.0 .- pR_n
+        pR_NE[1,1] = prod(pR_n0)
+
+        # pL_EN and pR_EN for N>=1
+        for jjN = 1:K
+            label = collect(combinations(1:K,jjN))
+            for jjNlabel = 1:length(label)
+
+                # L
+                pL_n0 .= 1.0 .- pL_n
+                pL_n0[label[jjNlabel]] = pL_n[label[jjNlabel]]
+                pL_NE[1+jjN,jjNlabel] = prod(pL_n0)
+
+                # R
+                pR_n0 .= 1.0 .- pR_n
+                pR_n0[label[jjNlabel]] = pR_n[label[jjNlabel]]
+                pR_NE[1+jjN,jjNlabel] = prod(pR_n0)
+
+                for jjdeg = 1:ind
+                    if jjN == pLR_NE_deg[jjdeg,1] && jjNlabel == pLR_NE_deg[jjdeg,2]
+                       pL_NE[1+jjN,pLR_NE_deg[jjdeg,3]] += pL_NE[1+jjN,jjNlabel]
+                       pL_NE[1+jjN,jjNlabel] = 0.0
+                       pR_NE[1+jjN,pLR_NE_deg[jjdeg,3]] += pR_NE[1+jjN,jjNlabel]
+                       pR_NE[1+jjN,jjNlabel] = 0.0
+                       break #
+                    end
+                end
+
+            end
+        end
+        if tt == 1
+           pL_NE_t0 .= pL_NE
+           pR_NE_t0 .= pR_NE
+        end
+
+        # p_sys_NLEL_NRER
+        p_sys_NLEL_NRER .= 0.0
+
+        # Nsys=0,1
+        p_sys_NLEL_NRER[1,:,:,:,:] .= 1-psys_n
+        p_sys_NLEL_NRER[2,:,:,:,:] .= psys_n
+
+        # NL=0
+        pL_n0 .= 1.0 .- pL_n
+        p_sys_NLEL_NRER[:,1,1,:,:] *= prod(pL_n0)
+
+        # NL>=1
+        for jjNL = 1:K
+            labelL = collect(combinations(1:K,jjNL))
+            for jjNlabelL = 1:length(labelL)
+
+                pL_n0 .= 1.0 .- pL_n
+                pL_n0[labelL[jjNlabelL]] = pL_n[labelL[jjNlabelL]]
+                p_sys_NLEL_NRER[:,jjNL+1,jjNlabelL,:,:] *= prod(pL_n0)
+
+                for jjdeg = 1:ind
+                    if jjNL == pLR_NE_deg[jjdeg,1] && jjNlabelL == pLR_NE_deg[jjdeg,2]
+                       p_sys_NLEL_NRER[:,jjNL+1,pLR_NE_deg[jjdeg,3],:,:] += p_sys_NLEL_NRER[:,jjNL+1,jjNlabelL,:,:]
+                       p_sys_NLEL_NRER[:,jjNL+1,jjNlabelL,:,:] .= 0.0
+                       break #
+                    end
+                end
+            end
+        end
+
+        # NR=0
+        pR_n0 .= 1.0 .- pR_n
+        p_sys_NLEL_NRER[:,:,:,1,1] *= prod(pR_n0)
+
+        # NR>=1
+        for jjNR = 1:K
+            labelR = collect(combinations(1:K,jjNR))
+            for jjNlabelR = 1:length(labelR)
+
+                pR_n0 .= 1.0 .- pR_n
+                pR_n0[labelR[jjNlabelR]] = pR_n[labelR[jjNlabelR]]
+                p_sys_NLEL_NRER[:,:,:,jjNR+1,jjNlabelR] *= prod(pR_n0)
+
+                for jjdeg = 1:ind
+                    if jjNR == pLR_NE_deg[jjdeg,1] && jjNlabelR == pLR_NE_deg[jjdeg,2]
+                       p_sys_NLEL_NRER[:,:,:,jjNR+1,pLR_NE_deg[jjdeg,3]] += p_sys_NLEL_NRER[:,:,:,jjNR+1,jjNlabelR]
+                       p_sys_NLEL_NRER[:,:,:,jjNR+1,jjNlabelR] .= 0.0
+                       break #
+                    end
+                end
+            end
+        end
+
+        # p_NLEL_NRER
+        p_NLEL_NRER .= p_sys_NLEL_NRER[1,:,:,:,:]/(1-psys_n)
+
+        # observational entropy and relative entropy
+        for jjN = 1:K+1
+            for jjNlabel = 1:binomial(K,jjN-1)
+
+                if pLR_NE_V[jjN,jjNlabel] > 0
+                   SobsL[tt] += pL_NE[jjN,jjNlabel]*(-log(pL_NE[jjN,jjNlabel])+log(pLR_NE_V[jjN,jjNlabel]))
+                   SobsR[tt] += pR_NE[jjN,jjNlabel]*(-log(pR_NE[jjN,jjNlabel])+log(pLR_NE_V[jjN,jjNlabel]))
+                   DrelL_obs[tt] += pL_NE[jjN,jjNlabel]*(log(pL_NE[jjN,jjNlabel])-log(pL_NE_t0[jjN,jjNlabel]))
+                   DrelR_obs[tt] += pR_NE[jjN,jjNlabel]*(log(pR_NE[jjN,jjNlabel])-log(pR_NE_t0[jjN,jjNlabel]))
+                end
+
+            end
+        end
+
+
+        for jjNL = 1:K+1
+            for jjNlabelL = 1:binomial(K,jjNL-1)
+                if pLR_NE_V[jjNL,jjNlabelL] <= 0
+                   continue
+                end
+                for jjNR = 1:K+1
+                    for jjNlabelR = 1:binomial(K,jjNR-1)
+                        if pLR_NE_V[jjNR,jjNlabelR] <= 0
+                           continue
+                        end
+                        SobsE[tt] += p_NLEL_NRER[jjNL,jjNlabelL,jjNR,jjNlabelR]*(-log(p_NLEL_NRER[jjNL,jjNlabelL,jjNR,jjNlabelR])+log(pLR_NE_V[jjNL,jjNlabelL]*pLR_NE_V[jjNR,jjNlabelR]))
+                        for jjNsys = 1:2
+                            Sobs[tt] += p_sys_NLEL_NRER[jjNsys,jjNL,jjNlabelL,jjNR,jjNlabelR]*(-log(p_sys_NLEL_NRER[jjNsys,jjNL,jjNlabelL,jjNR,jjNlabelR])+log(pLR_NE_V[jjNL,jjNlabelL]*pLR_NE_V[jjNR,jjNlabelR]))
+                        end
+                    end
+                end
+            end
+        end
+
+        # system
+        Sobssys[tt] = real(-Ct[1,1]*log(Ct[1,1]) - (1-Ct[1,1])*log(1-Ct[1,1]))
+
+        # correlation
+        Iobs_SE[tt] = Sobssys[tt] - Sobssys[1] + SobsE[tt] - SobsE[1] - (Sobs[tt] - Sobs[1])
+        Iobs_B[tt] = SobsL[tt] - SobsL[1] + SobsR[tt] - SobsR[1] - (SobsE[tt] - SobsE[1])
+
+        # entropy production of obs
+        sigmaobs[tt] = Sobssys[tt] - Sobssys[1] + SobsL[tt] - SobsL[1] + SobsR[tt] - SobsR[1] + DrelL_obs[tt] + DrelR_obs[tt]
+
+        # entropy production of vNE
+        vNE_L[tt] = real(- sum(eigval_Ct_L.*log.(eigval_Ct_L)) - sum((1.0 .- eigval_Ct_L).*log.(1.0 .- eigval_Ct_L)))
+        vNE_R[tt] = real(- sum(eigval_Ct_R.*log.(eigval_Ct_R)) - sum((1.0 .- eigval_Ct_R).*log.(1.0 .- eigval_Ct_R)))
+        vNE[tt] = real(- sum(eigval_Ct.*log.(eigval_Ct)) - sum((1.0 .- eigval_Ct).*log.(1.0 .- eigval_Ct)))
+        eigval_Ct_E = eigvals(Ct[2:end,2:end])
+        vNE_E[tt] = real(- sum(eigval_Ct_E.*log.(eigval_Ct_E)) - sum((1.0 .- eigval_Ct_E).*log.(1.0 .- eigval_Ct_E)))
+
+        dCt .= diag(Ct - C0)
+        QL[tt] = -sum(dCt[2:K+1].*(epsilonLR[2:K+1] .- muL))
+        betaQL[tt] = QL[tt]*betaL
+        QR[tt] = -sum(dCt[K+2:2*K+1].*(epsilonLR[K+2:2*K+1] .- muR))
+        betaQR[tt] = QR[tt]*betaR
+        sigma[tt] = Sobssys[tt] - Sobssys[1] - betaQL[tt] - betaQR[tt]
+        Drel_vNE[tt] = sigma[tt] - (Sobssys[tt] - Sobssys[1] + vNE_L[tt] - vNE_L[1] + vNE_R[tt] - vNE_R[1])
+
+    end
+
+    # return p_sys_NLEL_NRER
+
+    # return time, Sobs, Sobssys, SobsE, SobsL, SobsR, DrelL_obs, DrelR_obs
+    return time, sigmaobs, Sobs, Iobs_SE, Iobs_B, DrelL_obs, DrelR_obs, sigma
+    # return time, SobsL, SobsR, Sobs, SobsE, vNE_L, vNE_R, vNE, vNE_E
+    # return time, SobsL, SobsR, vNE_L, vNE_R, Sobssys, sigmaobs, sigma, DrelL_obs, DrelR_obs, Drel_vNE
+
+end
+
+function calculate_Sobs_test(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+
+    # only for K=2 or small
+    # K = 8
+
+    # Hamiltonian
+    matH = spzeros(Float64,K*2+1,K*2+1)
+    createH_fluctuatedt!(K,W,t_flu,betaL,betaR,GammaL,GammaR,matH)
     epsilonLR = diag(Array(matH))
     tLRk = matH[1,1:end]
 
@@ -711,14 +1015,69 @@ function calculate_Sobs_test(W::Int64,betaL::Float64,betaR::Float64,GammaL::Floa
     eigvec_Ct_R = zeros(Float64,K,K)
 
     pL_n = zeros(Float64,K)
-    epsilonL_tilde = zeros(Float64,K)
     pL_n0 = zeros(Float64,K)
+    pR_n = zeros(Float64,K)
+    pR_n0 = zeros(Float64,K)
 
     pL_NE = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
-    pL_NE_E = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
-    pL_NE_V = zeros(Int64,K+1,binomial(K,floor(Int64,K/2)))
+    pL_NE_t0 = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
+
+    pR_NE = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
+    pR_NE_t0 = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
+
+    pLR_NE_E = ones(Int64,K+1,binomial(K,floor(Int64,K/2)))*(-1)
+    pLR_NE_V = zeros(Int64,K+1,binomial(K,floor(Int64,K/2)))
+    pLR_NE_deg = zeros(Int64,2^K,3)
 
     SobsL = zeros(Float64,Nt)
+    SobsR = zeros(Float64,Nt)
+    DrelL_obs = zeros(Float64,Nt)
+    DrelR_obs = zeros(Float64,Nt)
+    Sobssys = zeros(Float64,Nt)
+    sigmaobs = zeros(Float64,Nt)
+
+    dCt = zeros(ComplexF64,K*2+1)
+    QL = zeros(ComplexF64,Nt)
+    betaQL = zeros(ComplexF64,Nt)
+    QR = zeros(ComplexF64,Nt)
+    betaQR = zeros(ComplexF64,Nt)
+    sigma = zeros(ComplexF64,Nt)
+    vNE_L = zeros(Float64,Nt)
+    vNE_R = zeros(Float64,Nt)
+    Drel_vNE = zeros(ComplexF64,Nt)
+
+    pL_t = zeros(Float64,K,Nt)
+    # p_t = zeros(Float64,2*K+1,Nt)
+
+    # pL_EN_E,V for N=0 and so E=0
+    pLR_NE_E[1,1] = 0
+    pLR_NE_V[1,1] = 1
+    ind = 0
+
+    # pLR_NE_E,V for N>=1
+    for jjN = 1:K
+        label = collect(combinations(1:K,jjN))
+        for jjNlabel = 1:length(label)
+
+            pLR_NE_E[1+jjN,jjNlabel] = sum(label[jjNlabel])
+            pLR_NE_V[1+jjN,jjNlabel] = 1
+
+            # check degenracy
+            for jjcheck = 1:jjNlabel-1
+                if pLR_NE_E[1+jjN,jjcheck] == pLR_NE_E[1+jjN,jjNlabel] #&& pL_NE_V[1+jjN,jjcheck] > 0
+                   ind += 1
+                   pLR_NE_deg[ind,1] = jjN
+                   pLR_NE_deg[ind,2] = jjNlabel
+                   pLR_NE_deg[ind,3] = jjcheck
+                   pLR_NE_V[1+jjN,jjcheck] += 1
+                   pLR_NE_V[1+jjN,jjNlabel] = -1
+                   break
+                end
+            end
+
+        end
+    end
+    pLR_NE_deg = pLR_NE_deg[1:ind,:]
 
     for tt = 1:Nt
 
@@ -734,97 +1093,137 @@ function calculate_Sobs_test(W::Int64,betaL::Float64,betaR::Float64,GammaL::Floa
         # L
         lambda, eigvec_Ct_L = eigen(Ct[2:K+1,2:K+1])
         eigval_Ct_L .= real.(lambda)
-        # pL_tilden .= eigval_Ct_L
         pL_n .= (abs.(eigvec_Ct_L).^2)*eigval_Ct_L
-        # epsilonL_tilde .= sum((abs.(eigvec_Ct_L).^2).*epsilonL,dims=1)
+        # pL_n .= diag(Ct[2:K+1,2:K+1])
 
-        pL_NE .= NaN
-        pL_NE_E .= NaN
-        pL_NE_V .= 0.0
+        # R
+        lambda, eigvec_Ct_R = eigen(Ct[K+2:2*K+1,K+2:2*K+1])
+        eigval_Ct_R .= real.(lambda)
+        pR_n .= (abs.(eigvec_Ct_R).^2)*eigval_Ct_R
+        # pR_n .= diag(Ct[K+2:2*K+1,K+2:2*K+1])
+
+        # for jj = 1:K
+        #     if pL_n[jj] < 0.0001
+        #        pL_n[jj] = 0.0+10^(-15)
+        #     elseif pL_n[jj] > 0.9999
+        #        pL_n[jj] = 1.0-10^(-15)
+        #     end
+        # end
+        # pL_t[:,tt] = pL_n
+        # pL_t[:,tt] = pL_n - real(diag(Ct[2:K+1,2:K+1]))
+
+        pL_NE .= 0.0
+        pR_NE .= 0.0
 
         # pL_EN for N=0 and so E=0
         pL_n0 .= 1.0 .- pL_n
         pL_NE[1,1] = prod(pL_n0)
-        pL_NE_E[1,1] = 0.0
-        pL_NE_V[1,1] = 1
 
-        # only for K=2
-        pL_NE[2,1] = pL_n[1]*(1-pL_n[2])
-        pL_NE_E[2,1] = epsilonL[1]
-        pL_NE_V[2,1] = 1
+        # pR_EN for N=0 and so E=0
+        pR_n0 .= 1.0 .- pR_n
+        pR_NE[1,1] = prod(pR_n0)
 
-        pL_NE[2,2] = (1-pL_n[1])*pL_n[2]
-        pL_NE_E[2,2] = epsilonL[2]
-        pL_NE_V[2,2] = 1
+        # # only for K=2
+        # pL_NE[2,1] = pL_n[1]*(1-pL_n[2])
+        # pL_NE[2,2] = (1-pL_n[1])*pL_n[2]
+        # pL_NE[3,1] = pL_n[1]*pL_n[2]
 
-        pL_NE[3,1] = pL_n[1]*pL_n[2]
-        pL_NE_E[3,1] = epsilonL[1]+epsilonL[2]
-        pL_NE_V[3,1] = 1
+        # # only for K=4
+        # pR_NE[2,1] = pR_n[1]*(1-pR_n[2])*(1-pR_n[3])*(1-pR_n[4])
+        # pR_NE[2,2] = (1-pR_n[1])*pR_n[2]*(1-pR_n[3])*(1-pR_n[4])
+        # pR_NE[2,3] = (1-pR_n[1])*(1-pR_n[2])*pR_n[3]*(1-pR_n[4])
+        # pR_NE[2,4] = (1-pR_n[1])*(1-pR_n[2])*(1-pR_n[3])*pR_n[4]
+        # pR_NE[3,1] = pR_n[1]*pR_n[2]*(1-pR_n[3])*(1-pR_n[4])
+        # pR_NE[3,2] = pR_n[1]*(1-pR_n[2])*pR_n[3]*(1-pR_n[4])
+        # pR_NE[3,3] = pR_n[1]*(1-pR_n[2])*(1-pR_n[3])*pR_n[4]
+        # pR_NE[3,4] = (1-pR_n[1])*pR_n[2]*pR_n[3]*(1-pR_n[4])
+        # pR_NE[3,5] = (1-pR_n[1])*pR_n[2]*(1-pR_n[3])*pR_n[4]
+        # pR_NE[3,6] = (1-pR_n[1])*(1-pR_n[2])*pR_n[3]*pR_n[4]
+        # pR_NE[4,1] = pR_n[1]*pR_n[2]*pR_n[3]*(1-pR_n[4])
+        # pR_NE[4,2] = pR_n[1]*pR_n[2]*(1-pR_n[3])*pR_n[4]
+        # pR_NE[4,3] = pR_n[1]*(1-pR_n[2])*pR_n[3]*pR_n[4]
+        # pR_NE[4,4] = (1-pR_n[1])*pR_n[2]*pR_n[3]*pR_n[4]
+        # pR_NE[5,1] = pR_n[1]*pR_n[2]*pR_n[3]*pR_n[4]
+        # pR_NE[3,3] += pR_NE[3,4]
+        # pR_NE[3,4] = 0
 
+        # pL_EN and pR_EN for N>=1
+        for jjN = 1:K
+            label = collect(combinations(1:K,jjN))
+            for jjNlabel = 1:length(label)
+
+                # L
+                pL_n0 .= 1.0 .- pL_n
+                pL_n0[label[jjNlabel]] = pL_n[label[jjNlabel]]
+                pL_NE[1+jjN,jjNlabel] = prod(pL_n0)
+
+                # R
+                pR_n0 .= 1.0 .- pR_n
+                pR_n0[label[jjNlabel]] = pR_n[label[jjNlabel]]
+                pR_NE[1+jjN,jjNlabel] = prod(pR_n0)
+
+                for jjdeg = 1:ind
+                    if jjN == pLR_NE_deg[jjdeg,1] && jjNlabel == pLR_NE_deg[jjdeg,2]
+                       pL_NE[1+jjN,pLR_NE_deg[jjdeg,3]] += pL_NE[1+jjN,jjNlabel]
+                       pL_NE[1+jjN,jjNlabel] = 0.0
+                       pR_NE[1+jjN,pLR_NE_deg[jjdeg,3]] += pR_NE[1+jjN,jjNlabel]
+                       pR_NE[1+jjN,jjNlabel] = 0.0
+
+                       #
+                       break
+
+                    end
+                end
+
+            end
+        end
+        if tt == 1
+           pL_NE_t0 .= pL_NE
+           pR_NE_t0 .= pR_NE
+        end
+
+        # return pLR_NE_V, pLR_NE_deg, pL_NE
+
+        # observational entropy and relative entropy
         for jjN = 1:K+1
             for jjNlabel = 1:binomial(K,jjN-1)
-                if pL_NE_V[jjN,jjNlabel] > 0
-                   SobsL[tt] += pL_NE[jjN,jjNlabel]*(-log(pL_NE[jjN,jjNlabel])+log(pL_NE_V[jjN,jjNlabel]))
+
+                if pLR_NE_V[jjN,jjNlabel] > 0
+                   SobsL[tt] += pL_NE[jjN,jjNlabel]*(-log(pL_NE[jjN,jjNlabel])+log(pLR_NE_V[jjN,jjNlabel]))
+                   SobsR[tt] += pR_NE[jjN,jjNlabel]*(-log(pR_NE[jjN,jjNlabel])+log(pLR_NE_V[jjN,jjNlabel]))
+                   DrelL_obs[tt] += pL_NE[jjN,jjNlabel]*(log(pL_NE[jjN,jjNlabel])-log(pL_NE_t0[jjN,jjNlabel]))
+                   DrelR_obs[tt] += pR_NE[jjN,jjNlabel]*(log(pR_NE[jjN,jjNlabel])-log(pR_NE_t0[jjN,jjNlabel]))
                 end
+
             end
         end
 
-        # # pL_EN for N>=1
-        # for jjN = 1:K
-        #     label = collect(combinations(1:K,jjN))
-        #     for jjNlabel = 1:length(label)
-        #
-        #         pL_n0 .= 1.0 .- pL_n
-        #         pL_n0[label[jjNlabel]] = 1.0 .- pL_n0[label[jjNlabel]]
-        #         pL_NE[1+jjN,jjNlabel] = prod(pL_n0)
-        #         pL_NE_E[1+jjN,jjNlabel] = sum(epsilonL_tilde[label[jjNlabel]])
-        #         pL_NE_V[1+jjN,jjNlabel] = 1
-        #
-        #         # coarse-grained energy measurement
-        #         for jjcheck = 1:jjNlabel-1
-        #             if pL_NE_V[1+jjN,jjcheck] > 0 && abs(pL_NE_E[1+jjN,jjcheck] - pL_NE_E[1+jjN,jjNlabel]) < 10^(-10)
-        #                pL_NE_V[1+jjN,jjcheck] += 1
-        #                pL_NE[1+jjN,jjcheck] += pL_NE[1+jjN,jjNlabel]
-        #
-        #                pL_NE_V[1+jjN,jjNlabel] = -1
-        #                pL_NE[1+jjN,jjNlabel] = 0.0
-        #
-        #                break
-        #             end
-        #         end
-        #
-        #     end
-        # end
-
-        # if tt == 1
-        #    pL_NE0 .= pL_NE
-        # end
-
-        # # observational entropy
-        # for jjN = 1:K
-        #     for jjNlabel = 1:binomial(K,jjN)
-        #         if pL_NE_V[1+jjN,jjNlabel] > 0
-        #            SobsL[tt] += pL_NE[1+jjN,jjNlabel]*(-log(pL_NE[1+jjN,jjNlabel])+log(pL_NE_V[1+jjN,jjNlabel]))
-        #         end
-        #     end
-        # end
-
-        # R
-        # ...
-
-        # relative entropy
-        # Drel[tt] = sum(pL.*(log.(pL) .- log.(pL0))) + sum(pR.*(log.(pR) .- log.(pR0)))
-
         # system
-        # Sobssys[tt] = real(-Ct[1,1]*log(Ct[1,1]) - (1-Ct[1,1])*log(1-Ct[1,1]))
+        Sobssys[tt] = real(-Ct[1,1]*log(Ct[1,1]) - (1-Ct[1,1])*log(1-Ct[1,1]))
 
-        # entropy production
-        # sigmaobs[tt] = Sobssys[tt] - Sobssys[1] + SobsL[tt] - SobsL[1] + SobsR[tt] - SobsR[1] + Drel[tt]
+        # entropy production of obs
+        sigmaobs[tt] = Sobssys[tt] - Sobssys[1] + SobsL[tt] - SobsL[1] + SobsR[tt] - SobsR[1] + DrelL_obs[tt] + DrelR_obs[tt]
+
+        # entropy production of vNE
+        vNE_L[tt] = real(- sum(eigval_Ct_L.*log.(eigval_Ct_L)) - sum((1.0 .- eigval_Ct_L).*log.(1.0 .- eigval_Ct_L)))
+        vNE_R[tt] = real(- sum(eigval_Ct_R.*log.(eigval_Ct_R)) - sum((1.0 .- eigval_Ct_R).*log.(1.0 .- eigval_Ct_R)))
+        dCt .= diag(Ct - C0)
+        QL[tt] = -sum(dCt[2:K+1].*(epsilonLR[2:K+1] .- muL))
+        betaQL[tt] = QL[tt]*betaL
+        QR[tt] = -sum(dCt[K+2:2*K+1].*(epsilonLR[K+2:2*K+1] .- muR))
+        betaQR[tt] = QR[tt]*betaR
+        sigma[tt] = Sobssys[tt] - Sobssys[1] - betaQL[tt] - betaQR[tt]
+        Drel_vNE[tt] = sigma[tt] - (Sobssys[tt] - Sobssys[1] + vNE_L[tt] - vNE_L[1] + vNE_R[tt] - vNE_R[1])
 
     end
 
-    return time, SobsL, pL_NE, pL_NE_E, pL_NE_V
-    # return time, Sobs, SobsL, SobsR, Sobssys, Drel, sigmaobs
+    return pL_t
+
+    # return time, SobsL, SobsR, vNE_L, vNE_R, pL_NE, pR_NE, pLR_NE_E, pLR_NE_V, pLR_NE_deg
+    # return time, SobsL, SobsR
+    return time, SobsL, SobsR, vNE_L, vNE_R, Sobssys, sigmaobs, sigma, DrelL_obs, DrelR_obs, Drel_vNE
+    # return time, Sobssys, vNE_L, vNE_R, vNE_total
+    # return time, SobsL, SobsR, vNE_L, vNE_R
 
 end
 
