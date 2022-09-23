@@ -676,7 +676,7 @@ function populationinbath(size::Int64)
 
     vec0 = collect(1:size)
 
-    # make sure N point correelation can be decomposed to two point correlations
+    # make sure N point correelation can be decomposed to two point correlations first
 
 end
 
