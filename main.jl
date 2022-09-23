@@ -672,6 +672,14 @@ end
 
 ################ basis functions for obs
 
+function populationinbath(size::Int64)
+
+    vec0 = collect(1:size)
+
+    # make sure N point correelation can be decomposed to two point correlations
+
+end
+
 function calculate_Sobs_test2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # only for K=2 or small
