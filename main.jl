@@ -672,11 +672,518 @@ end
 
 ################ basis functions for obs
 
+function swap!(aa::Int64,bb::Int64,vec::Vector{Int64})
+    spot = vec[aa]
+    vec[aa] = vec[bb]
+    vec[bb] = spot
+end
+
 function populationinbath(size::Int64)
 
-    vec0 = collect(1:size)
+    # look at Eq. (30) in arXiv:1710.09248
 
-    # make sure N point correelation can be decomposed to two point correlations first
+    # number of two point correlation terms for system size = 2,...,size
+    length0 = zeros(Int64,size)
+    for jj = 2:size
+        length0[jj] = Int64(3/2*factorial(jj))
+    end
+    mat0 = zeros(Int64,sum(length0),size*2)
+
+    # system size =2
+    mat0[1:length0[2],1:2*2] = [1 2 3 4; 1 3 2 4; 1 4 2 3]
+
+    # system size >2
+    for jj = 3:size
+
+        mat1 = mat0[sum(length0[1:jj-2])+1:sum(length0[1:jj-1]),1:2*(jj-1)]
+        mat0[sum(length0[1:jj-1])+1:sum(length0[1:jj-1])+length0[jj-1],1:2*(jj-1)] = mat1
+        mat0[sum(length0[1:jj-1])+1:sum(length0[1:jj-1])+length0[jj-1],2*jj-1] .= 2*jj-1
+        mat0[sum(length0[1:jj-1])+1:sum(length0[1:jj-1])+length0[jj-1],2*jj] .= 2*jj
+
+        for ii = 1:jj-1
+            test0 = collect(1:2*(jj-1))
+            deleteat!(test0,2*jj-1-2*ii)
+            push!(test0,2*jj-1)
+            for kk = 1:length0[jj-1]
+                mat0[sum(length0[1:jj-1])+length0[jj-1]*ii+kk,1:2*(jj-1)] = test0[mat1[kk,:]]
+                mat0[sum(length0[1:jj-1])+length0[jj-1]*ii+kk,2*jj-1:2*jj] = [2*jj-1-2*ii 2*jj]
+            end
+        end
+    end
+
+    # remove <c_i c_j>=<c_i^+ c_j^+>=0
+    mat2 = zeros(Int64,sum(length0),size*2)
+    vec2 = zeros(Int64,sum(length0))
+    check = 0
+    ind = 0
+    size_ind = 0
+    for jj = 1:sum(length0)
+        check = 0
+        size_ind = size
+        for ii = 1:size
+            if isodd(mat0[jj,2*ii-1]*mat0[jj,2*ii])
+               break
+            elseif mat0[jj,2*ii-1]*mat0[jj,2*ii] == 0
+               check = size
+               size_ind = ii-1
+               break
+            end
+            check += 1
+        end
+        if check == size
+           ind += 1
+           mat2[ind,:] = mat0[jj,:]
+           vec2[ind] = size_ind
+        end
+    end
+    mat2 = mat2[1:ind,:]
+    vec2 = vec2[1:ind]
+
+    # coefficient (-1)^P
+    vec0 = zeros(Int64,size*2)
+    vec1 = zeros(Int64,ind)
+    for jj = 1:ind
+        check = 0
+        vec0 .= mat2[jj,:]
+        for ii = 1:size
+            if vec0[ii] == ii
+               continue
+            elseif vec0[ii] == 0
+               break
+            end
+            switch = findfirst(x->x==ii,vec0)
+            swap!(ii,switch,vec0[:])
+            check += 1
+        end
+        vec1[jj] = (-1)^(check)
+    end
+
+    # return the sets of indices for the probability and the coefficient and the system size of the index set
+    return mat2, vec1, vec2
+
+    # return mat0, mat2, vec1
+
+    # mat1 = [1 2 3 4; 1 3 2 4; 1 4 2 3]
+    # mat0[1:length0[2],1:2*2] = mat1
+    #
+    # mat0[sum(length0[1:2])+1:sum(length0[1:2])+length0[2],1:2*2] = mat1
+    # mat0[sum(length0[1:2])+1,2*2+1:2*2+2] = [5 6]
+    # mat0[sum(length0[1:2])+2,2*2+1:2*2+2] = [5 6]
+    # mat0[sum(length0[1:2])+3,2*2+1:2*2+2] = [5 6]
+    #
+    # test0 = collect(1:2*2)
+    # deleteat!(test0,3)
+    # push!(test0,5)
+    # mat0[sum(length0[1:2])+length0[2]+1,1:2*2] = test0[mat1[1,:]]
+    # mat0[sum(length0[1:2])+length0[2]+1,2*2+1:2*2+2] = [3 6]
+    # mat0[sum(length0[1:2])+length0[2]+2,1:2*2] = test0[mat1[2,:]]
+    # mat0[sum(length0[1:2])+length0[2]+2,2*2+1:2*2+2] = [3 6]
+    # mat0[sum(length0[1:2])+length0[2]+3,1:2*2] = test0[mat1[3,:]]
+    # mat0[sum(length0[1:2])+length0[2]+3,2*2+1:2*2+2] = [3 6]
+    #
+    # test0 = collect(1:2*2)
+    # deleteat!(test0,1)
+    # push!(test0,5)
+    # mat0[sum(length0[1:2])+length0[2]+4,1:2*2] = test0[mat1[1,:]]
+    # mat0[sum(length0[1:2])+length0[2]+4,2*2+1:2*2+2] = [1 6]
+    # mat0[sum(length0[1:2])+length0[2]+5,1:2*2] = test0[mat1[2,:]]
+    # mat0[sum(length0[1:2])+length0[2]+5,2*2+1:2*2+2] = [1 6]
+    # mat0[sum(length0[1:2])+length0[2]+6,1:2*2] = test0[mat1[3,:]]
+    # mat0[sum(length0[1:2])+length0[2]+6,2*2+1:2*2+2] = [1 6]
+    #
+    # return mat0
+
+end
+
+function calculate_Sobs_test3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+
+    # only for K=2 or small
+    # K = 6
+
+    # Hamiltonian
+    matH = spzeros(Float64,K*2+1,K*2+1)
+    createH_fluctuatedt!(K,W,t_flu,betaL,betaR,GammaL,GammaR,matH)
+    epsilonLR = diag(Array(matH))
+    tLRk = matH[1,1:end]
+
+    # Hamiltonian is hermitian
+    matH = Hermitian(Array(matH))
+    val_matH, vec_matH = eigen(matH)
+    invvec_matH = inv(vec_matH)
+
+    # time
+    time = LinRange(0.0,tf,Nt)
+
+    # correlation matrix
+    # at initial
+    C0 = zeros(Float64,K*2+1)
+    C0[1] = 0.0 + 1e-15 # n_d(0) # make it not 0 exactly to avoid 0.0 log 0.0 = NaN
+    for kk = 1:K
+        C0[1+kk] = 1.0/(exp((matH[1+kk,1+kk]-muL)*betaL)+1.0)
+        C0[1+K+kk] = 1.0/(exp((matH[1+K+kk,1+K+kk]-muR)*betaR)+1.0)
+    end
+    C0 = diagm(C0)
+
+    Ct = zeros(ComplexF64,2*K+1,2*K+1)
+    eigval_Ct = zeros(Float64,2*K+1)
+    eigvec_Ct = zeros(Float64,2*K+1,2*K+1)
+    eigval_Ct_L = zeros(Float64,K)
+    eigvec_Ct_L = zeros(Float64,K,K)
+    eigval_Ct_R = zeros(Float64,K)
+    eigvec_Ct_R = zeros(Float64,K,K)
+
+    pL_n = zeros(Float64,K)
+    pL_n0 = zeros(Float64,K)
+    pR_n = zeros(Float64,K)
+    pR_n0 = zeros(Float64,K)
+    p_n = zeros(Float64,2*K+1)
+    p_n0 = zeros(Float64,2*K+1)
+
+    pL_NE = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
+    pL_NE_t0 = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
+
+    pR_NE = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
+    pR_NE_t0 = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
+
+    p_sys_NLEL_NRER = zeros(Float64,2,K+1,binomial(K,floor(Int64,K/2)),K+1,binomial(K,floor(Int64,K/2)))
+    p_NLEL_NRER = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)),K+1,binomial(K,floor(Int64,K/2)))
+
+    pLR_NE_E = ones(Int64,K+1,binomial(K,floor(Int64,K/2)))*(-1)
+    pLR_NE_V = zeros(Int64,K+1,binomial(K,floor(Int64,K/2)))
+    pLR_NE_deg = zeros(Int64,2^K,3)
+
+    SobsL = zeros(Float64,Nt)
+    SobsR = zeros(Float64,Nt)
+    DrelL_obs = zeros(Float64,Nt)
+    DrelR_obs = zeros(Float64,Nt)
+    Sobssys = zeros(Float64,Nt)
+    sigmaobs = zeros(Float64,Nt)
+    Sobs = zeros(Float64,Nt)
+    SobsE = zeros(Float64,Nt)
+    Iobs_SE = zeros(Float64,Nt)
+    Iobs_B = zeros(Float64,Nt)
+
+    dCt = zeros(ComplexF64,K*2+1)
+    QL = zeros(ComplexF64,Nt)
+    betaQL = zeros(ComplexF64,Nt)
+    QR = zeros(ComplexF64,Nt)
+    betaQR = zeros(ComplexF64,Nt)
+    sigma = zeros(ComplexF64,Nt)
+    vNE_L = zeros(Float64,Nt)
+    vNE_R = zeros(Float64,Nt)
+    vNE = zeros(Float64,Nt)
+    vNE_E = zeros(Float64,Nt)
+    Drel_vNE = zeros(ComplexF64,Nt)
+
+    # pL_EN_E,V for N=0 and so E=0
+    pLR_NE_E[1,1] = 0
+    pLR_NE_V[1,1] = 1
+    ind = 0
+
+    # pLR_NE_E,V for N>=1
+    for jjN = 1:K
+        label = collect(combinations(1:K,jjN))
+        for jjNlabel = 1:length(label)
+
+            pLR_NE_E[1+jjN,jjNlabel] = sum(label[jjNlabel])
+            pLR_NE_V[1+jjN,jjNlabel] = 1
+
+            # check degenracy
+            for jjcheck = 1:jjNlabel-1
+                if pLR_NE_E[1+jjN,jjcheck] == pLR_NE_E[1+jjN,jjNlabel] #&& pL_NE_V[1+jjN,jjcheck] > 0
+                   ind += 1
+                   pLR_NE_deg[ind,1] = jjN
+                   pLR_NE_deg[ind,2] = jjNlabel
+                   pLR_NE_deg[ind,3] = jjcheck
+                   pLR_NE_V[1+jjN,jjcheck] += 1
+                   pLR_NE_V[1+jjN,jjNlabel] = -1
+                   break
+                end
+            end
+
+        end
+    end
+    pLR_NE_deg = pLR_NE_deg[1:ind,:]
+
+    #
+    indexlist, coefflist, sizelist = populationinbath(2*K+1);
+
+    for tt = 1:Nt
+
+        # time evolution of correlation matrix
+        Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
+        Ct .= Ct*C0
+        Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
+
+        # total
+        lambda, eigvec_Ct = eigen(Ct)
+        eigval_Ct .= real.(lambda)
+
+        # # L
+        # lambda, eigvec_Ct_L = eigen(Ct[2:K+1,2:K+1])
+        # eigval_Ct_L .= real.(lambda)
+        #
+        # # R
+        # lambda, eigvec_Ct_R = eigen(Ct[K+2:2*K+1,K+2:2*K+1])
+        # eigval_Ct_R .= real.(lambda)
+
+        # p_n .= real(diag(Ct))
+        # psys_n = p_n[1]
+        # pL_n .= p_n[2:K+1] #(abs.(eigvec_Ct_L).^2)*eigval_Ct_L
+        # pR_n .= p_n[K+2:2*K+1] #(abs.(eigvec_Ct_R).^2)*eigval_Ct_R
+
+        # pL_EN and pR_EN
+        pL_NE .= 0.0
+        pR_NE .= 0.0
+
+        # pL_EN and pR_EN for N>=1
+        for jjN = 2*K+1:-1:1
+            label = collect(combinations(1:2*K+1,jjN))
+            for jjNlabel = 1:length(label)
+
+                ind0 = findfirst(x->x==jjN,sizelist)
+                ind1 = findlast(x->x==jjN,sizelist)
+                for jjp = ind0:ind1
+                    Ct[indexlist[jjp,1],indexlist[jjp,2]]
+                end
+
+
+                # L
+                pL_n0 .= 1.0 .- pL_n
+                pL_n0[label[jjNlabel]] = pL_n[label[jjNlabel]]
+                pL_NE[1+jjN,jjNlabel] = prod(pL_n0)
+
+                # R
+                pR_n0 .= 1.0 .- pR_n
+                pR_n0[label[jjNlabel]] = pR_n[label[jjNlabel]]
+                pR_NE[1+jjN,jjNlabel] = prod(pR_n0)
+
+                for jjdeg = 1:ind
+                    if jjN == pLR_NE_deg[jjdeg,1] && jjNlabel == pLR_NE_deg[jjdeg,2]
+                       pL_NE[1+jjN,pLR_NE_deg[jjdeg,3]] += pL_NE[1+jjN,jjNlabel]
+                       pL_NE[1+jjN,jjNlabel] = 0.0
+                       pR_NE[1+jjN,pLR_NE_deg[jjdeg,3]] += pR_NE[1+jjN,jjNlabel]
+                       pR_NE[1+jjN,jjNlabel] = 0.0
+                       break #
+                    end
+                end
+
+            end
+        end
+
+
+
+
+
+
+
+        # for N=0 and so E=0
+        pL_n0 .= 1.0 .- pL_n
+        pL_NE[1,1] = prod(pL_n0)
+        pR_n0 .= 1.0 .- pR_n
+        pR_NE[1,1] = prod(pR_n0)
+
+        # pL_EN and pR_EN for N>=1
+        for jjN = 1:K
+            label = collect(combinations(1:K,jjN))
+            for jjNlabel = 1:length(label)
+
+                # L
+                pL_n0 .= 1.0 .- pL_n
+                pL_n0[label[jjNlabel]] = pL_n[label[jjNlabel]]
+                pL_NE[1+jjN,jjNlabel] = prod(pL_n0)
+
+                # R
+                pR_n0 .= 1.0 .- pR_n
+                pR_n0[label[jjNlabel]] = pR_n[label[jjNlabel]]
+                pR_NE[1+jjN,jjNlabel] = prod(pR_n0)
+
+                for jjdeg = 1:ind
+                    if jjN == pLR_NE_deg[jjdeg,1] && jjNlabel == pLR_NE_deg[jjdeg,2]
+                       pL_NE[1+jjN,pLR_NE_deg[jjdeg,3]] += pL_NE[1+jjN,jjNlabel]
+                       pL_NE[1+jjN,jjNlabel] = 0.0
+                       pR_NE[1+jjN,pLR_NE_deg[jjdeg,3]] += pR_NE[1+jjN,jjNlabel]
+                       pR_NE[1+jjN,jjNlabel] = 0.0
+                       break #
+                    end
+                end
+
+            end
+        end
+
+
+
+
+
+
+
+
+
+        # pL_EN and pR_EN
+        pL_NE .= 0.0
+        pR_NE .= 0.0
+
+        # for N=0 and so E=0
+        pL_n0 .= 1.0 .- pL_n
+        pL_NE[1,1] = prod(pL_n0)
+        pR_n0 .= 1.0 .- pR_n
+        pR_NE[1,1] = prod(pR_n0)
+
+        # pL_EN and pR_EN for N>=1
+        for jjN = 1:K
+            label = collect(combinations(1:K,jjN))
+            for jjNlabel = 1:length(label)
+
+                # L
+                pL_n0 .= 1.0 .- pL_n
+                pL_n0[label[jjNlabel]] = pL_n[label[jjNlabel]]
+                pL_NE[1+jjN,jjNlabel] = prod(pL_n0)
+
+                # R
+                pR_n0 .= 1.0 .- pR_n
+                pR_n0[label[jjNlabel]] = pR_n[label[jjNlabel]]
+                pR_NE[1+jjN,jjNlabel] = prod(pR_n0)
+
+                for jjdeg = 1:ind
+                    if jjN == pLR_NE_deg[jjdeg,1] && jjNlabel == pLR_NE_deg[jjdeg,2]
+                       pL_NE[1+jjN,pLR_NE_deg[jjdeg,3]] += pL_NE[1+jjN,jjNlabel]
+                       pL_NE[1+jjN,jjNlabel] = 0.0
+                       pR_NE[1+jjN,pLR_NE_deg[jjdeg,3]] += pR_NE[1+jjN,jjNlabel]
+                       pR_NE[1+jjN,jjNlabel] = 0.0
+                       break #
+                    end
+                end
+
+            end
+        end
+        if tt == 1
+           pL_NE_t0 .= pL_NE
+           pR_NE_t0 .= pR_NE
+        end
+
+        # p_sys_NLEL_NRER
+        p_sys_NLEL_NRER .= 0.0
+
+        # Nsys=0,1
+        p_sys_NLEL_NRER[1,:,:,:,:] .= 1-psys_n
+        p_sys_NLEL_NRER[2,:,:,:,:] .= psys_n
+
+        # NL=0
+        pL_n0 .= 1.0 .- pL_n
+        p_sys_NLEL_NRER[:,1,1,:,:] *= prod(pL_n0)
+
+        # NL>=1
+        for jjNL = 1:K
+            labelL = collect(combinations(1:K,jjNL))
+            for jjNlabelL = 1:length(labelL)
+
+                pL_n0 .= 1.0 .- pL_n
+                pL_n0[labelL[jjNlabelL]] = pL_n[labelL[jjNlabelL]]
+                p_sys_NLEL_NRER[:,jjNL+1,jjNlabelL,:,:] *= prod(pL_n0)
+
+                for jjdeg = 1:ind
+                    if jjNL == pLR_NE_deg[jjdeg,1] && jjNlabelL == pLR_NE_deg[jjdeg,2]
+                       p_sys_NLEL_NRER[:,jjNL+1,pLR_NE_deg[jjdeg,3],:,:] += p_sys_NLEL_NRER[:,jjNL+1,jjNlabelL,:,:]
+                       p_sys_NLEL_NRER[:,jjNL+1,jjNlabelL,:,:] .= 0.0
+                       break #
+                    end
+                end
+            end
+        end
+
+        # NR=0
+        pR_n0 .= 1.0 .- pR_n
+        p_sys_NLEL_NRER[:,:,:,1,1] *= prod(pR_n0)
+
+        # NR>=1
+        for jjNR = 1:K
+            labelR = collect(combinations(1:K,jjNR))
+            for jjNlabelR = 1:length(labelR)
+
+                pR_n0 .= 1.0 .- pR_n
+                pR_n0[labelR[jjNlabelR]] = pR_n[labelR[jjNlabelR]]
+                p_sys_NLEL_NRER[:,:,:,jjNR+1,jjNlabelR] *= prod(pR_n0)
+
+                for jjdeg = 1:ind
+                    if jjNR == pLR_NE_deg[jjdeg,1] && jjNlabelR == pLR_NE_deg[jjdeg,2]
+                       p_sys_NLEL_NRER[:,:,:,jjNR+1,pLR_NE_deg[jjdeg,3]] += p_sys_NLEL_NRER[:,:,:,jjNR+1,jjNlabelR]
+                       p_sys_NLEL_NRER[:,:,:,jjNR+1,jjNlabelR] .= 0.0
+                       break #
+                    end
+                end
+            end
+        end
+
+        # p_NLEL_NRER
+        p_NLEL_NRER .= p_sys_NLEL_NRER[1,:,:,:,:]/(1-psys_n)
+
+        # observational entropy and relative entropy
+        for jjN = 1:K+1
+            for jjNlabel = 1:binomial(K,jjN-1)
+
+                if pLR_NE_V[jjN,jjNlabel] > 0
+                   SobsL[tt] += pL_NE[jjN,jjNlabel]*(-log(pL_NE[jjN,jjNlabel])+log(pLR_NE_V[jjN,jjNlabel]))
+                   SobsR[tt] += pR_NE[jjN,jjNlabel]*(-log(pR_NE[jjN,jjNlabel])+log(pLR_NE_V[jjN,jjNlabel]))
+                   DrelL_obs[tt] += pL_NE[jjN,jjNlabel]*(log(pL_NE[jjN,jjNlabel])-log(pL_NE_t0[jjN,jjNlabel]))
+                   DrelR_obs[tt] += pR_NE[jjN,jjNlabel]*(log(pR_NE[jjN,jjNlabel])-log(pR_NE_t0[jjN,jjNlabel]))
+                end
+
+            end
+        end
+
+
+        for jjNL = 1:K+1
+            for jjNlabelL = 1:binomial(K,jjNL-1)
+                if pLR_NE_V[jjNL,jjNlabelL] <= 0
+                   continue
+                end
+                for jjNR = 1:K+1
+                    for jjNlabelR = 1:binomial(K,jjNR-1)
+                        if pLR_NE_V[jjNR,jjNlabelR] <= 0
+                           continue
+                        end
+                        SobsE[tt] += p_NLEL_NRER[jjNL,jjNlabelL,jjNR,jjNlabelR]*(-log(p_NLEL_NRER[jjNL,jjNlabelL,jjNR,jjNlabelR])+log(pLR_NE_V[jjNL,jjNlabelL]*pLR_NE_V[jjNR,jjNlabelR]))
+                        for jjNsys = 1:2
+                            Sobs[tt] += p_sys_NLEL_NRER[jjNsys,jjNL,jjNlabelL,jjNR,jjNlabelR]*(-log(p_sys_NLEL_NRER[jjNsys,jjNL,jjNlabelL,jjNR,jjNlabelR])+log(pLR_NE_V[jjNL,jjNlabelL]*pLR_NE_V[jjNR,jjNlabelR]))
+                        end
+                    end
+                end
+            end
+        end
+
+        # system
+        Sobssys[tt] = real(-Ct[1,1]*log(Ct[1,1]) - (1-Ct[1,1])*log(1-Ct[1,1]))
+
+        # correlation
+        Iobs_SE[tt] = Sobssys[tt] - Sobssys[1] + SobsE[tt] - SobsE[1] - (Sobs[tt] - Sobs[1])
+        Iobs_B[tt] = SobsL[tt] - SobsL[1] + SobsR[tt] - SobsR[1] - (SobsE[tt] - SobsE[1])
+
+        # entropy production of obs
+        sigmaobs[tt] = Sobssys[tt] - Sobssys[1] + SobsL[tt] - SobsL[1] + SobsR[tt] - SobsR[1] + DrelL_obs[tt] + DrelR_obs[tt]
+
+        # entropy production of vNE
+        vNE_L[tt] = real(- sum(eigval_Ct_L.*log.(eigval_Ct_L)) - sum((1.0 .- eigval_Ct_L).*log.(1.0 .- eigval_Ct_L)))
+        vNE_R[tt] = real(- sum(eigval_Ct_R.*log.(eigval_Ct_R)) - sum((1.0 .- eigval_Ct_R).*log.(1.0 .- eigval_Ct_R)))
+        vNE[tt] = real(- sum(eigval_Ct.*log.(eigval_Ct)) - sum((1.0 .- eigval_Ct).*log.(1.0 .- eigval_Ct)))
+        eigval_Ct_E = eigvals(Ct[2:end,2:end])
+        vNE_E[tt] = real(- sum(eigval_Ct_E.*log.(eigval_Ct_E)) - sum((1.0 .- eigval_Ct_E).*log.(1.0 .- eigval_Ct_E)))
+
+        dCt .= diag(Ct - C0)
+        QL[tt] = -sum(dCt[2:K+1].*(epsilonLR[2:K+1] .- muL))
+        betaQL[tt] = QL[tt]*betaL
+        QR[tt] = -sum(dCt[K+2:2*K+1].*(epsilonLR[K+2:2*K+1] .- muR))
+        betaQR[tt] = QR[tt]*betaR
+        sigma[tt] = Sobssys[tt] - Sobssys[1] - betaQL[tt] - betaQR[tt]
+        Drel_vNE[tt] = sigma[tt] - (Sobssys[tt] - Sobssys[1] + vNE_L[tt] - vNE_L[1] + vNE_R[tt] - vNE_R[1])
+
+    end
+
+    # return p_sys_NLEL_NRER
+
+    # return time, Sobs, Sobssys, SobsE, SobsL, SobsR, DrelL_obs, DrelR_obs
+    return time, sigmaobs, Sobs, Iobs_SE, Iobs_B, DrelL_obs, DrelR_obs, sigma
+    # return time, SobsL, SobsR, Sobs, SobsE, vNE_L, vNE_R, vNE, vNE_E
+    # return time, SobsL, SobsR, vNE_L, vNE_R, Sobssys, sigmaobs, sigma, DrelL_obs, DrelR_obs, Drel_vNE
 
 end
 
