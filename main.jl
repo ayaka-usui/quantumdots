@@ -686,7 +686,8 @@ function populationinbath(size::Int64)
     length0 = zeros(Int64,size)
     length0[1] = 1
     for jj = 2:size
-        length0[jj] = Int64(3/2*factorial(jj))
+        # length0[jj] = Int64(3/2*factorial(jj))
+        length0[jj] = prod(3:2:2*jj-1)
     end
     mat0 = zeros(Int64,sum(length0),size*2)
 
@@ -700,20 +701,27 @@ function populationinbath(size::Int64)
     for jj = 3:size
 
         mat1 = mat0[sum(length0[1:jj-2])+1:sum(length0[1:jj-1]),1:2*(jj-1)]
-        mat0[sum(length0[1:jj-1])+1:sum(length0[1:jj-1])+length0[jj-1],1:2*(jj-1)] = mat1
+        mat0[sum(length0[1:jj-1])+1:sum(length0[1:jj-1])+length0[jj-1],1:2*(jj-1)] .= mat1
         mat0[sum(length0[1:jj-1])+1:sum(length0[1:jj-1])+length0[jj-1],2*jj-1] .= 2*jj-1
         mat0[sum(length0[1:jj-1])+1:sum(length0[1:jj-1])+length0[jj-1],2*jj] .= 2*jj
 
-        for ii = 1:jj-1
+        for ii = 1:2*jj-2 #1:jj-1
+            # test0 = collect(1:2*(jj-1))
+            # deleteat!(test0,2*jj-1-2*ii)
+            # push!(test0,2*jj-1)
+            #
             test0 = collect(1:2*(jj-1))
-            deleteat!(test0,2*jj-1-2*ii)
+            deleteat!(test0,2*jj-1-ii)
             push!(test0,2*jj-1)
+
             for kk = 1:length0[jj-1]
                 mat0[sum(length0[1:jj-1])+length0[jj-1]*ii+kk,1:2*(jj-1)] = test0[mat1[kk,:]]
-                mat0[sum(length0[1:jj-1])+length0[jj-1]*ii+kk,2*jj-1:2*jj] = [2*jj-1-2*ii 2*jj]
+                mat0[sum(length0[1:jj-1])+length0[jj-1]*ii+kk,2*jj-1:2*jj] = [2*jj-1-ii 2*jj] #[2*jj-1-2*ii 2*jj]
             end
         end
     end
+
+    # return mat0
 
     # remove <c_i c_j>=<c_i^+ c_j^+>=0
     mat2 = zeros(Int64,sum(length0),size*2)
@@ -870,16 +878,17 @@ function calculate_Sobs_test3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
     p_each = zeros(Float64,2*K+1,binomial(2*K+1,K))
     pL_each = zeros(Float64,K,binomial(K,floor(Int64,K/2)))
     pL_NE = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
+    pL_NE_t0 = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
 
     SobsL = zeros(Float64,Nt)
+    DrelL_obs = zeros(Float64,Nt)
     vNE_L = zeros(Float64,Nt)
+
 
     # pL_EN_E,V for N=0 and so E=0
     pLR_NE_E[1,1] = 0
     pLR_NE_V[1,1] = 1
     indLR = 0
-
-    pL_NE_t = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)),Nt)
 
     # pLR_NE_E,V for N>=1
     for jjN = 1:K
@@ -1022,22 +1031,19 @@ function calculate_Sobs_test3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
             end
         end
 
-        pL_NE_t[:,:,tt] .= pL_NE
+        if tt == 1
+           pL_NE_t0 .= pL_NE
+           # pR_NE_t0 .= pR_NE
+        end
 
         # observational entropy and relative entropy
         for jjN = 1:K+1
             for jjNlabel = 1:binomial(K,jjN-1)
 
                 if pLR_NE_V[jjN,jjNlabel] > 0
-
-                   # band aid
-                   if pL_NE[jjN,jjNlabel] < 0 #abs(pL_NE[jjN,jjNlabel]) < 10^(-4)
-                      continue
-                   end
-
                    SobsL[tt] += pL_NE[jjN,jjNlabel]*(-log(pL_NE[jjN,jjNlabel])+log(pLR_NE_V[jjN,jjNlabel]))
                    # SobsR[tt] += pR_NE[jjN,jjNlabel]*(-log(pR_NE[jjN,jjNlabel])+log(pLR_NE_V[jjN,jjNlabel]))
-                   # DrelL_obs[tt] += pL_NE[jjN,jjNlabel]*(log(pL_NE[jjN,jjNlabel])-log(pL_NE_t0[jjN,jjNlabel]))
+                   DrelL_obs[tt] += pL_NE[jjN,jjNlabel]*(log(pL_NE[jjN,jjNlabel])-log(pL_NE_t0[jjN,jjNlabel]))
                    # DrelR_obs[tt] += pR_NE[jjN,jjNlabel]*(log(pR_NE[jjN,jjNlabel])-log(pR_NE_t0[jjN,jjNlabel]))
                 end
 
@@ -1048,7 +1054,8 @@ function calculate_Sobs_test3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
 
     end
 
-    return time, SobsL, vNE_L, pL_NE_t
+    # return p_each, pL_NE_t, pL_each, Ct
+    return time, SobsL, DrelL_obs, vNE_L
 
 end
 
