@@ -876,14 +876,21 @@ function calculate_Sobs_test3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
     pLR_NE_deg = zeros(Int64,2^K,3)
 
     p_each = zeros(Float64,2*K+1,binomial(2*K+1,K))
+
     pL_each = zeros(Float64,K,binomial(K,floor(Int64,K/2)))
     pL_NE = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
     pL_NE_t0 = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
 
-    SobsL = zeros(Float64,Nt)
-    DrelL_obs = zeros(Float64,Nt)
-    vNE_L = zeros(Float64,Nt)
+    pR_each = zeros(Float64,K,binomial(K,floor(Int64,K/2)))
+    pR_NE = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
+    pR_NE_t0 = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
 
+    SobsL = zeros(Float64,Nt)
+    SobsR = zeros(Float64,Nt)
+    DrelL_obs = zeros(Float64,Nt)
+    DrelR_obs = zeros(Float64,Nt)
+    vNE_L = zeros(Float64,Nt)
+    vNE_R = zeros(Float64,Nt)
 
     # pL_EN_E,V for N=0 and so E=0
     pLR_NE_E[1,1] = 0
@@ -980,12 +987,15 @@ function calculate_Sobs_test3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
             end
         end
 
-        # pL_each
+        # pL_each and pR_each
         pL_each .= 0.0
+        pR_each .= 0.0
         for jjN = K:-1:1
             label = collect(combinations(1:2*K+1,jjN))
             label_L_part = collect(combinations(2:K+1,jjN))
-            for jj1 = 1:length(label_L_part)
+            label_R_part = collect(combinations(K+2:2*K+1,jjN))
+            for jj1 = 1:length(label_L_part) #length(label_R_part)
+
                 indL = 0
                 for jj2 = 1:length(label)
                     if label_L_part[jj1] == label[jj2]
@@ -994,19 +1004,32 @@ function calculate_Sobs_test3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
                     end
                 end
                 pL_each[jjN,jj1] = p_each[jjN,indL]
+
+                indR = 0
+                for jj2 = 1:length(label)
+                    if label_R_part[jj1] == label[jj2]
+                       indR = jj2
+                       break
+                    end
+                end
+                pR_each[jjN,jj1] = p_each[jjN,indR]
+
             end
         end
 
-        # pL_EN
+        # pL_NE and pR_NE
         pL_NE .= 0.0
+        pR_NE .= 0.0
 
-        # NL=0
+        # NL,NR=0
         pL_NE[1,1] = 1
+        pR_NE[1,1] = 1
         for jj = 1:K
             pL_NE[1,1] = pL_NE[1,1] + sum(pL_each[jj,:])*(-1)^(jj)
+            pR_NE[1,1] = pR_NE[1,1] + sum(pR_each[jj,:])*(-1)^(jj)
         end
 
-        # NL>=1
+        # NL,NR>=1
         for jjN = 1:K
             label = collect(combinations(1:K,jjN))
             for jj1 = 1:length(label)
@@ -1016,6 +1039,7 @@ function calculate_Sobs_test3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
                     for jj3 = 1:length(label2)
                         if issubset(label1,label2[jj3])
                            pL_NE[jjN+1,jj1] = pL_NE[jjN+1,jj1] + pL_each[jj2,jj3]*(-1)^(jj2-jjN)
+                           pR_NE[jjN+1,jj1] = pR_NE[jjN+1,jj1] + pR_each[jj2,jj3]*(-1)^(jj2-jjN)
                         end
                     end
                 end
@@ -1024,6 +1048,8 @@ function calculate_Sobs_test3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
                     if jjN == pLR_NE_deg[jjdeg,1] && jj1 == pLR_NE_deg[jjdeg,2]
                        pL_NE[1+jjN,pLR_NE_deg[jjdeg,3]] += pL_NE[1+jjN,jj1]
                        pL_NE[1+jjN,jj1] = 0.0
+                       pR_NE[1+jjN,pLR_NE_deg[jjdeg,3]] += pR_NE[1+jjN,jj1]
+                       pR_NE[1+jjN,jj1] = 0.0
                        break #
                     end
                 end
@@ -1033,7 +1059,7 @@ function calculate_Sobs_test3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
 
         if tt == 1
            pL_NE_t0 .= pL_NE
-           # pR_NE_t0 .= pR_NE
+           pR_NE_t0 .= pR_NE
         end
 
         # observational entropy and relative entropy
@@ -1042,20 +1068,21 @@ function calculate_Sobs_test3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
 
                 if pLR_NE_V[jjN,jjNlabel] > 0
                    SobsL[tt] += pL_NE[jjN,jjNlabel]*(-log(pL_NE[jjN,jjNlabel])+log(pLR_NE_V[jjN,jjNlabel]))
-                   # SobsR[tt] += pR_NE[jjN,jjNlabel]*(-log(pR_NE[jjN,jjNlabel])+log(pLR_NE_V[jjN,jjNlabel]))
+                   SobsR[tt] += pR_NE[jjN,jjNlabel]*(-log(pR_NE[jjN,jjNlabel])+log(pLR_NE_V[jjN,jjNlabel]))
                    DrelL_obs[tt] += pL_NE[jjN,jjNlabel]*(log(pL_NE[jjN,jjNlabel])-log(pL_NE_t0[jjN,jjNlabel]))
-                   # DrelR_obs[tt] += pR_NE[jjN,jjNlabel]*(log(pR_NE[jjN,jjNlabel])-log(pR_NE_t0[jjN,jjNlabel]))
+                   DrelR_obs[tt] += pR_NE[jjN,jjNlabel]*(log(pR_NE[jjN,jjNlabel])-log(pR_NE_t0[jjN,jjNlabel]))
                 end
 
             end
         end
 
         vNE_L[tt] = real(- sum(eigval_Ct_L.*log.(eigval_Ct_L)) - sum((1.0 .- eigval_Ct_L).*log.(1.0 .- eigval_Ct_L)))
+        vNE_R[tt] = real(- sum(eigval_Ct_R.*log.(eigval_Ct_R)) - sum((1.0 .- eigval_Ct_R).*log.(1.0 .- eigval_Ct_R)))
 
     end
 
     # return p_each, pL_NE_t, pL_each, Ct
-    return time, SobsL, DrelL_obs, vNE_L
+    return time, SobsL, SobsR, DrelL_obs, DrelR_obs, vNE_L, vNE_R
 
 end
 
