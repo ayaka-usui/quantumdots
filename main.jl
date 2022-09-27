@@ -870,12 +870,15 @@ function calculate_Sobs_test3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
     eigvec_Ct_L = zeros(Float64,K,K)
     eigval_Ct_R = zeros(Float64,K)
     eigvec_Ct_R = zeros(Float64,K,K)
+    eigval_Ct_E = zeros(Float64,2*K)
 
     pLR_NE_E = ones(Int64,K+1,binomial(K,floor(Int64,K/2)))*(-1)
     pLR_NE_V = zeros(Int64,K+1,binomial(K,floor(Int64,K/2)))
     pLR_NE_deg = zeros(Int64,2^K,3)
 
     p_each = zeros(Float64,2*K+1,binomial(2*K+1,K))
+    ptotal_sys_NLEL_NRER = zeros(Float64,2,K+1,binomial(K,floor(Int64,K/2)),K+1,binomial(K,floor(Int64,K/2)))
+    # ptotal_sys_NLEL_NRER_t0 = zeros(Float64,2,K+1,binomial(K,floor(Int64,K/2)),K+1,binomial(K,floor(Int64,K/2)))
 
     pL_each = zeros(Float64,K,binomial(K,floor(Int64,K/2)))
     pL_NE = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
@@ -885,16 +888,30 @@ function calculate_Sobs_test3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
     pR_NE = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
     pR_NE_t0 = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)))
 
+    pLR_each = zeros(Float64,2*K+1,binomial(2*K+1,K))
+    pLR_NLEL_NRER = zeros(Float64,K+1,binomial(K,floor(Int64,K/2)),K+1,binomial(K,floor(Int64,K/2)))
+
     SobsL = zeros(Float64,Nt)
     SobsR = zeros(Float64,Nt)
+    SobsE = zeros(Float64,Nt)
+    Sobs = zeros(Float64,Nt)
     DrelL_obs = zeros(Float64,Nt)
     DrelR_obs = zeros(Float64,Nt)
     Ssys = zeros(Float64,Nt)
     sigmaobs = zeros(Float64,Nt)
-
+    Iobs_SE = zeros(Float64,Nt)
+    Iobs_B = zeros(Float64,Nt)
+    
     vNE_L = zeros(Float64,Nt)
     vNE_R = zeros(Float64,Nt)
+    vNE_E = zeros(Float64,Nt)
     vNE = zeros(Float64,Nt)
+    dCt = zeros(ComplexF64,2*K+1,2*K+1)
+    QL = zeros(ComplexF64,Nt)
+    betaQL = zeros(ComplexF64,Nt)
+    QR = zeros(ComplexF64,Nt)
+    betaQR = zeros(ComplexF64,Nt)
+    sigma = zeros(ComplexF64,Nt)
 
     # pL_EN_E,V for N=0 and so E=0
     pLR_NE_E[1,1] = 0
@@ -1021,22 +1038,22 @@ function calculate_Sobs_test3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
             end
         end
 
-        # # pLR_each
-        # pLR_each .= 0.0
-        # for jjN = 2*K:-1:1
-        #     label = collect(combinations(1:2*K+1,jjN))
-        #     label_LR_part = collect(combinations(2:2*K+1,jjN))
-        #     for jj1 = 1:length(label_LR_part)
-        #         ind = 0
-        #         for jj2 = 1:length(label)
-        #             if label_LR_part[jj1] == label[jj2]
-        #                ind = jj2
-        #                break
-        #             end
-        #         end
-        #         pLR_each[jjN,jj1] = p_each[jjN,ind]
-        #     end
-        # end
+        # pLR_each
+        pLR_each .= 0.0
+        for jjN = 2*K:-1:1
+            label = collect(combinations(1:2*K+1,jjN))
+            label_LR_part = collect(combinations(2:2*K+1,jjN))
+            for jj1 = 1:length(label_LR_part)
+                ind = 0
+                for jj2 = 1:length(label)
+                    if label_LR_part[jj1] == label[jj2]
+                       ind = jj2
+                       break
+                    end
+                end
+                pLR_each[jjN,jj1] = p_each[jjN,ind]
+            end
+        end
 
         # pL_NE and pR_NE
         pL_NE .= 0.0
@@ -1078,6 +1095,94 @@ function calculate_Sobs_test3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
             end
         end
 
+        # pLR_NLEL_NRER
+        pLR_NLEL_NRER .= 0.0
+
+        # NL+NR=0
+        pLR_NLEL_NRER[1,1,1,1] = 1
+        for jj = 1:2*K
+            pLR_NLEL_NRER[1,1,1,1] = pLR_NLEL_NRER[1,1,1,1] + sum(pLR_each[jj,:])*(-1)^(jj)
+        end
+
+        # NL+NR >= 1
+        for jjN = 1:2*K
+            label = collect(combinations(1:2*K,jjN))
+            for jj1 = 1:length(label)
+                label1 = label[jj1]
+
+                # L
+                indNL = 1
+                indEL = 1
+                if label1[1] <= K
+                   labelL = label1[findfirst(x->x<=K,label1):findlast(x->x<=K,label1)]
+                   NL = length(labelL)
+                   labelL_all = collect(combinations(1:K,NL))
+                   indNL = NL+1
+                   for jjL = 1:length(labelL_all)
+                       if labelL == labelL_all[jjL]
+                          indEL = jjL
+                          break
+                       end
+                   end
+                end
+
+                # R
+                indNR = 1
+                indER = 1
+                if label1[end] >= K+1
+                   labelR = label1[findfirst(x->x>=K+1,label1):findlast(x->x>=K+1,label1)]
+                   labelR .= labelR .- K
+                   NR = length(labelR)
+                   labelR_all = collect(combinations(1:K,NR))
+                   indNR = NR+1
+                   for jjR = 1:length(labelR_all)
+                       if labelR == labelR_all[jjR]
+                          indER = jjR
+                          break
+                       end
+                   end
+                end
+
+                for jj2 = jjN:2*K
+                    label2 = collect(combinations(1:2*K,jj2))
+                    for jj3 = 1:length(label2)
+                        if issubset(label1,label2[jj3])
+                           pLR_NLEL_NRER[indNL,indEL,indNR,indER] = pLR_NLEL_NRER[indNL,indEL,indNR,indER] + pLR_each[jj2,jj3]*(-1)^(jj2-jjN)
+                        end
+                    end
+                end
+
+                indEL1 = 0
+                for jjdeg = 1:indLR
+                    if indNL == pLR_NE_deg[jjdeg,1] && indEL == pLR_NE_deg[jjdeg,2]
+                       indEL1 = pLR_NE_deg[jjdeg,3]
+                       break
+                    end
+                end
+
+                indER1 = 0
+                for jjdeg = 1:indLR
+                    if indNR == pLR_NE_deg[jjdeg,1] && indER == pLR_NE_deg[jjdeg,2]
+                       indER1 = pLR_NE_deg[jjdeg,3]
+                       break
+                    end
+                end
+
+                if indEL1 != 0 && indER1 != 0
+                   pLR_NLEL_NRER[indNL,indEL1,indNR,indER1] += pLR_NLEL_NRER[indNL,indEL,indNR,indER]
+                   pLR_NLEL_NRER[indNL,indEL,indNR,indER] = 0.0
+                elseif indEL1 != 0 && indER1 == 0
+                   pLR_NLEL_NRER[indNL,indEL1,indNR,indER] += pLR_NLEL_NRER[indNL,indEL,indNR,indER]
+                   pLR_NLEL_NRER[indNL,indEL,indNR,indER] = 0.0
+                elseif indEL1 == 0 && indER1 != 0
+                   pLR_NLEL_NRER[indNL,indEL,indNR,indER1] += pLR_NLEL_NRER[indNL,indEL,indNR,indER]
+                   pLR_NLEL_NRER[indNL,indEL,indNR,indER] = 0.0
+                # elseif indEL1 == 0 && indER1 == 0
+                end
+
+            end
+        end
+
         # ptotal_sys_NLEL_NRER
         ptotal_sys_NLEL_NRER .= 0.0
 
@@ -1092,66 +1197,82 @@ function calculate_Sobs_test3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
             label = collect(combinations(1:2*K+1,jjN))
             for jj1 = 1:length(label)
                 label1 = label[jj1]
+
+                # system
+                indsys = 1
+                if label1[1] == 1
+                   indsys = 2
+                end
+
+                # L
+                indNL = 1
+                indEL = 1
+                if label1 != [1] && label1[indsys] >= 2 && label1[indsys] <= K+1
+                   labelL = label1[findfirst(x->x>=2&&x<=K+1,label1):findlast(x->x>=2&&x<=K+1,label1)]
+                   labelL .= labelL .- 1
+                   NL = length(labelL)
+                   labelL_all = collect(combinations(1:K,NL))
+                   indNL = NL+1
+                   for jjL = 1:length(labelL_all)
+                       if labelL == labelL_all[jjL]
+                          indEL = jjL
+                          break
+                       end
+                   end
+                end
+
+                # R
+                indNR = 1
+                indER = 1
+                if label1[end] >= K+2
+                   labelR = label1[findfirst(x->x>=K+2,label1):findlast(x->x>=K+2,label1)]
+                   labelR .= labelR .- (K+1)
+                   NR = length(labelR)
+                   labelR_all = collect(combinations(1:K,NR))
+                   indNR = NR+1
+                   for jjR = 1:length(labelR_all)
+                       if labelR == labelR_all[jjR]
+                          indER = jjR
+                          break
+                       end
+                   end
+                end
+
                 for jj2 = jjN:2*K+1
                     label2 = collect(combinations(1:2*K+1,jj2))
                     for jj3 = 1:length(label2)
                         if issubset(label1,label2[jj3])
-
-                           # system
-                           indsys = 1
-                           if label1[1] == 1
-                              indsys = 2
-                           end
-
-                           # L and R
-                           indNL = 1
-                           indEL = 1
-                           if label1[indsys] >= 2 && label1[indsys] <= K+1
-                              labelL = label1[findfirst(x->x>=2&&x<=K+1,label1[indsys:end]):findlast(x->x>=2&&x<=K+1,label1[indsys:end])]
-                              labelL .= labelL .- 1
-                              NL = length(labelL)
-                              labelL_all = collect(combinations(1:K,NL))
-                              indNL = NL+1
-                              for jjL = 1:length(labelL_all)
-                                  if labelL == labelL_all[jjL]
-                                     indEL = jjL
-                                     break
-                                  end
-                              end
-                           end
-
-                           # R
-                           indNR = 1
-                           indER = 1
-                           if label1[end] >= K+2
-                              labelR = label1[findfirst(x->x>=K+2,label1[indsys:end]):findlast(x->x>=K+2,label1[indsys:end])]
-                              labelR .= labelR .- (K+1)
-                              NR = length(labelR)
-                              labelR_all = collect(combinations(1:K,NR))
-                              indNR = NR+1
-                              for jjR = 1:length(labelR_all)
-                                  if labelR == labelR_all[jjR]
-                                     indER = jjR
-                                     break
-                                  end
-                              end
-                           end
-
                            ptotal_sys_NLEL_NRER[indsys,indNL,indEL,indNR,indER] = ptotal_sys_NLEL_NRER[indsys,indNL,indEL,indNR,indER] + p_each[jj2,jj3]*(-1)^(jj2-jjN)
-
                         end
                     end
                 end
 
+                indEL1 = 0
                 for jjdeg = 1:indLR
                     if indNL == pLR_NE_deg[jjdeg,1] && indEL == pLR_NE_deg[jjdeg,2]
-                        
-                       pL_NE[1+jjN,pLR_NE_deg[jjdeg,3]] += pL_NE[1+jjN,jj1]
-                       pL_NE[1+jjN,jj1] = 0.0
-                       pR_NE[1+jjN,pLR_NE_deg[jjdeg,3]] += pR_NE[1+jjN,jj1]
-                       pR_NE[1+jjN,jj1] = 0.0
-                       break #
+                       indEL1 = pLR_NE_deg[jjdeg,3]
+                       break
                     end
+                end
+
+                indER1 = 0
+                for jjdeg = 1:indLR
+                    if indNR == pLR_NE_deg[jjdeg,1] && indER == pLR_NE_deg[jjdeg,2]
+                       indER1 = pLR_NE_deg[jjdeg,3]
+                       break
+                    end
+                end
+
+                if indEL1 != 0 && indER1 != 0
+                   ptotal_sys_NLEL_NRER[indsys,indNL,indEL1,indNR,indER1] += ptotal_sys_NLEL_NRER[indsys,indNL,indEL,indNR,indER]
+                   ptotal_sys_NLEL_NRER[indsys,indNL,indEL,indNR,indER] = 0.0
+                elseif indEL1 != 0 && indER1 == 0
+                   ptotal_sys_NLEL_NRER[indsys,indNL,indEL1,indNR,indER] += ptotal_sys_NLEL_NRER[indsys,indNL,indEL,indNR,indER]
+                   ptotal_sys_NLEL_NRER[indsys,indNL,indEL,indNR,indER] = 0.0
+                elseif indEL1 == 0 && indER1 != 0
+                   ptotal_sys_NLEL_NRER[indsys,indNL,indEL,indNR,indER1] += ptotal_sys_NLEL_NRER[indsys,indNL,indEL,indNR,indER]
+                   ptotal_sys_NLEL_NRER[indsys,indNL,indEL,indNR,indER] = 0.0
+                # elseif indEL1 == 0 && indER1 == 0
                 end
 
             end
@@ -1176,21 +1297,65 @@ function calculate_Sobs_test3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
             end
         end
 
+        for jjNL = 1:K+1
+            for jjNlabelL = 1:binomial(K,jjNL-1)
+                if pLR_NE_V[jjNL,jjNlabelL] <= 0
+                   continue
+                end
+                for jjNR = 1:K+1
+                    for jjNlabelR = 1:binomial(K,jjNR-1)
+                        if pLR_NE_V[jjNR,jjNlabelR] <= 0
+                           continue
+                        end
+
+                        if abs(pLR_NLEL_NRER[jjNL,jjNlabelL,jjNR,jjNlabelR]) < 1e-15
+                           continue
+                        end
+                        SobsE[tt] += pLR_NLEL_NRER[jjNL,jjNlabelL,jjNR,jjNlabelR]*(-log(pLR_NLEL_NRER[jjNL,jjNlabelL,jjNR,jjNlabelR])+log(pLR_NE_V[jjNL,jjNlabelL]*pLR_NE_V[jjNR,jjNlabelR]))
+
+                        for jjNsys = 1:2
+
+                            # if ptotal_sys_NLEL_NRER[jjNsys,jjNL,jjNlabelL,jjNR,jjNlabelR] == 0.0
+                            if abs(ptotal_sys_NLEL_NRER[jjNsys,jjNL,jjNlabelL,jjNR,jjNlabelR]) < 1e-15
+                               continue
+                            end
+                            Sobs[tt] += ptotal_sys_NLEL_NRER[jjNsys,jjNL,jjNlabelL,jjNR,jjNlabelR]*(-log(ptotal_sys_NLEL_NRER[jjNsys,jjNL,jjNlabelL,jjNR,jjNlabelR])+log(pLR_NE_V[jjNL,jjNlabelL]*pLR_NE_V[jjNR,jjNlabelR]))
+
+                        end
+                    end
+                end
+            end
+        end
+
         # system
         Ssys[tt] = real(-Ct[1,1]*log(Ct[1,1]) - (1-Ct[1,1])*log(1-Ct[1,1]))
 
         # entropy production of obs
         sigmaobs[tt] = Ssys[tt] - Ssys[1] + SobsL[tt] - SobsL[1] + SobsR[tt] - SobsR[1] + DrelL_obs[tt] + DrelR_obs[tt]
 
+        # correlation
+        Iobs_SE[tt] = Ssys[tt] - Ssys[1] + SobsE[tt] - SobsE[1] - (Sobs[tt] - Sobs[1])
+        Iobs_B[tt] = SobsL[tt] - SobsL[1] + SobsR[tt] - SobsR[1] - (SobsE[tt] - SobsE[1])
+
         # vNE
         vNE_L[tt] = real(- sum(eigval_Ct_L.*log.(eigval_Ct_L)) - sum((1.0 .- eigval_Ct_L).*log.(1.0 .- eigval_Ct_L)))
         vNE_R[tt] = real(- sum(eigval_Ct_R.*log.(eigval_Ct_R)) - sum((1.0 .- eigval_Ct_R).*log.(1.0 .- eigval_Ct_R)))
         vNE[tt] = real(- sum(eigval_Ct.*log.(eigval_Ct)) - sum((1.0 .- eigval_Ct).*log.(1.0 .- eigval_Ct)))
+        eigval_Ct_E .= real(eigvals(Ct[2:end,2:end]))
+        vNE_E[tt] = real(- sum(eigval_Ct_E.*log.(eigval_Ct_E)) - sum((1.0 .- eigval_Ct_E).*log.(1.0 .- eigval_Ct_E)))
+
+        #
+        dCt .= diag(Ct - C0)
+        QL[tt] = -sum(dCt[2:K+1].*(epsilonLR[2:K+1] .- muL))
+        betaQL[tt] = QL[tt]*betaL
+        QR[tt] = -sum(dCt[K+2:2*K+1].*(epsilonLR[K+2:2*K+1] .- muR))
+        betaQR[tt] = QR[tt]*betaR
+        sigma[tt] = Ssys[tt] - Ssys[1] - betaQL[tt] - betaQR[tt]
 
     end
 
-    # return p_each, pL_NE_t, pL_each, Ct
-    return time, sigmaobs, Ssys, SobsL, SobsR, DrelL_obs, DrelR_obs, vNE, vNE_L, vNE_R
+    # return ptotal_sys_NLEL_NRER, Sobs, vNE, Ct, pLR_NE_V
+    return time, sigmaobs, Ssys, Sobs, SobsE, SobsL, SobsR, DrelL_obs, DrelR_obs, Iobs_SE, Iobs_B, sigma, vNE, vNE_E, vNE_L, vNE_R
 
 end
 
