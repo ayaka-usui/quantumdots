@@ -678,6 +678,19 @@ function swap!(aa::Int64,bb::Int64,vec::Vector{Int64})
     vec[bb] = spot
 end
 
+function number_sumoffactorial(size::Int64)
+
+    length0 = zeros(Int64,size)
+    length0[1] = 1
+    for jj = 2:size
+        # length0[jj] = Int64(3/2*factorial(jj))
+        length0[jj] = prod(3:2:2*jj-1)
+    end
+
+    return sum(length0)
+
+end
+
 function populationinbath(size::Int64)
 
     # look at Eq. (30) in arXiv:1710.09248
@@ -690,6 +703,8 @@ function populationinbath(size::Int64)
         length0[jj] = prod(3:2:2*jj-1)
     end
     mat0 = zeros(Int64,sum(length0),size*2)
+
+    println("here")
 
     # system size =1
     mat0[1,1:2] = [1 2]
@@ -901,7 +916,7 @@ function calculate_Sobs_test3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
     sigmaobs = zeros(Float64,Nt)
     Iobs_SE = zeros(Float64,Nt)
     Iobs_B = zeros(Float64,Nt)
-    
+
     vNE_L = zeros(Float64,Nt)
     vNE_R = zeros(Float64,Nt)
     vNE_E = zeros(Float64,Nt)
