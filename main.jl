@@ -704,8 +704,6 @@ function populationinbath(size::Int64)
     end
     mat0 = zeros(Int64,sum(length0),size*2)
 
-    println("here")
-
     # system size =1
     mat0[1,1:2] = [1 2]
 
