@@ -670,6 +670,37 @@ function movingmean(x::Vector{Float64}, n::Int64)
 
 end
 
+function averagecorrelationsregimeIII(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+
+    array_Gamma = [0.1, sqrt(0.1), 1.0, sqrt(10.0), 10.0]
+    array_tt0 = zeros(Int64,length(array_Gamma))
+    array_I_SE = zeros(Float64,length(array_Gamma))
+    array_I_B = zeros(Float64,length(array_Gamma))
+    array_I_L = zeros(Float64,length(array_Gamma))
+    array_I_R = zeros(Float64,length(array_Gamma))
+
+    for jj = 1:length(array_Gamma)
+
+        Gamma = array_Gamma[jj]
+        time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR = calculatequantities2(K,W,t_flu,betaL,betaR,Gamma,Gamma,muL,muR,tf,Nt)
+
+        tt0 = argmin(abs.(time*Gamma.-10^3))
+        if time[tt0] < 10^3
+           tt0 = tt0 + 1
+        end
+
+        array_tt0[jj] = tt0
+        array_I_SE[jj] = mean(real(I_SE[tt0:end]))
+        array_I_B[jj] = mean(real(I_B[tt0:end]))
+        array_I_L[jj] = mean(real(I_L[tt0:end]))
+        array_I_R[jj] = mean(real(I_R[tt0:end]))
+
+    end
+
+    return array_Gamma, array_tt0, array_I_SE, array_I_B, array_I_L, array_I_R
+
+end
+
 ################ basis functions for obs
 
 function swap!(aa::Int64,bb::Int64,vec::Vector{Int64})
