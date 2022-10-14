@@ -672,7 +672,7 @@ end
 
 function averagecorrelationsregimeIII(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
-    array_Gamma = [0.1, sqrt(0.1), 1.0, sqrt(10.0), 10.0]
+    array_Gamma = [0.1, sqrt(0.1), 1.0, sqrt(10.0), 10.0, 10.0^2]
     array_tt0 = zeros(Int64,length(array_Gamma))
     array_I_SE = zeros(Float64,length(array_Gamma))
     array_I_B = zeros(Float64,length(array_Gamma))
@@ -682,11 +682,22 @@ function averagecorrelationsregimeIII(K::Int64,W::Int64,t_flu::Float64,betaL::Fl
     for jj = 1:length(array_Gamma)
 
         Gamma = array_Gamma[jj]
-        time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR = calculatequantities2(K,W,t_flu,betaL,betaR,Gamma,Gamma,muL,muR,tf,Nt)
 
-        tt0 = argmin(abs.(time*Gamma.-10^3))
-        if time[tt0] < 10^3
-           tt0 = tt0 + 1
+        if jj != length(array_Gamma)
+           time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR = calculatequantities2(K,W,t_flu,betaL,betaR,Gamma,Gamma,muL,muR,50000.0,501)
+
+           tt0 = argmin(abs.(time*Gamma.-10^3))
+           if time[tt0] < 10^3
+              tt0 = tt0 + 1
+           end
+
+        else
+
+           time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR = calculatequantities2(K,W,t_flu,betaL,betaR,Gamma,Gamma,muL,muR,500.0,501)
+           tt0 = argmin(abs.(time*Gamma.-10^4))
+           if time[tt0] < 10^4
+              tt0 = tt0 + 1
+           end
         end
 
         array_tt0[jj] = tt0
