@@ -670,11 +670,15 @@ function movingmean(x::Vector{Float64}, n::Int64)
 
 end
 
-function plot_sigmas(time,GammaLR,sigma,I_SE,I_B,I_L,I_R,Drelnuk)
+function plot_sigmas(time,GammaLR,sigma,sigma_c,I_SE,I_B,I_L,I_R,Drelnuk,Drelpinuk)
 
-    I_SE_mvave = movingmean(real(I_SE),1001);
-    I_L_mvave = movingmean(real(I_L),1001);
-    I_R_mvave = movingmean(real(I_R),1001);
+    # I_SE_mvave = movingmean(real(I_SE),1001);
+    # I_L_mvave = movingmean(real(I_L),1001);
+    # I_R_mvave = movingmean(real(I_R),1001);
+
+    I_SE_mvave = movingmean(real(I_SE),5001);
+    I_L_mvave = movingmean(real(I_L),5001);
+    I_R_mvave = movingmean(real(I_R),5001);
 
     ref_some = [0.1, 0.3, 1.0, 3.0, 6.0, 30.0, 100.0, 300.0, 1000.0, 3000.0]
     num0 = length(ref_some)
@@ -687,6 +691,8 @@ function plot_sigmas(time,GammaLR,sigma,I_SE,I_B,I_L,I_R,Drelnuk)
     I_SE_mvave_some = zeros(Float64,num0)
     I_L_mvave_some = zeros(Float64,num0)
     I_R_mvave_some = zeros(Float64,num0)
+    sigma_c_some = zeros(Float64,num0)
+    Drelpinuk_some = zeros(Float64,num0)
     for jj = 1:num0
         ind_some = argmin(abs.(time*GammaLR .- ref_some[jj]))
         time_some[jj] = time[ind_some]
@@ -698,9 +704,11 @@ function plot_sigmas(time,GammaLR,sigma,I_SE,I_B,I_L,I_R,Drelnuk)
         I_SE_mvave_some[jj] = real(I_SE_mvave[ind_some])
         I_L_mvave_some[jj] = real(I_L_mvave[ind_some])
         I_R_mvave_some[jj] = real(I_R_mvave[ind_some])
+        sigma_c_some[jj] = real(sigma_c[ind_some])
+        Drelpinuk_some[jj] = real(Drelpinuk[ind_some])
     end
 
-    p1 = plot(log10.(time*GammaLR),log10.(real(sigma)),color=:black,lw=3,label=L"\sigma")
+    p1 = plot(log10.(time[2:end]*GammaLR),log10.(real(sigma[2:end])),color=:black,lw=5,label=L"\sigma")
     plot!(log10.(time*GammaLR),log10.(real(I_SE)),color=:red,lw=3,label=L"I_{SB}")
     plot!(log10.(time*GammaLR),log10.(real(I_B)),color=:blue,lw=3,label=L"I_{B}")
     plot!(log10.(time*GammaLR),log10.(real(I_L)),color=:green,lw=3,label=L"I_{L}")
@@ -714,71 +722,93 @@ function plot_sigmas(time,GammaLR,sigma,I_SE,I_B,I_L,I_R,Drelnuk)
     plot!(log10.(time_some*GammaLR),log10.(real(Drelnuk_some)),color=:purple,lw=0,markershape=:pentagon,ms=6)
 
     xlims!((-1.1,0.7))
-    ylims!((-3,3))
+    # ylims!((-3,1))
+    ylims!((-6,1))
     plot!(legend=:none)
 
-    p2 = plot(log10.(time*GammaLR),log10.(real(sigma)),color=:black,lw=3,label=L"\sigma")
-    plot!(log10.(time*GammaLR),log10.(real(I_SE_mvave)),color=:red,lw=3,ls=:dash,label=L"I_{SB}")
+    p2 = plot(log10.(time[2:end]*GammaLR),log10.(real(sigma[2:end])),color=:black,lw=5,label=L"\sigma")
+    plot!(log10.(time*GammaLR),log10.(real(I_SE_mvave)),color=:red,lw=3,label=L"I_{SB}")
     plot!(log10.(time*GammaLR),log10.(real(I_B)),color=:blue,lw=3,label=L"I_{B}")
-    plot!(log10.(time*GammaLR),log10.(real(I_L_mvave)),color=:green,lw=3,ls=:dash,label=L"I_{L}")
-    plot!(log10.(time*GammaLR),log10.(real(I_R_mvave)),color=:orange,lw=3,ls=:dash,label=L"I_{R}")
+    plot!(log10.(time*GammaLR),log10.(real(I_L_mvave)),color=:green,lw=3,label=L"I_{L}")
+    plot!(log10.(time*GammaLR),log10.(real(I_R_mvave)),color=:orange,lw=3,label=L"I_{R}")
     plot!(log10.(time[2:end]*GammaLR),log10.(real(Drelnuk[2:end])),color=:purple,lw=3,label=L"D_{env}")
 
-    plot!(log10.(time_some*GammaLR),log10.(real(I_SE_mvave_some)),color=:red,lw=0,markershape=:circle,ms=6)
+    plot!(log10.(time_some*GammaLR),log10.(real(I_SE_mvave_some)),color=:red,lw=0,markershape=:star5,ms=6)
     plot!(log10.(time_some*GammaLR),log10.(real(I_B_some)),color=:blue,lw=0,markershape=:rect,ms=6)
-    plot!(log10.(time_some*GammaLR),log10.(real(I_L_mvave_some)),color=:green,lw=0,markershape=:utriangle,ms=6)
-    plot!(log10.(time_some*GammaLR),log10.(real(I_R_mvave_some)),color=:orange,lw=0,markershape=:dtriangle,ms=6)
+    plot!(log10.(time_some*GammaLR),log10.(real(I_L_mvave_some)),color=:green,lw=0,markershape=:cross,ms=6)
+    plot!(log10.(time_some*GammaLR),log10.(real(I_R_mvave_some)),color=:orange,lw=0,markershape=:xcross,ms=6)
     plot!(log10.(time_some*GammaLR),log10.(real(Drelnuk_some)),color=:purple,lw=0,markershape=:pentagon,ms=6)
 
     xlims!((0.5,4.0))
-    ylims!((-3,3))
+    # ylims!((-1,3))
+    ylims!((-1,3))
     plot!(legend=:none)
 
-    plot(p1,p2,layout=(1,2),size=(700,400))
+    p3 = plot(log10.(time[2:end]*GammaLR),log10.(real(sigma[2:end])),color=:black,lw=5,label=L"\sigma")
+    plot!(log10.(time[2:end]*GammaLR),log10.(real(sigma_c[2:end])),color=:grey,lw=3,label=L"\tilde{\sigma}")
+    plot!(log10.(time[2:end]*GammaLR),log10.(real(Drelpinuk[2:end])),color=:cyan,lw=3,label=L"\tilde{D}_{env}")
 
-    # plot(p1,layout=(1,1),size=(700,400))
+    plot!(log10.(time_some*GammaLR),log10.(real(sigma_c_some)),color=:grey,lw=0,markershape=:diamond,ms=6)
+    plot!(log10.(time_some*GammaLR),log10.(real(Drelpinuk_some)),color=:cyan,lw=0,markershape=:hexagon,ms=6)
+
+    ylims!((-4,3))
+    plot!(legend=:none)
+
+    plot(p1,p2,p3,layout=(1,3),size=(1100,400),dpi=600)
+    # plot!(yticks=[-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6])
 
 end
 
 function averagecorrelationsregimeIII(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
-    array_Gamma = [0.1, sqrt(0.1), 1.0, sqrt(10.0), 10.0, 10.0^2]
-    array_tt0 = zeros(Int64,length(array_Gamma))
+    array_Gamma = [10.0^(-2), 10.0^(-1.5), 10.0^(-1), 10.0^(-0.5), 1.0, 10.0^(0.5), 10.0, 10.0^(1.5), 10.0^2]
+    tt_ref0 = 10.0^4
+    tt_ref1 = 10.0^(4.5)
+    array_tt = 5*tt_ref0./array_Gamma
+
     array_I_SE = zeros(Float64,length(array_Gamma))
     array_I_B = zeros(Float64,length(array_Gamma))
     array_I_L = zeros(Float64,length(array_Gamma))
     array_I_R = zeros(Float64,length(array_Gamma))
+    array_Drelnuk = zeros(Float64,length(array_Gamma))
+    array_Drelpinuk = zeros(Float64,length(array_Gamma))
 
     for jj = 1:length(array_Gamma)
 
         Gamma = array_Gamma[jj]
+        tt = array_tt[jj]
 
-        if jj != length(array_Gamma)
-           time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR = calculatequantities2(K,W,t_flu,betaL,betaR,Gamma,Gamma,muL,muR,50000.0,501)
+        time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR = calculatequantities2(K,W,t_flu,betaL,betaR,Gamma,Gamma,muL,muR,tt,501)
 
-           tt0 = argmin(abs.(time*Gamma.-10^3))
-           if time[tt0] < 10^3
-              tt0 = tt0 + 1
-           end
-
-        else
-
-           time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR = calculatequantities2(K,W,t_flu,betaL,betaR,Gamma,Gamma,muL,muR,500.0,501)
-           tt0 = argmin(abs.(time*Gamma.-10^4))
-           if time[tt0] < 10^4
-              tt0 = tt0 + 1
-           end
+        tt0 = argmin(abs.(time*Gamma.-tt_ref0))
+        if time[tt0] < tt_ref0
+           tt0 = tt0 + 1
         end
 
-        array_tt0[jj] = tt0
-        array_I_SE[jj] = mean(real(I_SE[tt0:end]))
-        array_I_B[jj] = mean(real(I_B[tt0:end]))
-        array_I_L[jj] = mean(real(I_L[tt0:end]))
-        array_I_R[jj] = mean(real(I_R[tt0:end]))
+        tt1 = argmin(abs.(time*Gamma.-tt_ref1))
+        # if time[tt1] < tt_ref1
+           # tt1 = tt1 + 1
+        # end
+
+        array_I_SE[jj] = mean(real(I_SE[tt0:tt1]))
+        array_I_B[jj] = mean(real(I_B[tt0:tt1]))
+        array_I_L[jj] = mean(real(I_L[tt0:tt1]))
+        array_I_R[jj] = mean(real(I_R[tt0:tt1]))
+        array_Drelnuk[jj] = mean(real(Drelnuk[tt0:tt1]))
+        array_Drelpinuk[jj] = mean(real(Drelpinuk[tt0:tt1]))
 
     end
 
-    return array_Gamma, array_tt0, array_I_SE, array_I_B, array_I_L, array_I_R
+    return array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk, array_Drelpinuk
+
+    p1 = plot(log10.(array_Gamma),array_I_SE,color=:red,marker=(:circle,8),lw=3,label=L"\langle I_{SB} \rangle")
+    p2 = plot(log10.(array_Gamma),array_I_B,color=:blue,marker=(:rect,8),lw=3,label=L"\langle I_{B} \rangle")
+    p3 = plot(log10.(array_Gamma),array_I_L,color=:green,marker=(:utriangle,8),lw=3,label=L"\langle I_{L} \rangle")
+    p4 = plot(log10.(array_Gamma),array_I_R,color=:orange,marker=(:dtriangle,8),lw=3,label=L"\langle I_{R} \rangle")
+    p5 = plot(log10.(array_Gamma),array_Drelnuk,color=:purple,marker=(:pentagon,8),lw=3,label=L"\langle D_{env} \rangle")
+    p6 = plot(log10.(array_Gamma),array_Drelpinuk,color=:purple,marker=(:pentagon,8),lw=3,label=L"\langle D_{env} \rangle")
+
+    plot(p1,p2,p3,p4,layout=(1,4),size=(700,400),dpi=600)
 
 end
 
