@@ -670,6 +670,76 @@ function movingmean(x::Vector{Float64}, n::Int64)
 
 end
 
+function plot_sigmas(time,GammaLR,sigma,I_SE,I_B,I_L,I_R,Drelnuk)
+
+    I_SE_mvave = movingmean(real(I_SE),1001);
+    I_L_mvave = movingmean(real(I_L),1001);
+    I_R_mvave = movingmean(real(I_R),1001);
+
+    ref_some = [0.1, 0.3, 1.0, 3.0, 6.0, 30.0, 100.0, 300.0, 1000.0, 3000.0]
+    num0 = length(ref_some)
+    time_some = zeros(Float64,num0)
+    I_SE_some = zeros(Float64,num0)
+    I_B_some = zeros(Float64,num0)
+    I_L_some = zeros(Float64,num0)
+    I_R_some = zeros(Float64,num0)
+    Drelnuk_some = zeros(Float64,num0)
+    I_SE_mvave_some = zeros(Float64,num0)
+    I_L_mvave_some = zeros(Float64,num0)
+    I_R_mvave_some = zeros(Float64,num0)
+    for jj = 1:num0
+        ind_some = argmin(abs.(time*GammaLR .- ref_some[jj]))
+        time_some[jj] = time[ind_some]
+        I_SE_some[jj] = real(I_SE[ind_some])
+        I_B_some[jj] = real(I_B[ind_some])
+        I_L_some[jj] = real(I_L[ind_some])
+        I_R_some[jj] = real(I_R[ind_some])
+        Drelnuk_some[jj] = real(Drelnuk[ind_some])
+        I_SE_mvave_some[jj] = real(I_SE_mvave[ind_some])
+        I_L_mvave_some[jj] = real(I_L_mvave[ind_some])
+        I_R_mvave_some[jj] = real(I_R_mvave[ind_some])
+    end
+
+    p1 = plot(log10.(time*GammaLR),log10.(real(sigma)),color=:black,lw=3,label=L"\sigma")
+    plot!(log10.(time*GammaLR),log10.(real(I_SE)),color=:red,lw=3,label=L"I_{SB}")
+    plot!(log10.(time*GammaLR),log10.(real(I_B)),color=:blue,lw=3,label=L"I_{B}")
+    plot!(log10.(time*GammaLR),log10.(real(I_L)),color=:green,lw=3,label=L"I_{L}")
+    plot!(log10.(time*GammaLR),log10.(real(I_R)),color=:orange,lw=3,label=L"I_{R}")
+    plot!(log10.(time[2:end]*GammaLR),log10.(real(Drelnuk[2:end])),color=:purple,lw=3,label=L"D_{env}")
+
+    plot!(log10.(time_some*GammaLR),log10.(real(I_SE_some)),color=:red,lw=0,markershape=:circle,ms=6)
+    plot!(log10.(time_some*GammaLR),log10.(real(I_B_some)),color=:blue,lw=0,markershape=:rect,ms=6)
+    plot!(log10.(time_some*GammaLR),log10.(real(I_L_some)),color=:green,lw=0,markershape=:utriangle,ms=6)
+    plot!(log10.(time_some*GammaLR),log10.(real(I_R_some)),color=:orange,lw=0,markershape=:dtriangle,ms=6)
+    plot!(log10.(time_some*GammaLR),log10.(real(Drelnuk_some)),color=:purple,lw=0,markershape=:pentagon,ms=6)
+
+    xlims!((-1.1,0.7))
+    ylims!((-3,3))
+    plot!(legend=:none)
+
+    p2 = plot(log10.(time*GammaLR),log10.(real(sigma)),color=:black,lw=3,label=L"\sigma")
+    plot!(log10.(time*GammaLR),log10.(real(I_SE_mvave)),color=:red,lw=3,ls=:dash,label=L"I_{SB}")
+    plot!(log10.(time*GammaLR),log10.(real(I_B)),color=:blue,lw=3,label=L"I_{B}")
+    plot!(log10.(time*GammaLR),log10.(real(I_L_mvave)),color=:green,lw=3,ls=:dash,label=L"I_{L}")
+    plot!(log10.(time*GammaLR),log10.(real(I_R_mvave)),color=:orange,lw=3,ls=:dash,label=L"I_{R}")
+    plot!(log10.(time[2:end]*GammaLR),log10.(real(Drelnuk[2:end])),color=:purple,lw=3,label=L"D_{env}")
+
+    plot!(log10.(time_some*GammaLR),log10.(real(I_SE_mvave_some)),color=:red,lw=0,markershape=:circle,ms=6)
+    plot!(log10.(time_some*GammaLR),log10.(real(I_B_some)),color=:blue,lw=0,markershape=:rect,ms=6)
+    plot!(log10.(time_some*GammaLR),log10.(real(I_L_mvave_some)),color=:green,lw=0,markershape=:utriangle,ms=6)
+    plot!(log10.(time_some*GammaLR),log10.(real(I_R_mvave_some)),color=:orange,lw=0,markershape=:dtriangle,ms=6)
+    plot!(log10.(time_some*GammaLR),log10.(real(Drelnuk_some)),color=:purple,lw=0,markershape=:pentagon,ms=6)
+
+    xlims!((0.5,4.0))
+    ylims!((-3,3))
+    plot!(legend=:none)
+
+    plot(p1,p2,layout=(1,2),size=(700,400))
+
+    # plot(p1,layout=(1,1),size=(700,400))
+
+end
+
 function averagecorrelationsregimeIII(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     array_Gamma = [0.1, sqrt(0.1), 1.0, sqrt(10.0), 10.0, 10.0^2]
