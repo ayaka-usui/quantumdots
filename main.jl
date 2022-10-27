@@ -465,6 +465,8 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
         E_sys[tt] = dCt[1]*epsilonLR[1]
         E_L[tt] = sum(dCt[2:K+1].*epsilonLR[2:K+1])
         E_R[tt] = sum(dCt[K+2:2*K+1].*epsilonLR[K+2:2*K+1])
+        # E_k_L[:,tt] = dCt[2:K+1].*epsilonLR[2:K+1] # single site energy
+        # E_k_R[:,tt] = dCt[K+2:2*K+1].*epsilonLR[K+2:2*K+1]
 
         dCt1 .= Ct[1,1:end] # Ct[1,1:end] - C0[1,1:end]
         E_tot[tt] = E_L[tt] + E_R[tt] + real(sum(dCt1[2:end].*tLRk[2:end])*2)
@@ -473,6 +475,8 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
         N_sys[tt] = dCt[1]
         N_L[tt] = sum(dCt[2:K+1])
         N_R[tt] = sum(dCt[K+2:2*K+1])
+        # n_k_L[:,tt] = dCt[2:K+1] # single site occupation number
+        # n_k_R[:,tt] = dCt[K+2:2*K+1]
 
         # vNE
         # total
@@ -557,7 +561,7 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
 
     # return time, vNE_sys, vNE_L, vNE_R, vNE
 
-    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR
+    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR #E_k_L, E_k_R, n_k_L, n_k_R
     # return time, vNE_sys, effparaL, effparaR, QL, QR
     # return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
     # return time, sigma, sigma2, sigma3, sigma_c
@@ -567,6 +571,272 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
 end
 
 # save("data_calculatequantities2_K128W20betaL1R05GammaL05R05muL1R1tf1000Nt10001.jld", "time", time, "sigma", sigma, "sigma3", sigma3, "sigma_c", sigma_c, "effparaL", effparaL, "effparaR", effparaR, "I_SE", I_SE, "I_B", I_B, "I_L", I_L, "I_R", I_R, "I_env", I_env, "Drel", Drel)
+
+function plot_HSnorm_C(time,matCL,matCR)
+
+    Nt = length(time)
+    Fnorm_matCL = zeros(Float64,Nt)
+    Fnorm_matCR = zeros(Float64,Nt)
+
+    for tt = 1:Nt
+        Fnorm_matCL[tt] = sqrt(tr(matCL[:,:,tt]*matCL[:,:,tt]'))
+        Fnorm_matCR[tt] = sqrt(tr(matCR[:,:,tt]*matCR[:,:,tt]'))
+    end
+
+    plot(log10.(time),log10.(Fnorm_matCL))
+    plot!(log10.(time),log10.(Fnorm_matCR))
+
+end
+
+function calculatequantities2_singlefermions(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+
+    # Hamiltonian + fluctuated t
+    matH = spzeros(Float64,K*2+1,K*2+1)
+    createH_fluctuatedt!(K,W,t_flu,betaL,betaR,GammaL,GammaR,matH)
+    epsilonLR = diag(Array(matH))
+    tLRk = matH[1,1:end]
+
+    # Hamiltonian is hermitian
+    matH = Hermitian(Array(matH))
+    val_matH, vec_matH = eigen(matH)
+    invvec_matH = inv(vec_matH)
+
+    # time
+    time = LinRange(0.0,tf,Nt)
+    dt = time[2] - time[1]
+    println("dt=",dt)
+    println("Note that int beta(t)*dQ/dt*dt depends on dt, so dt or tf/Nt should be small enough.")
+
+    # correlation matrix
+    # at initial
+    C0 = zeros(Float64,K*2+1)
+    C0[1] = 0.0 + 1e-15 # n_d(0) # make it not 0 exactly to avoid 0.0 log 0.0 = NaN
+    for kk = 1:K
+        C0[1+kk] = 1.0/(exp((matH[1+kk,1+kk]-muL)*betaL)+1.0)
+        C0[1+K+kk] = 1.0/(exp((matH[1+K+kk,1+K+kk]-muR)*betaR)+1.0)
+    end
+    C0 = diagm(C0)
+
+    # total enery and particle number, and estimated inverse temperature and chemical potential
+    dC0 = diag(C0)
+    E_tot0 = sum(dC0[1:2*K+1].*epsilonLR[1:2*K+1])
+    N_tot0 = sum(dC0[1:2*K+1])
+    # effpara0 = funeffectivebetamu(epsilonLR,E_tot0,N_tot0,(betaL+betaR)/2,(muL+muR)/2)
+    Cgg0 = zeros(Float64,K*2+1)
+    matCgg0 = zeros(Float64,K*2+1,K*2+1)
+    effpara0 = funeffectivebetamu2(epsilonLR,E_tot0,N_tot0,(betaL+betaR)/2,(muL+muR)/2,Cgg0,matCgg0,K,val_matH,vec_matH,invvec_matH)
+    println("beta_gg=",effpara0[1])
+    println("mu_gg=",effpara0[2])
+
+    # global Gibbs state
+    Cgg = globalGibbsstate(K,val_matH,vec_matH,invvec_matH,effpara0[1],effpara0[2])
+
+    # mutual info between S and E
+    val_Cgg = eigvals(Cgg)
+    vNEgg = - sum(val_Cgg.*log.(val_Cgg)) - sum((1.0 .- val_Cgg).*log.(1.0 .- val_Cgg))
+    val_Cgg_sys = Cgg[1,1]
+    vNEgg_sys = - val_Cgg_sys.*log.(val_Cgg_sys) - (1.0 .- val_Cgg_sys).*log.(1.0 .- val_Cgg_sys)
+    val_Cgg_E = eigvals(Cgg[2:2*K+1,2:2*K+1])
+    vNEgg_E = - sum(val_Cgg_E.*log.(val_Cgg_E)) - sum((1.0 .- val_Cgg_E).*log.(1.0 .- val_Cgg_E))
+    Igg_SE = vNEgg_sys + vNEgg_E - vNEgg
+    println("Igg_SE=",Igg_SE)
+
+    # intrabath correlation
+    val_Cgg_L = eigvals(Cgg[2:K+1,2:K+1])
+    vNEgg_L = - sum(val_Cgg_L.*log.(val_Cgg_L)) - sum((1.0 .- val_Cgg_L).*log.(1.0 .- val_Cgg_L))
+    val_Cgg_R = eigvals(Cgg[K+2:2*K+1,K+2:2*K+1])
+    vNEgg_R = - sum(val_Cgg_R.*log.(val_Cgg_R)) - sum((1.0 .- val_Cgg_R).*log.(1.0 .- val_Cgg_R))
+    Igg_B = vNEgg_L + vNEgg_R - vNEgg_E
+    println("Igg_B=",Igg_B)
+
+    # intramode correlation
+    diag_Cgg_E = diag(Cgg[2:end,2:end])
+    vNEgg_Lk = - sum(diag_Cgg_E[1:K].*log.(diag_Cgg_E[1:K])) - sum((1.0 .- diag_Cgg_E[1:K]).*log.(1.0 .- diag_Cgg_E[1:K]))
+    Igg_L = vNEgg_Lk - vNEgg_L
+    vNEgg_Rk = - sum(diag_Cgg_E[K+1:2*K].*log.(diag_Cgg_E[K+1:2*K])) - sum((1.0 .- diag_Cgg_E[K+1:2*K]).*log.(1.0 .- diag_Cgg_E[K+1:2*K]))
+    Igg_R = vNEgg_Rk - vNEgg_R
+    println("Igg_L=",Igg_L)
+    println("Igg_R=",Igg_R)
+
+    # define space for input
+    Ct = zeros(ComplexF64,K*2+1,K*2+1)
+    dCt = zeros(ComplexF64,K*2+1)
+    dCt1 = zeros(ComplexF64,K*2+1)
+    val_Ct = zeros(ComplexF64,K*2+1)
+    val_Ct_E = zeros(ComplexF64,K*2)
+    diag_Ct_E = zeros(ComplexF64,K*2)
+    val_Ct_L = zeros(ComplexF64,K)
+    val_Ct_R = zeros(ComplexF64,K)
+
+    E_sys = zeros(ComplexF64,Nt)
+    E_L = zeros(ComplexF64,Nt)
+    E_R = zeros(ComplexF64,Nt)
+    E_tot = zeros(ComplexF64,Nt)
+    N_sys = zeros(ComplexF64,Nt)
+    N_L = zeros(ComplexF64,Nt)
+    N_R = zeros(ComplexF64,Nt)
+
+    E_k_L = zeros(ComplexF64,K,Nt)
+    E_k_R = zeros(ComplexF64,K,Nt)
+    n_k_L = zeros(ComplexF64,K,Nt)
+    n_k_R = zeros(ComplexF64,K,Nt)
+
+    effparaL = zeros(Float64,Nt,2)
+    effparaR = zeros(Float64,Nt,2)
+
+    vNE_sys = zeros(ComplexF64,Nt)
+    vNE_E = zeros(ComplexF64,Nt)
+    vNE_L = zeros(ComplexF64,Nt)
+    vNE_R = zeros(ComplexF64,Nt)
+    vNE_alphak = zeros(ComplexF64,Nt)
+    vNE_Lk = zeros(ComplexF64,Nt)
+    vNE_Rk = zeros(ComplexF64,Nt)
+    vNE = zeros(ComplexF64,Nt)
+
+    I_SE = zeros(ComplexF64,Nt)
+    I_env = zeros(ComplexF64,Nt)
+    I_B = zeros(ComplexF64,Nt)
+    I_L = zeros(ComplexF64,Nt)
+    I_R = zeros(ComplexF64,Nt)
+
+    QL = zeros(ComplexF64,Nt)
+    QR = zeros(ComplexF64,Nt)
+    betaQL = zeros(ComplexF64,Nt)
+    betaQR = zeros(ComplexF64,Nt)
+    dQLdt = zeros(ComplexF64,Nt)
+    dQRdt = zeros(ComplexF64,Nt)
+    betaQLtime = zeros(ComplexF64,Nt)
+    betaQRtime = zeros(ComplexF64,Nt)
+
+    Drel = zeros(ComplexF64,Nt)
+    Drelnuk = zeros(ComplexF64,Nt)
+    Drelpinuk = zeros(ComplexF64,Nt)
+
+    sigma = zeros(ComplexF64,Nt)
+    sigma2 = zeros(ComplexF64,Nt)
+    sigma3 = zeros(ComplexF64,Nt)
+    sigma_c = zeros(ComplexF64,Nt)
+
+    Cbath = zeros(Float64,K)
+    matCL = zeros(Float64,2,2,Nt)
+    matCR = zeros(Float64,2,2,Nt)
+
+    # Threads.@threads for tt = 1:Nt
+    for tt = 1:Nt
+
+        Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
+        Ct .= Ct*C0
+        Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
+
+        # energy
+        dCt .= diag(Ct) #diag(Ct - C0)
+        E_sys[tt] = dCt[1]*epsilonLR[1]
+        E_L[tt] = sum(dCt[2:K+1].*epsilonLR[2:K+1])
+        E_R[tt] = sum(dCt[K+2:2*K+1].*epsilonLR[K+2:2*K+1])
+        E_k_L[:,tt] = dCt[2:K+1].*epsilonLR[2:K+1] # single site energy
+        E_k_R[:,tt] = dCt[K+2:2*K+1].*epsilonLR[K+2:2*K+1]
+
+        dCt1 .= Ct[1,1:end] # Ct[1,1:end] - C0[1,1:end]
+        E_tot[tt] = E_L[tt] + E_R[tt] + real(sum(dCt1[2:end].*tLRk[2:end])*2)
+
+        # particle numbers
+        N_sys[tt] = dCt[1]
+        N_L[tt] = sum(dCt[2:K+1])
+        N_R[tt] = sum(dCt[K+2:2*K+1])
+        n_k_L[:,tt] = dCt[2:K+1] # single site occupation number
+        n_k_R[:,tt] = dCt[K+2:2*K+1]
+
+        # vNE
+        # total
+        val_Ct .= eigvals(Ct)
+        vNE[tt] = - sum(val_Ct.*log.(val_Ct)) - sum((1.0 .- val_Ct).*log.(1.0 .- val_Ct))
+        # system
+        vNE_sys[tt] = -Ct[1,1]*log(Ct[1,1]) - (1-Ct[1,1])*log(1-Ct[1,1])
+        # environment
+        val_Ct_E .= eigvals(Ct[2:end,2:end])
+        vNE_E[tt] = - sum(val_Ct_E.*log.(val_Ct_E)) - sum((1.0 .- val_Ct_E).*log.(1.0 .- val_Ct_E))
+
+        # I_SE
+        I_SE[tt] = vNE_sys[tt] - vNE_sys[1] + vNE_E[tt] - vNE_E[1]
+
+        # mutual information describing the intraenvironment correlations
+        diag_Ct_E .= diag(Ct[2:end,2:end])
+        vNE_alphak[tt] = - sum(diag_Ct_E.*log.(diag_Ct_E)) - sum((1.0 .- diag_Ct_E).*log.(1.0 .- diag_Ct_E))
+        I_env[tt] = vNE_alphak[tt] - vNE_E[tt]
+
+        # I_B
+        val_Ct_L .= eigvals(Ct[2:K+1,2:K+1])
+        vNE_L[tt] = - sum(val_Ct_L.*log.(val_Ct_L)) - sum((1.0 .- val_Ct_L).*log.(1.0 .- val_Ct_L))
+        val_Ct_R .= eigvals(Ct[K+2:2*K+1,K+2:2*K+1])
+        vNE_R[tt] = - sum(val_Ct_R.*log.(val_Ct_R)) - sum((1.0 .- val_Ct_R).*log.(1.0 .- val_Ct_R))
+        I_B[tt] = vNE_L[tt] + vNE_R[tt] - vNE_E[tt]
+
+        # I_nu
+        vNE_Lk[tt] = - sum(diag_Ct_E[1:K].*log.(diag_Ct_E[1:K])) - sum((1.0 .- diag_Ct_E[1:K]).*log.(1.0 .- diag_Ct_E[1:K]))
+        I_L[tt] = vNE_Lk[tt] - vNE_L[tt]
+        vNE_Rk[tt] = - sum(diag_Ct_E[K+1:2*K].*log.(diag_Ct_E[K+1:2*K])) - sum((1.0 .- diag_Ct_E[K+1:2*K]).*log.(1.0 .- diag_Ct_E[K+1:2*K]))
+        I_R[tt] = vNE_Rk[tt] - vNE_R[tt]
+
+        # effective inverse temperature and chemical potential
+        betaL0 = betaL
+        betaR0 = betaR
+        muL0 = muL
+        muR0 = muR
+        if tt != 1
+           betaL0 = effparaL[tt-1,1]
+           betaR0 = effparaR[tt-1,1]
+           muL0 = effparaL[tt-1,2]
+           muR0 = effparaR[tt-1,2]
+        end
+        effparaL[tt,:] .= funeffectivebetamu(epsilonLR[2:K+1],real(E_L[tt]),real(N_L[tt]),betaL0,muL0) #betaL,muL
+        effparaR[tt,:] .= funeffectivebetamu(epsilonLR[K+2:2*K+1],real(E_R[tt]),real(N_R[tt]),betaR0,muR0) #betaR,muR
+
+        # heat
+        dCt .= diag(Ct - C0)
+        QL[tt] = -sum(dCt[2:K+1].*(epsilonLR[2:K+1] .- muL))
+        betaQL[tt] = QL[tt]*betaL
+        QR[tt] = -sum(dCt[K+2:2*K+1].*(epsilonLR[K+2:2*K+1] .- muR))
+        betaQR[tt] = QR[tt]*betaR
+
+        #
+        if tt != 1
+           dQLdt[tt] = (QL[tt] - QL[tt-1])/dt
+           dQRdt[tt] = (QR[tt] - QR[tt-1])/dt
+        end
+        betaQLtime[tt] = sum(dQLdt[1:tt].*effparaL[1:tt,1])*dt
+        betaQRtime[tt] = sum(dQRdt[1:tt].*effparaR[1:tt,1])*dt
+
+        # heat capacity
+        matCL[:,:,tt] = heatcapacityeff(Cbath,K,epsilonLR[2:K+1],effparaL[tt,1],effparaL[tt,2])
+        matCR[:,:,tt] = heatcapacityeff(Cbath,K,epsilonLR[K+2:2*K+1],effparaR[tt,1],effparaR[tt,2])
+
+        # relative entropy between rho_B(t) and rho_B(0)
+        Drel[tt] = - betaQL[tt] - betaQR[tt] - (vNE_E[tt] - vNE_E[1])
+
+        # relative entropy between rho_{nu,k}(t) and rho_{nu,k}(0)
+        Drelnuk[tt] = Drel[tt] - I_env[tt]
+
+        # entropy production
+        sigma[tt] = vNE_sys[tt] - vNE_sys[1] - betaQL[tt] - betaQR[tt]
+        sigma2[tt] = I_SE[tt] + Drel[tt]
+        sigma3[tt] = I_SE[tt] + I_B[tt] + I_L[tt] + I_R[tt] + Drelnuk[tt]
+        sigma_c[tt] = vNE_sys[tt] - vNE_sys[1] - betaQLtime[tt] - betaQRtime[tt]
+
+        # relative entropy between pi_nuk(t) and pi_nuk(0)
+        Drelpinuk[tt] =  Drelnuk[tt] - (sigma[tt] - sigma_c[tt])  #sigma[tt] - sigma_c[tt]
+
+    end
+
+    # return time, vNE_sys, vNE_L, vNE_R, vNE
+
+    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR, E_k_L, E_k_R, n_k_L, n_k_R
+    # return time, vNE_sys, effparaL, effparaR, QL, QR
+    # return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
+    # return time, sigma, sigma2, sigma3, sigma_c
+    # return time, betaQL, betaQLtime, betaQR, betaQRtime
+    # return time, E_sys, E_L, E_R, N_sys, N_L, N_R, E_tot, effparaL, effparaR
+
+end
 
 function calculatequantities(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
@@ -672,13 +942,13 @@ end
 
 function plot_sigmas(time,GammaLR,sigma,sigma_c,I_SE,I_B,I_L,I_R,Drelnuk,Drelpinuk)
 
-    # I_SE_mvave = movingmean(real(I_SE),1001);
-    # I_L_mvave = movingmean(real(I_L),1001);
-    # I_R_mvave = movingmean(real(I_R),1001);
+    I_SE_mvave = movingmean(real(I_SE),1001);
+    I_L_mvave = movingmean(real(I_L),1001);
+    I_R_mvave = movingmean(real(I_R),1001);
 
-    I_SE_mvave = movingmean(real(I_SE),5001);
-    I_L_mvave = movingmean(real(I_L),5001);
-    I_R_mvave = movingmean(real(I_R),5001);
+    # I_SE_mvave = movingmean(real(I_SE),5001);
+    # I_L_mvave = movingmean(real(I_L),5001);
+    # I_R_mvave = movingmean(real(I_R),5001);
 
     ref_some = [0.1, 0.3, 1.0, 3.0, 6.0, 30.0, 100.0, 300.0, 1000.0, 3000.0]
     num0 = length(ref_some)
@@ -715,15 +985,15 @@ function plot_sigmas(time,GammaLR,sigma,sigma_c,I_SE,I_B,I_L,I_R,Drelnuk,Drelpin
     plot!(log10.(time*GammaLR),log10.(real(I_R)),color=:orange,lw=3,label=L"I_{R}")
     plot!(log10.(time[2:end]*GammaLR),log10.(real(Drelnuk[2:end])),color=:purple,lw=3,label=L"D_{env}")
 
-    plot!(log10.(time_some*GammaLR),log10.(real(I_SE_some)),color=:red,lw=0,markershape=:circle,ms=6)
-    plot!(log10.(time_some*GammaLR),log10.(real(I_B_some)),color=:blue,lw=0,markershape=:rect,ms=6)
-    plot!(log10.(time_some*GammaLR),log10.(real(I_L_some)),color=:green,lw=0,markershape=:utriangle,ms=6)
-    plot!(log10.(time_some*GammaLR),log10.(real(I_R_some)),color=:orange,lw=0,markershape=:dtriangle,ms=6)
-    plot!(log10.(time_some*GammaLR),log10.(real(Drelnuk_some)),color=:purple,lw=0,markershape=:pentagon,ms=6)
+    plot!(log10.(time_some*GammaLR),log10.(real(I_SE_some)),color=:red,lw=0,markershape=:circle,ms=8)
+    plot!(log10.(time_some*GammaLR),log10.(real(I_B_some)),color=:blue,lw=0,markershape=:rect,ms=8)
+    plot!(log10.(time_some*GammaLR),log10.(real(I_L_some)),color=:green,lw=0,markershape=:utriangle,ms=8)
+    plot!(log10.(time_some*GammaLR),log10.(real(I_R_some)),color=:orange,lw=0,markershape=:dtriangle,ms=8)
+    plot!(log10.(time_some*GammaLR),log10.(real(Drelnuk_some)),color=:purple,lw=0,markershape=:pentagon,ms=8)
 
     xlims!((-1.1,0.7))
-    # ylims!((-3,1))
-    ylims!((-6,1))
+    ylims!((-3,1))
+    # ylims!((-6,1))
     plot!(legend=:none)
 
     p2 = plot(log10.(time[2:end]*GammaLR),log10.(real(sigma[2:end])),color=:black,lw=5,label=L"\sigma")
@@ -733,23 +1003,23 @@ function plot_sigmas(time,GammaLR,sigma,sigma_c,I_SE,I_B,I_L,I_R,Drelnuk,Drelpin
     plot!(log10.(time*GammaLR),log10.(real(I_R_mvave)),color=:orange,lw=3,label=L"I_{R}")
     plot!(log10.(time[2:end]*GammaLR),log10.(real(Drelnuk[2:end])),color=:purple,lw=3,label=L"D_{env}")
 
-    plot!(log10.(time_some*GammaLR),log10.(real(I_SE_mvave_some)),color=:red,lw=0,markershape=:star5,ms=6)
-    plot!(log10.(time_some*GammaLR),log10.(real(I_B_some)),color=:blue,lw=0,markershape=:rect,ms=6)
-    plot!(log10.(time_some*GammaLR),log10.(real(I_L_mvave_some)),color=:green,lw=0,markershape=:cross,ms=6)
-    plot!(log10.(time_some*GammaLR),log10.(real(I_R_mvave_some)),color=:orange,lw=0,markershape=:xcross,ms=6)
-    plot!(log10.(time_some*GammaLR),log10.(real(Drelnuk_some)),color=:purple,lw=0,markershape=:pentagon,ms=6)
+    plot!(log10.(time_some*GammaLR),log10.(real(I_SE_mvave_some)),color=:red,lw=0,markershape=:star5,ms=8)
+    plot!(log10.(time_some*GammaLR),log10.(real(I_B_some)),color=:blue,lw=0,markershape=:rect,ms=8)
+    plot!(log10.(time_some*GammaLR),log10.(real(I_L_mvave_some)),color=:green,lw=0,markershape=:+,ms=12)
+    plot!(log10.(time_some*GammaLR),log10.(real(I_R_mvave_some)),color=:orange,lw=0,markershape=:x,ms=12)
+    plot!(log10.(time_some*GammaLR),log10.(real(Drelnuk_some)),color=:purple,lw=0,markershape=:pentagon,ms=8)
 
     xlims!((0.5,4.0))
-    # ylims!((-1,3))
     ylims!((-1,3))
+    # ylims!((-1,3))
     plot!(legend=:none)
 
     p3 = plot(log10.(time[2:end]*GammaLR),log10.(real(sigma[2:end])),color=:black,lw=5,label=L"\sigma")
     plot!(log10.(time[2:end]*GammaLR),log10.(real(sigma_c[2:end])),color=:grey,lw=3,label=L"\tilde{\sigma}")
     plot!(log10.(time[2:end]*GammaLR),log10.(real(Drelpinuk[2:end])),color=:cyan,lw=3,label=L"\tilde{D}_{env}")
 
-    plot!(log10.(time_some*GammaLR),log10.(real(sigma_c_some)),color=:grey,lw=0,markershape=:diamond,ms=6)
-    plot!(log10.(time_some*GammaLR),log10.(real(Drelpinuk_some)),color=:cyan,lw=0,markershape=:hexagon,ms=6)
+    plot!(log10.(time_some*GammaLR),log10.(real(sigma_c_some)),color=:grey,lw=0,markershape=:diamond,ms=8)
+    plot!(log10.(time_some*GammaLR),log10.(real(Drelpinuk_some)),color=:cyan,lw=0,markershape=:hexagon,ms=8)
 
     ylims!((-4,3))
     plot!(legend=:none)
@@ -759,7 +1029,7 @@ function plot_sigmas(time,GammaLR,sigma,sigma_c,I_SE,I_B,I_L,I_R,Drelnuk,Drelpin
 
 end
 
-function averagecorrelationsregimeIII(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+function averagecorrelationsregimeIII(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,muL::Float64,muR::Float64)
 
     array_Gamma = [10.0^(-2), 10.0^(-1.5), 10.0^(-1), 10.0^(-0.5), 1.0, 10.0^(0.5), 10.0, 10.0^(1.5), 10.0^2]
     tt_ref0 = 10.0^4
@@ -771,7 +1041,7 @@ function averagecorrelationsregimeIII(K::Int64,W::Int64,t_flu::Float64,betaL::Fl
     array_I_L = zeros(Float64,length(array_Gamma))
     array_I_R = zeros(Float64,length(array_Gamma))
     array_Drelnuk = zeros(Float64,length(array_Gamma))
-    array_Drelpinuk = zeros(Float64,length(array_Gamma))
+    # array_Drelpinuk = zeros(Float64,length(array_Gamma))
 
     for jj = 1:length(array_Gamma)
 
@@ -795,20 +1065,151 @@ function averagecorrelationsregimeIII(K::Int64,W::Int64,t_flu::Float64,betaL::Fl
         array_I_L[jj] = mean(real(I_L[tt0:tt1]))
         array_I_R[jj] = mean(real(I_R[tt0:tt1]))
         array_Drelnuk[jj] = mean(real(Drelnuk[tt0:tt1]))
-        array_Drelpinuk[jj] = mean(real(Drelpinuk[tt0:tt1]))
+        # array_Drelpinuk[jj] = mean(real(Drelpinuk[tt0:tt1]))
 
     end
 
-    return array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk, array_Drelpinuk
+    return array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk #array_Drelpinuk
 
-    p1 = plot(log10.(array_Gamma),array_I_SE,color=:red,marker=(:circle,8),lw=3,label=L"\langle I_{SB} \rangle")
-    p2 = plot(log10.(array_Gamma),array_I_B,color=:blue,marker=(:rect,8),lw=3,label=L"\langle I_{B} \rangle")
-    p3 = plot(log10.(array_Gamma),array_I_L,color=:green,marker=(:utriangle,8),lw=3,label=L"\langle I_{L} \rangle")
-    p4 = plot(log10.(array_Gamma),array_I_R,color=:orange,marker=(:dtriangle,8),lw=3,label=L"\langle I_{R} \rangle")
-    p5 = plot(log10.(array_Gamma),array_Drelnuk,color=:purple,marker=(:pentagon,8),lw=3,label=L"\langle D_{env} \rangle")
-    p6 = plot(log10.(array_Gamma),array_Drelpinuk,color=:purple,marker=(:pentagon,8),lw=3,label=L"\langle D_{env} \rangle")
+end
 
-    plot(p1,p2,p3,p4,layout=(1,4),size=(700,400),dpi=600)
+function plot_averagecorrelationsregimeIII(array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk,K)
+
+    p1 = plot(log10.(array_Gamma),array_I_SE/2,color=:red,marker=(:circle,8),lw=3,label=L"\langle I_{SB} \rangle")
+    ylims!((0.0,1))
+    p2 = plot(log10.(array_Gamma),array_I_B/(2*K),color=:blue,marker=(:rect,8),lw=3,label=L"\langle I_{B} \rangle")
+    ylims!((0.0,0.11))
+    p3 = plot(log10.(array_Gamma),array_I_L/(2*K),color=:green,marker=(:utriangle,8),lw=3,label=L"\langle I_{L} \rangle")
+    plot!(log10.(array_Gamma),array_I_R/(2*K),color=:orange,marker=(:dtriangle,8),lw=3,label=L"\langle I_{R} \rangle")
+    ylims!((0.0,0.02))
+    p4 = plot(log10.(array_Gamma),array_Drelnuk,color=:purple,marker=(:pentagon,8),lw=3,label=L"\langle D_{env} \rangle")
+    ylims!((0.0,100.0))
+    # p5 = plot(log10.(array_Gamma),array_Drelpinuk,color=:purple,marker=(:pentagon,8),lw=3,label=L"\langle D_{env} \rangle")
+
+    plot(p1,p2,p3,p4,layout=(2,2),size=(500,500),dpi=600)
+    plot!(legend=:none)
+
+end
+
+function test_averageDrelpinukregimeIII()
+
+    array_Gamma = [10.0^(-2), 10.0^(-1.5), 10.0^(-1), 10.0^(-0.5), 1.0, 10.0^(0.5), 10.0, 10.0^(1.5), 10.0^2]
+
+    time = load("data_calculatequantities2_K128W20betaL1R01GammaL32R32muL1R1Nt50001.jld")["time"];
+    Drelpinuk = load("data_calculatequantities2_K128W20betaL1R01GammaL32R32muL1R1Nt50001.jld")["Drelpinuk"];
+    Gamma = array_Gamma[8]
+
+    plot(log10.(time*Gamma),real(Drelpinuk))
+
+end
+
+function averageDrelpinukregimeIII()
+
+    array_Gamma = [10.0^(-2), 10.0^(-1.5), 10.0^(-1), 10.0^(-0.5), 1.0, 10.0^(0.5), 10.0, 10.0^(1.5), 10.0^2]
+    tt_ref0 = 10.0^3
+    tt_ref1 = 10.0^(3.5)
+    array_Drelpinuk = zeros(Float64,length(array_Gamma))
+
+    time = load("data_calculatequantities2_K128W20betaL1R01GammaL001R001muL1R1Nt50001.jld")["time"];
+    Drelpinuk = load("data_calculatequantities2_K128W20betaL1R01GammaL001R001muL1R1Nt50001.jld")["Drelpinuk"];
+    Gamma = array_Gamma[1]
+    tt0 = argmin(abs.(time*Gamma.-tt_ref0))
+    if time[tt0] < tt_ref0
+       tt0 = tt0 + 1
+    end
+    tt1 = argmin(abs.(time*Gamma.-tt_ref1))
+    array_Drelpinuk[1] = mean(real(Drelpinuk[tt0:tt1]))
+
+    time = load("data_calculatequantities2_K128W20betaL1R01GammaLm32Rm32muL1R1Nt50001.jld")["time"];
+    Drelpinuk = load("data_calculatequantities2_K128W20betaL1R01GammaLm32Rm32muL1R1Nt50001.jld")["Drelpinuk"];
+    Gamma = array_Gamma[2]
+    tt0 = argmin(abs.(time*Gamma.-tt_ref0))
+    if time[tt0] < tt_ref0
+       tt0 = tt0 + 1
+    end
+    tt1 = argmin(abs.(time*Gamma.-tt_ref1))
+    array_Drelpinuk[2] = mean(real(Drelpinuk[tt0:tt1]))
+
+    time = load("data_calculatequantities2_K128W20betaL1R01GammaL01R01muL1R1tf50000Nt50001.jld")["time"];
+    Drelpinuk = load("data_calculatequantities2_K128W20betaL1R01GammaL01R01muL1R1tf50000Nt50001.jld")["Drelpinuk"];
+    Gamma = array_Gamma[3]
+    tt0 = argmin(abs.(time*Gamma.-tt_ref0))
+    if time[tt0] < tt_ref0
+       tt0 = tt0 + 1
+    end
+    tt1 = argmin(abs.(time*Gamma.-tt_ref1))
+    array_Drelpinuk[3] = mean(real(Drelpinuk[tt0:tt1]))
+
+    time = load("data_calculatequantities2_K128W20betaL1R01GammaLm05Rm05muL1R1Nt50001.jld")["time"];
+    Drelpinuk = load("data_calculatequantities2_K128W20betaL1R01GammaLm05Rm05muL1R1Nt50001.jld")["Drelpinuk"];
+    Gamma = array_Gamma[4]
+    tt0 = argmin(abs.(time*Gamma.-tt_ref0))
+    if time[tt0] < tt_ref0
+       tt0 = tt0 + 1
+    end
+    tt1 = argmin(abs.(time*Gamma.-tt_ref1))
+    array_Drelpinuk[4] = mean(real(Drelpinuk[tt0:tt1]))
+
+    time = load("data_calculatequantities2_K128W20betaL1R01GammaL1R1muL1R1Nt50001.jld")["time"];
+    Drelpinuk = load("data_calculatequantities2_K128W20betaL1R01GammaL1R1muL1R1Nt50001.jld")["Drelpinuk"];
+    Gamma = array_Gamma[5]
+    tt0 = argmin(abs.(time*Gamma.-tt_ref0))
+    if time[tt0] < tt_ref0
+       tt0 = tt0 + 1
+    end
+    tt1 = argmin(abs.(time*Gamma.-tt_ref1))
+    array_Drelpinuk[5] = mean(real(Drelpinuk[tt0:tt1]))
+
+    time = load("data_calculatequantities2_K128W20betaL1R01GammaL05R05muL1R1Nt50001.jld")["time"];
+    Drelpinuk = load("data_calculatequantities2_K128W20betaL1R01GammaL05R05muL1R1Nt50001.jld")["Drelpinuk"];
+    Gamma = array_Gamma[6]
+    tt0 = argmin(abs.(time*Gamma.-tt_ref0))
+    if time[tt0] < tt_ref0
+       tt0 = tt0 + 1
+    end
+    tt1 = argmin(abs.(time*Gamma.-tt_ref1))
+    array_Drelpinuk[6] = mean(real(Drelpinuk[tt0:tt1]))
+
+    tt_ref0 = 10.0^(3.5)
+    tt_ref1 = 10.0^(4)
+
+    time = load("data_calculatequantities2_K128W20betaL1R01GammaL10R10muL1R1tf100000Nt100001.jld")["time"];
+    Drelpinuk = load("data_calculatequantities2_K128W20betaL1R01GammaL10R10muL1R1tf100000Nt100001.jld")["Drelpinuk"];
+    Gamma = array_Gamma[7]
+    tt0 = argmin(abs.(time*Gamma.-tt_ref0))
+    if time[tt0] < tt_ref0
+       tt0 = tt0 + 1
+    end
+    tt1 = argmin(abs.(time*Gamma.-tt_ref1))
+    array_Drelpinuk[7] = mean(real(Drelpinuk[tt0:tt1]))
+
+    tt_ref0 = 10.0^(3.5)
+    tt_ref1 = 10.0^(4)
+
+    time = load("data_calculatequantities2_K128W20betaL1R01GammaL32R32muL1R1Nt50001.jld")["time"];
+    Drelpinuk = load("data_calculatequantities2_K128W20betaL1R01GammaL32R32muL1R1Nt50001.jld")["Drelpinuk"];
+    Gamma = array_Gamma[8]
+    tt0 = argmin(abs.(time*Gamma.-tt_ref0))
+    if time[tt0] < tt_ref0
+       tt0 = tt0 + 1
+    end
+    tt1 = argmin(abs.(time*Gamma.-tt_ref1))
+    array_Drelpinuk[8] = mean(real(Drelpinuk[tt0:tt1]))
+
+    tt_ref0 = 10.0^(4)
+    tt_ref1 = 10.0^(4.5)
+
+    time = load("data_calculatequantities2_K128W20betaL1R01GammaL100R100muL1R1Nt50001.jld")["time"];
+    Drelpinuk = load("data_calculatequantities2_K128W20betaL1R01GammaL100R100muL1R1Nt50001.jld")["Drelpinuk"];
+    Gamma = array_Gamma[9]
+    tt0 = argmin(abs.(time*Gamma.-tt_ref0))
+    if time[tt0] < tt_ref0
+       tt0 = tt0 + 1
+    end
+    tt1 = argmin(abs.(time*Gamma.-tt_ref1))
+    array_Drelpinuk[9] = mean(real(Drelpinuk[tt0:tt1]))
+
+    return array_Gamma, array_Drelpinuk
 
 end
 
