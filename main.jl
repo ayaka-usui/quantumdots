@@ -572,7 +572,7 @@ end
 
 # save("data_calculatequantities2_K128W20betaL1R05GammaL05R05muL1R1tf1000Nt10001.jld", "time", time, "sigma", sigma, "sigma3", sigma3, "sigma_c", sigma_c, "effparaL", effparaL, "effparaR", effparaR, "I_SE", I_SE, "I_B", I_B, "I_L", I_L, "I_R", I_R, "I_env", I_env, "Drel", Drel)
 
-function plot_HSnorm_C(time,matCL,matCR)
+function plot_Fnorm_C(time,matCL,matCR)
 
     Nt = length(time)
     Fnorm_matCL = zeros(Float64,Nt)
@@ -583,8 +583,13 @@ function plot_HSnorm_C(time,matCL,matCR)
         Fnorm_matCR[tt] = sqrt(tr(matCR[:,:,tt]*matCR[:,:,tt]'))
     end
 
-    plot(log10.(time),log10.(Fnorm_matCL))
-    plot!(log10.(time),log10.(Fnorm_matCR))
+    return Fnorm_matCL, Fnorm_matCR
+
+    # plot(log10.(time),log10.(Fnorm_matCL))
+    # plot!(log10.(time),log10.(Fnorm_matCR))
+    # plot!(legend=:none)
+    # plot!(xlabel=L"\log_{10}\Gamma t")
+    # ylims!((0,3.1))
 
 end
 
@@ -829,12 +834,26 @@ function calculatequantities2_singlefermions(K::Int64,W::Int64,t_flu::Float64,be
 
     # return time, vNE_sys, vNE_L, vNE_R, vNE
 
-    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR, E_k_L, E_k_R, n_k_L, n_k_R
+    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR, E_L, E_R, N_L, N_R, E_k_L, E_k_R, n_k_L, n_k_R
     # return time, vNE_sys, effparaL, effparaR, QL, QR
     # return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
     # return time, sigma, sigma2, sigma3, sigma_c
     # return time, betaQL, betaQLtime, betaQR, betaQRtime
     # return time, E_sys, E_L, E_R, N_sys, N_L, N_R, E_tot, effparaL, effparaR
+
+end
+
+function plot_E_k_LR(K,Gamma,time,E_k_L,E_L)
+
+    p1 = plot(log10.(time*Gamma),real(E_k_L[1,:]))
+
+    for jj = 2:K
+        plot!(log10.(time*Gamma),real(E_k_L[jj,:]))
+    end
+
+    p2 = plot(log10.(time*Gamma),real(E_L))
+
+    plot(p1,p2,layout=(2,1)) #,size=(800,300),dpi=600)
 
 end
 
@@ -1073,7 +1092,7 @@ function averagecorrelationsregimeIII(K::Int64,W::Int64,t_flu::Float64,betaL::Fl
 
 end
 
-function plot_averagecorrelationsregimeIII(array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk,K)
+function plot_averagecorrelationsregimeIII(array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk,array_Drelpinuk,K)
 
     p1 = plot(log10.(array_Gamma),array_I_SE/2,color=:red,marker=(:circle,8),lw=3,label=L"\langle I_{SB} \rangle")
     ylims!((0.0,1))
@@ -1084,9 +1103,13 @@ function plot_averagecorrelationsregimeIII(array_Gamma, array_I_SE, array_I_B, a
     ylims!((0.0,0.02))
     p4 = plot(log10.(array_Gamma),array_Drelnuk,color=:purple,marker=(:pentagon,8),lw=3,label=L"\langle D_{env} \rangle")
     ylims!((0.0,100.0))
-    # p5 = plot(log10.(array_Gamma),array_Drelpinuk,color=:purple,marker=(:pentagon,8),lw=3,label=L"\langle D_{env} \rangle")
+    p5 = plot(log10.(array_Gamma),array_Drelpinuk,color=:cyan,marker=(:hexagon,8),lw=3,label=L"\langle \tilde{D}_{env} \rangle")
+    ylims!((0.0,16.0))
 
-    plot(p1,p2,p3,p4,layout=(2,2),size=(500,500),dpi=600)
+    plot(p1,p2,p3,layout=(1,3),size=(800,300),dpi=600)
+    plot!(legend=:none)
+
+    plot(p4,p5,p3,layout=(1,3),size=(800,300),dpi=600)
     plot!(legend=:none)
 
 end
