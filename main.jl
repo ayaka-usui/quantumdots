@@ -325,7 +325,9 @@ function heatcapacityeff(C0::Vector{Float64},K::Int64,epsilon::Vector{Float64},b
 
 end
 
-function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+function calculatequantities3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+
+    # for computing \tilde D the relative entropy between the time evolved state and the thermal state at beta
 
     # Hamiltonian + fluctuated t
     matH = spzeros(Float64,K*2+1,K*2+1)
@@ -343,6 +345,257 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
     dt = time[2] - time[1]
     println("dt=",dt)
     println("Note that int beta(t)*dQ/dt*dt depends on dt, so dt or tf/Nt should be small enough.")
+
+    # correlation matrix
+    # at initial
+    C0 = zeros(Float64,K*2+1)
+    C0[1] = 0.0 + 1e-15 # n_d(0) # make it not 0 exactly to avoid 0.0 log 0.0 = NaN
+    for kk = 1:K
+        C0[1+kk] = 1.0/(exp((matH[1+kk,1+kk]-muL)*betaL)+1.0)
+        C0[1+K+kk] = 1.0/(exp((matH[1+K+kk,1+K+kk]-muR)*betaR)+1.0)
+    end
+    C0 = diagm(C0)
+
+    # # total enery and particle number, and estimated inverse temperature and chemical potential
+    # dC0 = diag(C0)
+    # E_tot0 = sum(dC0[1:2*K+1].*epsilonLR[1:2*K+1])
+    # N_tot0 = sum(dC0[1:2*K+1])
+    # # effpara0 = funeffectivebetamu(epsilonLR,E_tot0,N_tot0,(betaL+betaR)/2,(muL+muR)/2)
+    # Cgg0 = zeros(Float64,K*2+1)
+    # matCgg0 = zeros(Float64,K*2+1,K*2+1)
+    # effpara0 = funeffectivebetamu2(epsilonLR,E_tot0,N_tot0,(betaL+betaR)/2,(muL+muR)/2,Cgg0,matCgg0,K,val_matH,vec_matH,invvec_matH)
+    # println("beta_gg=",effpara0[1])
+    # println("mu_gg=",effpara0[2])
+    #
+    # # global Gibbs state
+    # Cgg = globalGibbsstate(K,val_matH,vec_matH,invvec_matH,effpara0[1],effpara0[2])
+    #
+    # # mutual info between S and E
+    # val_Cgg = eigvals(Cgg)
+    # vNEgg = - sum(val_Cgg.*log.(val_Cgg)) - sum((1.0 .- val_Cgg).*log.(1.0 .- val_Cgg))
+    # val_Cgg_sys = Cgg[1,1]
+    # vNEgg_sys = - val_Cgg_sys.*log.(val_Cgg_sys) - (1.0 .- val_Cgg_sys).*log.(1.0 .- val_Cgg_sys)
+    # val_Cgg_E = eigvals(Cgg[2:2*K+1,2:2*K+1])
+    # vNEgg_E = - sum(val_Cgg_E.*log.(val_Cgg_E)) - sum((1.0 .- val_Cgg_E).*log.(1.0 .- val_Cgg_E))
+    # Igg_SE = vNEgg_sys + vNEgg_E - vNEgg
+    # println("Igg_SE=",Igg_SE)
+    #
+    # # intrabath correlation
+    # val_Cgg_L = eigvals(Cgg[2:K+1,2:K+1])
+    # vNEgg_L = - sum(val_Cgg_L.*log.(val_Cgg_L)) - sum((1.0 .- val_Cgg_L).*log.(1.0 .- val_Cgg_L))
+    # val_Cgg_R = eigvals(Cgg[K+2:2*K+1,K+2:2*K+1])
+    # vNEgg_R = - sum(val_Cgg_R.*log.(val_Cgg_R)) - sum((1.0 .- val_Cgg_R).*log.(1.0 .- val_Cgg_R))
+    # Igg_B = vNEgg_L + vNEgg_R - vNEgg_E
+    # println("Igg_B=",Igg_B)
+    #
+    # # intramode correlation
+    # diag_Cgg_E = diag(Cgg[2:end,2:end])
+    # vNEgg_Lk = - sum(diag_Cgg_E[1:K].*log.(diag_Cgg_E[1:K])) - sum((1.0 .- diag_Cgg_E[1:K]).*log.(1.0 .- diag_Cgg_E[1:K]))
+    # Igg_L = vNEgg_Lk - vNEgg_L
+    # vNEgg_Rk = - sum(diag_Cgg_E[K+1:2*K].*log.(diag_Cgg_E[K+1:2*K])) - sum((1.0 .- diag_Cgg_E[K+1:2*K]).*log.(1.0 .- diag_Cgg_E[K+1:2*K]))
+    # Igg_R = vNEgg_Rk - vNEgg_R
+    # println("Igg_L=",Igg_L)
+    # println("Igg_R=",Igg_R)
+
+    # define space for input
+    Ct = zeros(ComplexF64,K*2+1,K*2+1)
+    dCt = zeros(ComplexF64,K*2+1)
+    dCt1 = zeros(ComplexF64,K*2+1)
+    val_Ct = zeros(ComplexF64,K*2+1)
+    val_Ct_E = zeros(ComplexF64,K*2)
+    diag_Ct_E = zeros(ComplexF64,K*2)
+    val_Ct_L = zeros(ComplexF64,K)
+    val_Ct_R = zeros(ComplexF64,K)
+
+    E_sys = zeros(ComplexF64,Nt)
+    E_L = zeros(ComplexF64,Nt)
+    E_R = zeros(ComplexF64,Nt)
+    E_tot = zeros(ComplexF64,Nt)
+    N_sys = zeros(ComplexF64,Nt)
+    N_L = zeros(ComplexF64,Nt)
+    N_R = zeros(ComplexF64,Nt)
+
+    effparaL = zeros(Float64,Nt,2)
+    effparaR = zeros(Float64,Nt,2)
+
+    vNE_sys = zeros(ComplexF64,Nt)
+    vNE_E = zeros(ComplexF64,Nt)
+    vNE_L = zeros(ComplexF64,Nt)
+    vNE_R = zeros(ComplexF64,Nt)
+    vNE_alphak = zeros(ComplexF64,Nt)
+    vNE_Lk = zeros(ComplexF64,Nt)
+    vNE_Rk = zeros(ComplexF64,Nt)
+    vNE = zeros(ComplexF64,Nt)
+
+    I_SE = zeros(ComplexF64,Nt)
+    I_env = zeros(ComplexF64,Nt)
+    I_B = zeros(ComplexF64,Nt)
+    I_L = zeros(ComplexF64,Nt)
+    I_R = zeros(ComplexF64,Nt)
+
+    QL = zeros(ComplexF64,Nt)
+    QR = zeros(ComplexF64,Nt)
+    betaQL = zeros(ComplexF64,Nt)
+    betaQR = zeros(ComplexF64,Nt)
+    dQLdt = zeros(ComplexF64,Nt)
+    dQRdt = zeros(ComplexF64,Nt)
+    betaQLtime = zeros(ComplexF64,Nt)
+    betaQRtime = zeros(ComplexF64,Nt)
+
+    Drel = zeros(ComplexF64,Nt)
+    Drelnuk = zeros(ComplexF64,Nt)
+    Drelpinuk = zeros(ComplexF64,Nt)
+
+    sigma = zeros(ComplexF64,Nt)
+    sigma2 = zeros(ComplexF64,Nt)
+    sigma3 = zeros(ComplexF64,Nt)
+    sigma_c = zeros(ComplexF64,Nt)
+
+    Cbath = zeros(Float64,K)
+    matCL = zeros(Float64,2,2,Nt)
+    matCR = zeros(Float64,2,2,Nt)
+
+    # Threads.@threads for tt = 1:Nt
+    for tt = 1:Nt
+
+        Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
+        Ct .= Ct*C0
+        Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
+
+        # energy
+        # dCt .= diag(Ct) #diag(Ct - C0)
+        # E_sys[tt] = dCt[1]*epsilonLR[1]
+        # E_L[tt] = sum(dCt[2:K+1].*epsilonLR[2:K+1])
+        # E_R[tt] = sum(dCt[K+2:2*K+1].*epsilonLR[K+2:2*K+1])
+        # E_k_L[:,tt] = dCt[2:K+1].*epsilonLR[2:K+1] # single site energy
+        # E_k_R[:,tt] = dCt[K+2:2*K+1].*epsilonLR[K+2:2*K+1]
+
+        # dCt1 .= Ct[1,1:end] # Ct[1,1:end] - C0[1,1:end]
+        # E_tot[tt] = E_L[tt] + E_R[tt] + real(sum(dCt1[2:end].*tLRk[2:end])*2)
+
+        # particle numbers
+        # N_sys[tt] = dCt[1]
+        # N_L[tt] = sum(dCt[2:K+1])
+        # N_R[tt] = sum(dCt[K+2:2*K+1])
+        # n_k_L[:,tt] = dCt[2:K+1] # single site occupation number
+        # n_k_R[:,tt] = dCt[K+2:2*K+1]
+
+        # vNE
+        # total
+        val_Ct .= eigvals(Ct)
+        vNE[tt] = - sum(val_Ct.*log.(val_Ct)) - sum((1.0 .- val_Ct).*log.(1.0 .- val_Ct))
+        # system
+        vNE_sys[tt] = -Ct[1,1]*log(Ct[1,1]) - (1-Ct[1,1])*log(1-Ct[1,1])
+        # environment
+        val_Ct_E .= eigvals(Ct[2:end,2:end])
+        vNE_E[tt] = - sum(val_Ct_E.*log.(val_Ct_E)) - sum((1.0 .- val_Ct_E).*log.(1.0 .- val_Ct_E))
+
+        # I_SE
+        I_SE[tt] = vNE_sys[tt] - vNE_sys[1] + vNE_E[tt] - vNE_E[1]
+
+        # mutual information describing the intraenvironment correlations
+        diag_Ct_E .= diag(Ct[2:end,2:end])
+        vNE_alphak[tt] = - sum(diag_Ct_E.*log.(diag_Ct_E)) - sum((1.0 .- diag_Ct_E).*log.(1.0 .- diag_Ct_E))
+        I_env[tt] = vNE_alphak[tt] - vNE_E[tt]
+
+        # I_B
+        # val_Ct_L .= eigvals(Ct[2:K+1,2:K+1])
+        # vNE_L[tt] = - sum(val_Ct_L.*log.(val_Ct_L)) - sum((1.0 .- val_Ct_L).*log.(1.0 .- val_Ct_L))
+        # val_Ct_R .= eigvals(Ct[K+2:2*K+1,K+2:2*K+1])
+        # vNE_R[tt] = - sum(val_Ct_R.*log.(val_Ct_R)) - sum((1.0 .- val_Ct_R).*log.(1.0 .- val_Ct_R))
+        # I_B[tt] = vNE_L[tt] + vNE_R[tt] - vNE_E[tt]
+
+        # I_nu
+        # vNE_Lk[tt] = - sum(diag_Ct_E[1:K].*log.(diag_Ct_E[1:K])) - sum((1.0 .- diag_Ct_E[1:K]).*log.(1.0 .- diag_Ct_E[1:K]))
+        # I_L[tt] = vNE_Lk[tt] - vNE_L[tt]
+        # vNE_Rk[tt] = - sum(diag_Ct_E[K+1:2*K].*log.(diag_Ct_E[K+1:2*K])) - sum((1.0 .- diag_Ct_E[K+1:2*K]).*log.(1.0 .- diag_Ct_E[K+1:2*K]))
+        # I_R[tt] = vNE_Rk[tt] - vNE_R[tt]
+
+        # effective inverse temperature and chemical potential
+        # betaL0 = betaL
+        # betaR0 = betaR
+        # muL0 = muL
+        # muR0 = muR
+        # if tt != 1
+        #    betaL0 = effparaL[tt-1,1]
+        #    betaR0 = effparaR[tt-1,1]
+        #    muL0 = effparaL[tt-1,2]
+        #    muR0 = effparaR[tt-1,2]
+        # end
+        # effparaL[tt,:] .= funeffectivebetamu(epsilonLR[2:K+1],real(E_L[tt]),real(N_L[tt]),betaL0,muL0) #betaL,muL
+        # effparaR[tt,:] .= funeffectivebetamu(epsilonLR[K+2:2*K+1],real(E_R[tt]),real(N_R[tt]),betaR0,muR0) #betaR,muR
+
+        # heat
+        dCt .= diag(Ct - C0)
+        QL[tt] = -sum(dCt[2:K+1].*(epsilonLR[2:K+1] .- muL))
+        betaQL[tt] = QL[tt]*betaL
+        QR[tt] = -sum(dCt[K+2:2*K+1].*(epsilonLR[K+2:2*K+1] .- muR))
+        betaQR[tt] = QR[tt]*betaR
+
+        #
+        if tt != 1
+           dQLdt[tt] = (QL[tt] - QL[tt-1])/dt
+           dQRdt[tt] = (QR[tt] - QR[tt-1])/dt
+        end
+        betaQLtime[tt] = sum(dQLdt[1:tt].*effparaL[1:tt,1])*dt
+        betaQRtime[tt] = sum(dQRdt[1:tt].*effparaR[1:tt,1])*dt
+
+        # heat capacity
+        #matCL[:,:,tt] = heatcapacityeff(Cbath,K,epsilonLR[2:K+1],effparaL[tt,1],effparaL[tt,2])
+        #matCR[:,:,tt] = heatcapacityeff(Cbath,K,epsilonLR[K+2:2*K+1],effparaR[tt,1],effparaR[tt,2])
+
+        # relative entropy between rho_B(t) and rho_B(0)
+        Drel[tt] = - betaQL[tt] - betaQR[tt] - (vNE_E[tt] - vNE_E[1])
+
+        # relative entropy between rho_{nu,k}(t) and rho_{nu,k}(0)
+        Drelnuk[tt] = Drel[tt] - I_env[tt]
+
+        # entropy production
+        sigma[tt] = vNE_sys[tt] - vNE_sys[1] - betaQL[tt] - betaQR[tt]
+        # sigma2[tt] = I_SE[tt] + Drel[tt]
+        # sigma3[tt] = I_SE[tt] + I_B[tt] + I_L[tt] + I_R[tt] + Drelnuk[tt]
+        sigma_c[tt] = vNE_sys[tt] - vNE_sys[1] - betaQLtime[tt] - betaQRtime[tt]
+
+        # relative entropy between pi_nuk(t) and pi_nuk(0)
+        Drelpinuk[tt] =  Drelnuk[tt] - (sigma[tt] - sigma_c[tt])  #sigma[tt] - sigma_c[tt]
+
+    end
+
+    # return time, vNE_sys, vNE_L, vNE_R, vNE
+
+    return time, sigma, sigma_c, Drelpinuk
+    # return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR #E_k_L, E_k_R, n_k_L, n_k_R
+    # return time, vNE_sys, effparaL, effparaR, QL, QR
+    # return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
+    # return time, sigma, sigma2, sigma3, sigma_c
+    # return time, betaQL, betaQLtime, betaQR, betaQRtime
+    # return time, E_sys, E_L, E_R, N_sys, N_L, N_R, E_tot, effparaL, effparaR
+
+end
+
+function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+
+    # Hamiltonian + fluctuated t
+    matH = spzeros(Float64,K*2+1,K*2+1)
+    createH_fluctuatedt!(K,W,t_flu,betaL,betaR,GammaL,GammaR,matH)
+    epsilonLR = diag(Array(matH))
+    tLRk = matH[1,1:end]
+
+    # Hamiltonian is hermitian
+    matH = Hermitian(Array(matH))
+    val_matH, vec_matH = eigen(matH)
+    invvec_matH = inv(vec_matH)
+
+    # time
+    if Nt == 0
+       time = LinRange(0.0,tf,Nt)
+       dt = time[2] - time[1]
+    else
+       time = LinRange(0.0,tf,Nt)
+       dt = time[2] - time[1]
+       # println("dt=",dt)
+       # println("Note that int beta(t)*dQ/dt*dt depends on dt, so dt or tf/Nt should be small enough.")
+    end
 
     # correlation matrix
     # at initial
