@@ -325,6 +325,21 @@ function heatcapacityeff(C0::Vector{Float64},K::Int64,epsilon::Vector{Float64},b
 
 end
 
+function compute_vNEpi(K::Int64,epsilon::Vector{Float64},beta::Float64,mu::Float64)
+
+    # vNE[beta(t)]-vNE[beta(0)] = int dt dQdt*beta(t)
+
+    # correlation matrix
+    C0 = zeros(Float64,K)
+    for kk = 1:K
+        C0[kk] = 1.0/(exp((epsilon[kk]-mu)*beta)+1.0)
+    end
+    vNEpi = - sum(C0.*log.(C0)) - sum((1.0 .- C0).*log.(1.0 .- C0))
+
+    return vNEpi
+
+end
+
 function calculatequantities3(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # for computing \tilde D the relative entropy between the time evolved state and the thermal state at beta
@@ -587,15 +602,10 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
     invvec_matH = inv(vec_matH)
 
     # time
-    if Nt == 0
-       time = LinRange(0.0,tf,Nt)
-       dt = time[2] - time[1]
-    else
-       time = LinRange(0.0,tf,Nt)
-       dt = time[2] - time[1]
-       # println("dt=",dt)
-       # println("Note that int beta(t)*dQ/dt*dt depends on dt, so dt or tf/Nt should be small enough.")
-    end
+    time = LinRange(0.0,tf,Nt)
+    dt = time[2] - time[1]
+    println("dt=",dt)
+    println("Note that int beta(t)*dQ/dt*dt depends on dt, so dt or tf/Nt should be small enough.")
 
     # correlation matrix
     # at initial
@@ -706,6 +716,14 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
     matCL = zeros(Float64,2,2,Nt)
     matCR = zeros(Float64,2,2,Nt)
 
+    deltavNEpiL = zeros(Float64,Nt)
+    deltavNEpiR = zeros(Float64,Nt)
+    sigma_c2 = zeros(ComplexF64,Nt)
+    Drelpinuk2 = zeros(ComplexF64,Nt)
+
+    deltavNEpiL0 = compute_vNEpi(K,epsilonLR[2:K+1],betaL,muL)
+    deltavNEpiR0 = compute_vNEpi(K,epsilonLR[K+2:2*K+1],betaR,muR)
+
     # Threads.@threads for tt = 1:Nt
     for tt = 1:Nt
 
@@ -810,11 +828,19 @@ function calculatequantities2(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
         # relative entropy between pi_nuk(t) and pi_nuk(0)
         Drelpinuk[tt] =  Drelnuk[tt] - (sigma[tt] - sigma_c[tt])  #sigma[tt] - sigma_c[tt]
 
+        # vNE[beta(t)]-vNE[beta(0)] = int dt dQdt*beta(t)
+        deltavNEpiL[tt] = compute_vNEpi(K,epsilonLR[2:K+1],effparaL[tt,1],effparaL[tt,2]) - deltavNEpiL0
+        deltavNEpiR[tt] = compute_vNEpi(K,epsilonLR[K+2:2*K+1],effparaR[tt,1],effparaR[tt,2]) - deltavNEpiR0
+
+        sigma_c2[tt] = vNE_sys[tt] - vNE_sys[1] + deltavNEpiL[tt] + deltavNEpiR[tt]
+        Drelpinuk2[tt] =  Drelnuk[tt] - (sigma[tt] - sigma_c2[tt])
+
     end
 
     # return time, vNE_sys, vNE_L, vNE_R, vNE
 
-    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR #E_k_L, E_k_R, n_k_L, n_k_R
+    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR, deltavNEpiL, deltavNEpiR, sigma_c2, Drelpinuk2
+    #E_k_L, E_k_R, n_k_L, n_k_R
     # return time, vNE_sys, effparaL, effparaR, QL, QR
     # return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
     # return time, sigma, sigma2, sigma3, sigma_c
