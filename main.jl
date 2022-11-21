@@ -366,6 +366,22 @@ function compute_vNEpi(epsilon::Vector{Float64},beta::Float64,mu::Float64)
 
 end
 
+function distribute_timepoint(Nt::Int64,ti::Float64,tf::Float64)
+
+    if ti == 0.0
+       ti = 1e-4
+    end
+
+    ti_log10 = log10(ti)
+    tf_log10 = log10(tf)
+
+    time_log10 = LinRange(ti_log10,tf_log10,Nt)
+    time = 10.0.^(time_log10)
+
+    return time
+
+end
+
 function calculatequantities3(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # Hamiltonian + fluctuated t
@@ -380,8 +396,11 @@ function calculatequantities3(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
     invvec_matH = inv(vec_matH)
 
     # time
-    time = LinRange(0.0,tf,Nt)
-    dt = time[2] - time[1]
+    time = distribute_timepoint(Nt-1,0.0,tf)
+    pushfirst!(time,0.0)
+
+    # time = LinRange(0.0,tf,Nt)
+    # dt = time[2] - time[1]
     # println("dt=",dt)
     # println("Note that int beta(t)*dQ/dt*dt depends on dt, so dt or tf/Nt should be small enough.")
 
@@ -582,12 +601,12 @@ function calculatequantities3(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
         betaQR[tt] = QR[tt]*betaR
 
         #
-        if tt != 1
-           dQLdt[tt] = (QL[tt] - QL[tt-1])/dt
-           dQRdt[tt] = (QR[tt] - QR[tt-1])/dt
-        end
-        betaQLtime[tt] = sum(dQLdt[1:tt].*effparaL[1:tt,1])*dt
-        betaQRtime[tt] = sum(dQRdt[1:tt].*effparaR[1:tt,1])*dt
+        # if tt != 1
+        #    dQLdt[tt] = (QL[tt] - QL[tt-1])/dt
+        #    dQRdt[tt] = (QR[tt] - QR[tt-1])/dt
+        # end
+        # betaQLtime[tt] = sum(dQLdt[1:tt].*effparaL[1:tt,1])*dt
+        # betaQRtime[tt] = sum(dQRdt[1:tt].*effparaR[1:tt,1])*dt
 
         # heat capacity
         matCL[:,:,tt] = heatcapacityeff(CbathL,epsilonLR[2:KL+1],effparaL[tt,1],effparaL[tt,2])
@@ -603,7 +622,7 @@ function calculatequantities3(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
         sigma[tt] = vNE_sys[tt] - vNE_sys[1] - betaQL[tt] - betaQR[tt]
         sigma2[tt] = I_SE[tt] + Drel[tt]
         sigma3[tt] = I_SE[tt] + I_B[tt] + I_L[tt] + I_R[tt] + Drelnuk[tt]
-        sigma_c[tt] = vNE_sys[tt] - vNE_sys[1] - betaQLtime[tt] - betaQRtime[tt]
+        # sigma_c[tt] = vNE_sys[tt] - vNE_sys[1] - betaQLtime[tt] - betaQRtime[tt]
 
         # relative entropy between pi_nuk(t) and pi_nuk(0)
         Drelpinuk[tt] =  Drelnuk[tt] - (sigma[tt] - sigma_c[tt])  #sigma[tt] - sigma_c[tt]
