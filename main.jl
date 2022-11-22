@@ -638,7 +638,7 @@ function calculatequantities3(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
 
     # return time, vNE_sys, vNE_L, vNE_R, vNE
 
-    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR, deltavNEpiL, deltavNEpiR, sigma_c2, Drelpinuk2
+    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot
     #E_k_L, E_k_R, n_k_L, n_k_R
     # return time, vNE_sys, effparaL, effparaR, QL, QR
     # return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
