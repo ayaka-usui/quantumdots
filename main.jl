@@ -6,6 +6,7 @@ using Plots
 using Distributions, Random
 using JLD
 using Combinatorics
+using LaTeXStrings
 
 ################ basis functions for vNE
 
