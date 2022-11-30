@@ -297,8 +297,8 @@ function createH_differentKLKR!(KL::Int64,KR::Int64,W::Int64,betaL::Float64,beta
     matH .= 0.0
     DepsilonL = W/(KL-1)
     DepsilonR = W/(KR-1)
-    tunnelL = sqrt(GammaL*DepsilonL/(2*pi))
-    tunnelR = sqrt(GammaR*DepsilonR/(2*pi))
+    tunnelL = sqrt(GammaL*DepsilonL/(2*pi)) #GammaL
+    tunnelR = sqrt(GammaR*DepsilonR/(2*pi)) #GammaR
 
     matH[1,1] = 0.0 # epsilon for the system
 
@@ -432,6 +432,12 @@ function calculatequantities3(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
 
     # mutual info between S and E
     val_Cgg = eigvals(Cgg)
+    val_Cgg = ComplexF64.(val_Cgg)
+    # for jj = 1:KL+KR+1
+    #     if abs(val_Cgg[jj]) < 1e-14
+    #        val_Cgg[jj] = 1e-14
+    #     end
+    # end
     vNEgg = - sum(val_Cgg.*log.(val_Cgg)) - sum((1.0 .- val_Cgg).*log.(1.0 .- val_Cgg))
     val_Cgg_sys = Cgg[1,1]
     vNEgg_sys = - val_Cgg_sys.*log.(val_Cgg_sys) - (1.0 .- val_Cgg_sys).*log.(1.0 .- val_Cgg_sys)
