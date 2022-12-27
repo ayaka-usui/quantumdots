@@ -383,6 +383,39 @@ function distribute_timepoint(Nt::Int64,ti::Float64,tf::Float64)
 
 end
 
+function plot_efftem(effparaL,effparaR,effpara0,Nt,Gamma,time)
+
+    plot(log10.(Gamma*time),real(effparaL[:,1]),lw=4,label=L"\beta_{L,\tau}^*")
+    plot!(log10.(Gamma*time),real(effparaR[:,1]),lw=4,label=L"\beta_{R,\tau}^*")
+    plot!(log10.(Gamma*time),real(effpara0[1]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\beta_{ref}^*")
+
+    # ylims!((0,1.1))
+    plot!(xlabel=L"log_{10}\Gamma t")
+
+end
+
+function plot_effchem(effparaL,effparaR,effpara0,Nt,Gamma,time)
+
+    plot(log10.(Gamma*time),real(effparaL[:,2]),lw=4,label=L"\mu_{L,\tau}^*")
+    plot!(log10.(Gamma*time),real(effparaR[:,2]),lw=4,label=L"\mu_{R,\tau}^*")
+    plot!(log10.(Gamma*time),real(effpara0[2]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\mu_{ref}^*")
+
+    # ylims!((0,1.1))
+    plot!(xlabel=L"log_{10}\Gamma t")
+
+end
+
+function plot_efftem(effparaL,effparaR,effpara0,Nt,Gamma,time)
+
+    plot(log10.(Gamma*time),real(effparaL[:,1]),lw=4,label=L"\beta_{L,\tau}^*")
+    plot!(log10.(Gamma*time),real(effparaR[:,1]),lw=4,label=L"\beta_{R,\tau}^*")
+    plot!(log10.(Gamma*time),real(effpara0[1]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\beta_{ref}^*")
+
+    # ylims!((0,1.1))
+    plot!(xlabel=L"log_{10}\Gamma t")
+
+end
+
 function calculatequantities3(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # Hamiltonian + fluctuated t
