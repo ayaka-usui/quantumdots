@@ -405,14 +405,70 @@ function plot_effchem(effparaL,effparaR,effpara0,Nt,Gamma,time)
 
 end
 
-function plot_efftem(effparaL,effparaR,effpara0,Nt,Gamma,time)
+function plot_sigmas(sigma,sigma_c2,I_SE,I_B,I_L,I_R,Gamma,time)
 
-    plot(log10.(Gamma*time),real(effparaL[:,1]),lw=4,label=L"\beta_{L,\tau}^*")
-    plot!(log10.(Gamma*time),real(effparaR[:,1]),lw=4,label=L"\beta_{R,\tau}^*")
-    plot!(log10.(Gamma*time),real(effpara0[1]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\beta_{ref}^*")
+    plot(log10.(Gamma*time[2:end]),real(log10.(sigma[2:end])),label=L"\sigma",color=:grey,lw=5)
+    plot!(log10.(Gamma*time[2:end]),real(log10.(sigma_c2[2:end])),label=L"\Sigma",color=:black,lw=5)
+    plot!(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end])),label=L"I_{SB}+I_{B}+I_L+I_R",color=:red,lw=5)
+    plot!(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end]+I_L[2:end]+I_R[2:end])),label=L"I_{SB}+I_{B}",color=:blue,lw=5)
+    plot!(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end])),label=L"I_{SB}",color=:green,lw=5)
 
+    plot!(legend=:none)
+    # plot!(legend=:outerright)
     # ylims!((0,1.1))
-    plot!(xlabel=L"log_{10}\Gamma t")
+    # plot!(xlabel=L"log_{10}\Gamma t")
+
+end
+
+function plot_correlations(I_SE,I_B,I_L,I_R,Drelnuk,Drelpinuk2,Gamma,time)
+
+    tt0 = 0
+    for tt = 1:length(time)
+        if Gamma*time[tt] > 10^4
+           tt0 = tt
+           break
+        end
+    end
+    tt1 = length(time)
+
+    aveI_SE = mean(I_SE[tt0:tt1])
+    aveI_B = mean(I_B[tt0:tt1])
+    aveI_L = mean(I_L[tt0:tt1])
+    aveI_R = mean(I_R[tt0:tt1])
+    aveDrelnuk = mean(Drelnuk[tt0:tt1])
+    aveDrelpinuk2 = mean(Drelpinuk2[tt0:tt1])
+
+    return aveI_SE, aveI_B, aveI_L, aveI_R, aveDrelnuk, aveDrelpinuk2
+
+end
+
+function vNEfrommatC(matC::Matrix{Float64},val_matC::Vector{Float64})
+
+    vNE = 0.0
+
+    val_matC .= real(eigvals(matC))
+    for jj = 1:length(val_matC)
+        if val_matC[jj] > 0 && val_matC[jj] < 1
+           vNE += val_matC[jj]*log(val_matC[jj]) - (1.0-val_matC[jj])*log(1.0-val_matC[jj])
+        end
+    end
+
+    return vNE
+
+end
+
+function vNEfrommatC(matC::Matrix{Float64},val_matC::Vector{Float64})
+
+    vNE = 0.0
+
+    val_matC .= real(eigvals(matC))
+    for jj = 1:length(val_matC)
+        if val_matC[jj] > 0 && val_matC[jj] < 1
+           vNE += val_matC[jj]*log(val_matC[jj]) - (1.0-val_matC[jj])*log(1.0-val_matC[jj])
+        end
+    end
+
+    return vNE
 
 end
 
@@ -464,26 +520,20 @@ function calculatequantities3(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
     Cgg = globalGibbsstate(val_matH,vec_matH,invvec_matH,effpara0[1],effpara0[2])
 
     # mutual info between S and E
-    val_Cgg = eigvals(Cgg)
-    val_Cgg = ComplexF64.(val_Cgg)
-    # for jj = 1:KL+KR+1
-    #     if abs(val_Cgg[jj]) < 1e-14
-    #        val_Cgg[jj] = 1e-14
-    #     end
-    # end
-    vNEgg = - sum(val_Cgg.*log.(val_Cgg)) - sum((1.0 .- val_Cgg).*log.(1.0 .- val_Cgg))
+    val_Cgg = zeros(Float64,KL+KR+1)
+    vNEgg = vNEfrommatC(Cgg,val_Cgg)
     val_Cgg_sys = Cgg[1,1]
     vNEgg_sys = - val_Cgg_sys.*log.(val_Cgg_sys) - (1.0 .- val_Cgg_sys).*log.(1.0 .- val_Cgg_sys)
-    val_Cgg_E = eigvals(Cgg[2:end,2:end])
-    vNEgg_E = - sum(val_Cgg_E.*log.(val_Cgg_E)) - sum((1.0 .- val_Cgg_E).*log.(1.0 .- val_Cgg_E))
+    val_Cgg_E = zeros(Float64,KL+KR)
+    vNEgg_E = vNEfrommatC(Cgg[2:end,2:end],val_Cgg_E)
     Igg_SE = vNEgg_sys + vNEgg_E - vNEgg
     println("Igg_SE=",Igg_SE)
 
     # intrabath correlation
-    val_Cgg_L = eigvals(Cgg[2:KL+1,2:KL+1])
-    vNEgg_L = - sum(val_Cgg_L.*log.(val_Cgg_L)) - sum((1.0 .- val_Cgg_L).*log.(1.0 .- val_Cgg_L))
-    val_Cgg_R = eigvals(Cgg[KL+2:end,KL+2:end])
-    vNEgg_R = - sum(val_Cgg_R.*log.(val_Cgg_R)) - sum((1.0 .- val_Cgg_R).*log.(1.0 .- val_Cgg_R))
+    val_Cgg_L = zeros(Float64,KL)
+    vNEgg_L = vNEfrommatC(Cgg[2:KL+1,2:KL+1],val_Cgg_L)
+    val_Cgg_R = zeros(Float64,KR)
+    vNEgg_R = vNEfrommatC(Cgg[KL+2:end,KL+2:end],val_Cgg_L)
     Igg_B = vNEgg_L + vNEgg_R - vNEgg_E
     println("Igg_B=",Igg_B)
 
@@ -590,12 +640,12 @@ function calculatequantities3(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
 
         # vNE
         # total
-        val_Ct .= eigvals(Ct)
+        val_Ct .= real(eigvals(Ct))
         vNE[tt] = - sum(val_Ct.*log.(val_Ct)) - sum((1.0 .- val_Ct).*log.(1.0 .- val_Ct))
         # system
         vNE_sys[tt] = -Ct[1,1]*log(Ct[1,1]) - (1-Ct[1,1])*log(1-Ct[1,1])
         # environment
-        val_Ct_E .= eigvals(Ct[2:end,2:end])
+        val_Ct_E .= real(eigvals(Ct[2:end,2:end]))
         vNE_E[tt] = - sum(val_Ct_E.*log.(val_Ct_E)) - sum((1.0 .- val_Ct_E).*log.(1.0 .- val_Ct_E))
 
         # I_SE
