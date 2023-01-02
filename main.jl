@@ -448,6 +448,102 @@ function plot_correlations(I_SE,I_B,I_L,I_R,Drelnuk,Drelpinuk2,Gamma,time)
 
 end
 
+function plot_correlations2(ind::Int64)
+
+    # rangeX1 = [10^(-1), 10^(-0.5), 1, 2]
+    #
+    # rangeI_SE1 = [0.07039043163194947, 0.06939321343105473, 0.24232283080188594, 0.42571395145178625]
+    # rangeI_B1 = [27.695798372836663, 27.9737337436907, 27.978890852795825, 26.455853375912252]
+    # rangeI_L1 = [1.3894858277714415, 4.167210825994144, 8.24892347994511, 8.402646910603945]
+    # rangeI_R1 = [1.3864335726091386, 4.169159952802997, 8.259837107613269, 8.37941564266719]
+    # rangeDrelnuk1 = [82.07511366963712, 76.91360891907841, 68.50041414241544, 67.4549638504259]
+    # rangeDrelpinuk21 = [24.535105856606243, 18.641304228876237, 10.029520948314348, 10.973347588995937]
+    #
+    # rangeX2 = [1, 10^(0.5), 10, 20]
+    #
+    # rangeI_SE2 = [0.2979886297560763, 0.5444986327342305, 0.7949759104180926, 0.8302338966313255]
+    # rangeI_B2 = [109.76900998189733, 110.13981938673446, 113.74127413628655, 108.18397386410521]
+    # rangeI_L2 = [3.0675812346972022, 13.843696442697482, 29.112127945622696, 30.484681425740355]
+    # rangeI_R2 = [3.06824773371206, 13.863791459748088, 28.771738523675683, 30.315287521602265]
+    # rangeDrelnuk2 = [619.072615119327, 601.5950950264156, 550.262664717758, 560.6026607584242]
+    # rangeDrelpinuk22 = [105.4761129317653, 83.25679523114287, 48.10283479922594, 52.426797448746605]
+
+    rangeX1 = [10^(-1), 10^(-0.5), 1]
+
+    rangeI_SE1 = [0.07039043163194947, 0.06939321343105473, 0.24232283080188594]
+    rangeI_B1 = [27.695798372836663, 27.9737337436907, 27.978890852795825]
+    rangeI_L1 = [1.3894858277714415, 4.167210825994144, 8.24892347994511]
+    rangeI_R1 = [1.3864335726091386, 4.169159952802997, 8.259837107613269]
+    rangeDrelnuk1 = [82.07511366963712, 76.91360891907841, 68.50041414241544]
+    rangeDrelpinuk21 = [24.535105856606243, 18.641304228876237, 10.029520948314348]
+
+    rangeX2 = [1, 10^(0.5), 10]
+
+    rangeI_SE2 = [0.2979886297560763, 0.5444986327342305, 0.7949759104180926]
+    rangeI_B2 = [109.76900998189733, 110.13981938673446, 113.74127413628655]
+    rangeI_L2 = [3.0675812346972022, 13.843696442697482, 29.112127945622696]
+    rangeI_R2 = [3.06824773371206, 13.863791459748088, 28.771738523675683]
+    rangeDrelnuk2 = [619.072615119327, 601.5950950264156, 550.262664717758]
+    rangeDrelpinuk22 = [105.4761129317653, 83.25679523114287, 48.10283479922594]
+
+    rangeX3 = [10^(-1), 10^(-0.5), 1]
+
+    rangeI_B3 = [0.688409654942454, 3.7017182438945015, 27.978890852795825]
+
+    if ind == 1
+       plot(log10.(rangeX1),rangeI_SE1/(2*log(2)),color=:red,lw=5)
+       scatter!(log10.(rangeX1),rangeI_SE1/(2*log(2)),color=:red,ms=8)
+       plot!(log10.(rangeX2),rangeI_SE2/(2*log(2)),color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX2),rangeI_SE2/(2*log(2)),color=:blue,markershapes=:rect,ms=8)
+       ylims!((0,1))
+    end
+
+    if ind == 2
+       plot(log10.(rangeX1),rangeI_B1/(2*10^3*log(2)),color=:red,lw=5)
+       scatter!(log10.(rangeX1),rangeI_B1/(2*10^3*log(2)),color=:red,ms=8)
+       plot!(log10.(rangeX2),rangeI_B2/(2*10^3*log(2)),color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX2),rangeI_B2/(2*10^3*log(2)),color=:blue,markershapes=:rect,ms=8)
+       plot!(log10.(rangeX3),rangeI_B3/(2*10^3*log(2)),color=:green,markershapes=:utriangle,lw=5)
+       scatter!(log10.(rangeX3),rangeI_B3/(2*10^3*log(2)),color=:green,markershapes=:utriangle,ms=8)
+       ylims!((-0.01,0.11))
+    end
+
+    if ind == 3
+       plot(log10.(rangeX1),rangeI_L1/(2*10^3*log(2)),color=:red,lw=5)
+       scatter!(log10.(rangeX1),rangeI_L1/(2*10^3*log(2)),color=:red,ms=8)
+       plot!(log10.(rangeX2),rangeI_L2/(2*10^3*log(2)),color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX2),rangeI_L2/(2*10^3*log(2)),color=:blue,markershapes=:rect,ms=8)
+       ylims!((0,0.04))
+    end
+
+    if ind == 4
+       plot(log10.(rangeX1),rangeI_R1/(2*10^3*log(2)),color=:red,lw=5)
+       scatter!(log10.(rangeX1),rangeI_R1/(2*10^3*log(2)),color=:red,ms=8)
+       plot!(log10.(rangeX2),rangeI_R2/(2*10^3*log(2)),color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX2),rangeI_R2/(2*10^3*log(2)),color=:blue,markershapes=:rect,ms=8)
+       ylims!((0,0.04))
+    end
+
+    if ind == 5
+       plot(log10.(rangeX1),rangeDrelpinuk21,color=:red,lw=5)
+       scatter!(log10.(rangeX1),rangeDrelpinuk21,color=:red,ms=8)
+       plot!(log10.(rangeX2),rangeDrelpinuk22,color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX2),rangeDrelpinuk22,color=:blue,markershapes=:rect,ms=8)
+    end
+
+    if ind == 6
+       plot(log10.(rangeX1),rangeDrelnuk1,color=:red,lw=5)
+       scatter!(log10.(rangeX1),rangeDrelnuk1,color=:red,ms=8)
+       plot!(log10.(rangeX2),rangeDrelnuk2,color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX2),rangeDrelnuk2,color=:blue,markershapes=:rect,ms=8)
+    end
+
+    # plot!(xlabel=L"log_{10}\Gamma t")
+    plot!(legend=:none)
+    plot!(size=(400,400))
+
+end
+
 function vNEfrommatC(val_matC::Union{Vector{Float64},Float64})
 
     vNE = 0.0
@@ -925,6 +1021,7 @@ function calculatequantities3(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
         val_Ct_E .= real(eigvals(Ct[2:end,2:end]))
         # vNE_E[tt] = vNEfrommatC(val_Ct_E)
         vNE_E[tt] = - sum(val_Ct_E.*log.(val_Ct_E)) - sum((1.0 .- val_Ct_E).*log.(1.0 .- val_Ct_E))
+
 
         # I_SE
         I_SE[tt] = vNE_sys[tt] - vNE_sys[1] + vNE_E[tt] - vNE_E[1]
