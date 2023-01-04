@@ -347,7 +347,7 @@ function heatcapacityeff(C0::Vector{Float64},epsilon::Vector{Float64},beta::Floa
     dNdbeta = mu*varN - varHN
     dNdmu = beta*varN
 
-    return [dUdbeta dUdmu; dNdbeta dNdmu]
+    return [-beta^2*dUdbeta dUdmu; -beta^2*dNdbeta dNdmu]
 
 end
 
@@ -541,6 +541,18 @@ function plot_correlations2(ind::Int64)
     # plot!(xlabel=L"log_{10}\Gamma t")
     plot!(legend=:none)
     plot!(size=(400,400))
+
+end
+
+function plot_Fnorm_matC(Fnorm_matCL,Fnorm_matCR,Gamma,time)
+
+    plot(log10.(Gamma*time),log10.(Fnorm_matCL),lw=4)
+    plot!(log10.(Gamma*time),log10.(Fnorm_matCR),lw=4)
+
+    plot!(legend=:none)
+    xlims!((-2.5,7))
+    # ylims!((0,4))
+    # plot!(size=(400,400))
 
 end
 
