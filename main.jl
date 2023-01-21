@@ -419,6 +419,12 @@ function plot_sigmas(sigma,sigma_c2,I_SE,I_B,I_L,I_R,Gamma,time)
     plot!(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end]+I_L[2:end]+I_R[2:end])),label=L"I_{SB}+I_{B}",color=:blue,lw=5)
     plot!(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end])),label=L"I_{SB}",color=:green,lw=5)
 
+    # plot(log10.(Gamma*time[2:end]),real(sigma[2:end]),label=L"\sigma",color=:grey,lw=5)
+    # plot!(log10.(Gamma*time[2:end]),real(sigma_c2[2:end]),label=L"\Sigma",color=:black,lw=5)
+    # plot!(log10.(Gamma*time[2:end]),real(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end]),label=L"I_{SB}+I_{B}+I_L+I_R",color=:red,lw=5)
+    # plot!(log10.(Gamma*time[2:end]),real(I_SE[2:end]+I_L[2:end]+I_R[2:end]),label=L"I_{SB}+I_{B}",color=:blue,lw=5)
+    # plot!(log10.(Gamma*time[2:end]),real(I_SE[2:end]),label=L"I_{SB}",color=:green,lw=5)
+
     plot!(legend=:none)
     # plot!(legend=:outerright)
     # ylims!((0,1.1))
@@ -435,7 +441,15 @@ function plot_correlations(I_SE,I_B,I_L,I_R,Drelnuk,Drelpinuk2,Gamma,time)
            break
         end
     end
-    tt1 = length(time)
+
+    # tt1 = length(time)
+    tt1 = 0
+    for tt = 1:length(time)
+        if Gamma*time[tt] > 10^6
+           tt1 = tt-1
+           break
+        end
+    end
 
     aveI_SE = mean(I_SE[tt0:tt1])
     aveI_B = mean(I_B[tt0:tt1])
@@ -541,6 +555,59 @@ function plot_correlations2(ind::Int64)
     # plot!(xlabel=L"log_{10}\Gamma t")
     plot!(legend=:none)
     plot!(size=(400,400))
+
+end
+
+function plot_correlations3(ind::Int64)
+
+    # KL=1001, KR=999
+
+    rangeX1 = [1.0, sqrt(10), 5, 8, 10]
+
+    rangeI_SE1 = [0.2700265034560173, 0.5593019137449065, 0.6750499261740152, 0.7604469952134212, 0.8013037387866352]
+    rangeI_B1 = [50.9040071968248, 125.6640471482019, 131.58751723662346, 118.42975788943858, 108.69956839611972]
+    rangeI_L1 = [2.2641358437554553, 11.367261078792273, 20.732373707936166, 28.086250355927582, 31.09928806697551]
+    rangeI_R1 = [1.2820254818286667, 6.42796324091486, 14.98216744455472, 25.763743070895902, 30.18334327288159]
+    rangeDrelnuk1 = [70.90234210582268, 273.95624415163667, 418.3749093283321, 534.1528528767477, 560.8428137064682]
+    rangeDrelpinuk21 = [34.063524887443684, 46.59327144182832, 47.77443058928806, 48.93522099746331, 48.29375444435278 ]
+
+    if ind == 1
+       plot(log10.(rangeX1),rangeI_SE1/(2*log(2)),color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX1),rangeI_SE1/(2*log(2)),color=:blue,markershapes=:rect,ms=8)
+       # ylims!((0,1))
+    end
+
+    if ind == 2
+       plot(log10.(rangeX1),rangeI_B1/(2*999*log(2)),color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX1),rangeI_B1/(2*999*log(2)),color=:blue,markershapes=:rect,ms=8)
+       # ylims!((-0.01,0.11))
+    end
+
+    if ind == 3
+       plot(log10.(rangeX1),rangeI_L1/(2*999*log(2)),color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX1),rangeI_L1/(2*999*log(2)),color=:blue,markershapes=:rect,ms=8)
+       # ylims!((0,0.04))
+    end
+
+    if ind == 4
+       plot(log10.(rangeX1),rangeI_R1/(2*999*log(2)),color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX1),rangeI_R1/(2*999*log(2)),color=:blue,markershapes=:rect,ms=8)
+       # ylims!((0,0.04))
+    end
+
+    if ind == 5
+       plot(log10.(rangeX1),rangeDrelpinuk21,color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX1),rangeDrelpinuk21,color=:blue,markershapes=:rect,ms=8)
+    end
+
+    if ind == 6
+       plot(log10.(rangeX1),rangeDrelnuk1,color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX1),rangeDrelnuk1,color=:blue,markershapes=:rect,ms=8)
+    end
+
+    # plot!(xlabel=L"log_{10}\Gamma t")
+    plot!(legend=:none)
+    # plot!(size=(400,400))
 
 end
 
