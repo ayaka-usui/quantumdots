@@ -589,6 +589,13 @@ function plot_correlations2(ind::Int64)
        scatter!(log10.(rangeX2),rangeI_L2+rangeI_R2+rangeDrelpinuk22,color=:blue,markershapes=:rect,ms=8)
     end
 
+    if ind == 10
+       plot(log10.(rangeX1),rangeI_L1+rangeI_R1+rangeDrelnuk1,color=:red,lw=5)
+       scatter!(log10.(rangeX1),rangeI_L1+rangeI_R1+rangeDrelnuk1,color=:red,ms=8)
+       plot!(log10.(rangeX2),rangeI_L2+rangeI_R2+rangeDrelnuk2,color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX2),rangeI_L2+rangeI_R2+rangeDrelnuk2,color=:blue,markershapes=:rect,ms=8)
+    end
+
     # plot!(xlabel=L"log_{10}\Gamma t")
     plot!(legend=:none)
     plot!(size=(400,400))
@@ -934,6 +941,9 @@ function calculatequantities4(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
 
         sigma_c2[tt] = vNE_sys[tt] - vNE_sys[1] + deltavNEpiL[tt] + deltavNEpiR[tt]
         Drelpinuk2[tt] =  Drelnuk[tt] - (sigma[tt] - sigma_c2[tt])
+
+        # DrelrhopiL[tt] =  (deltavNEpiL[tt] + deltavNEpiL0) - vNE_L[tt] - I_B[tt]
+        # DrelrhopiR[tt] =  Drelnuk[tt] - (sigma[tt] - sigma_c2[tt])
 
         println(tt)
 
