@@ -482,60 +482,76 @@ function plot_correlations2(ind::Int64)
     # rangeDrelnuk2 = [619.072615119327, 601.5950950264156, 550.262664717758, 560.6026607584242]
     # rangeDrelpinuk22 = [105.4761129317653, 83.25679523114287, 48.10283479922594, 52.426797448746605]
 
+    # rangeX1 = [10^(-1), 10^(-0.5), 1]
+    #
+    # rangeI_SE1 = [0.07039043163194947, 0.06939321343105473, 0.24232283080188594]
+    # rangeI_B1 = [27.695798372836663, 27.9737337436907, 27.978890852795825]
+    # rangeI_L1 = [1.3894858277714415, 4.167210825994144, 8.24892347994511]
+    # rangeI_R1 = [1.3864335726091386, 4.169159952802997, 8.259837107613269]
+    # rangeDrelnuk1 = [82.07511366963712, 76.91360891907841, 68.50041414241544]
+    # rangeDrelpinuk21 = [24.535105856606243, 18.641304228876237, 10.029520948314348]
+    #
+    # rangeX2 = [1, 10^(0.5), 10]
+    #
+    # rangeI_SE2 = [0.2979886297560763, 0.5444986327342305, 0.7949759104180926]
+    # rangeI_B2 = [109.76900998189733, 110.13981938673446, 113.74127413628655]
+    # rangeI_L2 = [3.0675812346972022, 13.843696442697482, 29.112127945622696]
+    # rangeI_R2 = [3.06824773371206, 13.863791459748088, 28.771738523675683]
+    # rangeDrelnuk2 = [619.072615119327, 601.5950950264156, 550.262664717758]
+    # rangeDrelpinuk22 = [105.4761129317653, 83.25679523114287, 48.10283479922594]
+    #
+    # rangeX3 = [10^(-1), 10^(-0.5), 1]
+    #
+    # rangeI_B3 = [0.688409654942454, 3.7017182438945015, 27.978890852795825]
+
     rangeX1 = [10^(-1), 10^(-0.5), 1]
 
-    rangeI_SE1 = [0.07039043163194947, 0.06939321343105473, 0.24232283080188594]
-    rangeI_B1 = [27.695798372836663, 27.9737337436907, 27.978890852795825]
-    rangeI_L1 = [1.3894858277714415, 4.167210825994144, 8.24892347994511]
-    rangeI_R1 = [1.3864335726091386, 4.169159952802997, 8.259837107613269]
-    rangeDrelnuk1 = [82.07511366963712, 76.91360891907841, 68.50041414241544]
-    rangeDrelpinuk21 = [24.535105856606243, 18.641304228876237, 10.029520948314348]
+    rangeI_SE1 = [0.07038047692093213, 0.06994065978853194, 0.24019928094819132]
+    rangeI_B1 = [27.687192873879265, 28.12196600216295, 28.283741215039747]
+    rangeI_L1 = [1.374518543575187, 4.036295446926725, 8.133505207947545]
+    rangeI_R1 = [1.3707371149068341, 4.041448350451924, 8.143328547658582]
+    rangeDrelnuk1 = [81.79663214213411, 77.94196462069881, 68.36445316485634]
+    rangeDrelpinuk21 = [24.51130952511794, 18.59507274072866, 9.493944993572612]
 
     rangeX2 = [1, 10^(0.5), 10]
 
-    rangeI_SE2 = [0.2979886297560763, 0.5444986327342305, 0.7949759104180926]
-    rangeI_B2 = [109.76900998189733, 110.13981938673446, 113.74127413628655]
-    rangeI_L2 = [3.0675812346972022, 13.843696442697482, 29.112127945622696]
-    rangeI_R2 = [3.06824773371206, 13.863791459748088, 28.771738523675683]
-    rangeDrelnuk2 = [619.072615119327, 601.5950950264156, 550.262664717758]
-    rangeDrelpinuk22 = [105.4761129317653, 83.25679523114287, 48.10283479922594]
-
-    rangeX3 = [10^(-1), 10^(-0.5), 1]
-
-    rangeI_B3 = [0.688409654942454, 3.7017182438945015, 27.978890852795825]
+    rangeI_SE2 = [0.29686462972105854, 0.5458931380743579, 0.7990841873353716]
+    rangeI_B2 = [109.3897713416301, 110.03373469917939, 113.86371255423953]
+    rangeI_L2 = [2.9649798446817917, 12.750950097422875, 26.402254035214476]
+    rangeI_R2 = [2.949083751998387, 12.84684213651656, 26.68543866713233]
+    rangeDrelnuk2 = [616.6597866583917, 611.0462337230009, 569.2684134223132]
+    rangeDrelpinuk22 = [105.66015921304154, 84.4980039215517, 50.90355045563871]
 
     if ind == 1
-       plot(log10.(rangeX1),rangeI_SE1/(2*log(2)),color=:red,lw=5)
-       scatter!(log10.(rangeX1),rangeI_SE1/(2*log(2)),color=:red,ms=8)
-       plot!(log10.(rangeX2),rangeI_SE2/(2*log(2)),color=:blue,markershapes=:rect,lw=5)
-       scatter!(log10.(rangeX2),rangeI_SE2/(2*log(2)),color=:blue,markershapes=:rect,ms=8)
+       plot(log10.(rangeX1),rangeI_SE1,color=:red,lw=5)
+       scatter!(log10.(rangeX1),rangeI_SE1,color=:red,ms=8)
+       plot!(log10.(rangeX2),rangeI_SE2,color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX2),rangeI_SE2,color=:blue,markershapes=:rect,ms=8)
        ylims!((0,1))
     end
 
     if ind == 2
-       plot(log10.(rangeX1),rangeI_B1/(2*10^3*log(2)),color=:red,lw=5)
-       scatter!(log10.(rangeX1),rangeI_B1/(2*10^3*log(2)),color=:red,ms=8)
-       plot!(log10.(rangeX2),rangeI_B2/(2*10^3*log(2)),color=:blue,markershapes=:rect,lw=5)
-       scatter!(log10.(rangeX2),rangeI_B2/(2*10^3*log(2)),color=:blue,markershapes=:rect,ms=8)
-       plot!(log10.(rangeX3),rangeI_B3/(2*10^3*log(2)),color=:green,markershapes=:utriangle,lw=5)
-       scatter!(log10.(rangeX3),rangeI_B3/(2*10^3*log(2)),color=:green,markershapes=:utriangle,ms=8)
-       ylims!((-0.01,0.11))
+       plot(log10.(rangeX1),rangeI_B1,color=:red,lw=5)
+       scatter!(log10.(rangeX1),rangeI_B1,color=:red,ms=8)
+       plot!(log10.(rangeX2),rangeI_B2,color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX2),rangeI_B2,color=:blue,markershapes=:rect,ms=8)
+       # ylims!((-0.01,0.11))
     end
 
     if ind == 3
-       plot(log10.(rangeX1),rangeI_L1/(2*10^3*log(2)),color=:red,lw=5)
-       scatter!(log10.(rangeX1),rangeI_L1/(2*10^3*log(2)),color=:red,ms=8)
-       plot!(log10.(rangeX2),rangeI_L2/(2*10^3*log(2)),color=:blue,markershapes=:rect,lw=5)
-       scatter!(log10.(rangeX2),rangeI_L2/(2*10^3*log(2)),color=:blue,markershapes=:rect,ms=8)
-       ylims!((0,0.04))
+       plot(log10.(rangeX1),rangeI_L1,color=:red,lw=5)
+       scatter!(log10.(rangeX1),rangeI_L1,color=:red,ms=8)
+       plot!(log10.(rangeX2),rangeI_L2,color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX2),rangeI_L2,color=:blue,markershapes=:rect,ms=8)
+       # ylims!((0,0.04))
     end
 
     if ind == 4
-       plot(log10.(rangeX1),rangeI_R1/(2*10^3*log(2)),color=:red,lw=5)
-       scatter!(log10.(rangeX1),rangeI_R1/(2*10^3*log(2)),color=:red,ms=8)
-       plot!(log10.(rangeX2),rangeI_R2/(2*10^3*log(2)),color=:blue,markershapes=:rect,lw=5)
-       scatter!(log10.(rangeX2),rangeI_R2/(2*10^3*log(2)),color=:blue,markershapes=:rect,ms=8)
-       ylims!((0,0.04))
+       plot(log10.(rangeX1),rangeI_R1,color=:red,lw=5)
+       scatter!(log10.(rangeX1),rangeI_R1,color=:red,ms=8)
+       plot!(log10.(rangeX2),rangeI_R2,color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX2),rangeI_R2,color=:blue,markershapes=:rect,ms=8)
+       # ylims!((0,0.04))
     end
 
     if ind == 5
@@ -550,6 +566,27 @@ function plot_correlations2(ind::Int64)
        scatter!(log10.(rangeX1),rangeDrelnuk1,color=:red,ms=8)
        plot!(log10.(rangeX2),rangeDrelnuk2,color=:blue,markershapes=:rect,lw=5)
        scatter!(log10.(rangeX2),rangeDrelnuk2,color=:blue,markershapes=:rect,ms=8)
+    end
+
+    if ind == 7
+       plot(log10.(rangeX1),rangeI_SE1+rangeI_B1+rangeI_L1+rangeI_R1+rangeDrelpinuk21,color=:red,lw=5)
+       scatter!(log10.(rangeX1),rangeI_SE1+rangeI_B1+rangeI_L1+rangeI_R1+rangeDrelpinuk21,color=:red,ms=8)
+       plot!(log10.(rangeX2),rangeI_SE2+rangeI_B2+rangeI_L2+rangeI_R2+rangeDrelpinuk22,color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX2),rangeI_SE2+rangeI_B2+rangeI_L2+rangeI_R2+rangeDrelpinuk22,color=:blue,markershapes=:rect,ms=8)
+    end
+
+    if ind == 8
+       plot(log10.(rangeX1),rangeI_SE1+rangeI_B1+rangeI_L1+rangeI_R1+rangeDrelnuk1,color=:red,lw=5)
+       scatter!(log10.(rangeX1),rangeI_SE1+rangeI_B1+rangeI_L1+rangeI_R1+rangeDrelnuk1,color=:red,ms=8)
+       plot!(log10.(rangeX2),rangeI_SE2+rangeI_B2+rangeI_L2+rangeI_R2+rangeDrelnuk2,color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX2),rangeI_SE2+rangeI_B2+rangeI_L2+rangeI_R2+rangeDrelnuk2,color=:blue,markershapes=:rect,ms=8)
+    end
+
+    if ind == 9
+       plot(log10.(rangeX1),rangeI_L1+rangeI_R1+rangeDrelpinuk21,color=:red,lw=5)
+       scatter!(log10.(rangeX1),rangeI_L1+rangeI_R1+rangeDrelpinuk21,color=:red,ms=8)
+       plot!(log10.(rangeX2),rangeI_L2+rangeI_R2+rangeDrelpinuk22,color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX2),rangeI_L2+rangeI_R2+rangeDrelpinuk22,color=:blue,markershapes=:rect,ms=8)
     end
 
     # plot!(xlabel=L"log_{10}\Gamma t")
