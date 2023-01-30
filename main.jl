@@ -391,8 +391,8 @@ end
 
 function plot_efftem(effparaL,effparaR,effpara0,Nt,Gamma,time)
 
-    plot(log10.(Gamma*time),real(effparaL[:,1]),lw=4,label=L"\beta_{L,\tau}^*")
-    plot!(log10.(Gamma*time),real(effparaR[:,1]),lw=4,label=L"\beta_{R,\tau}^*")
+    plot(log10.(Gamma*time),real(effparaL[:,1]),lw=4,label=L"\beta_{L,\tau}^*",palette=:reds)
+    plot!(log10.(Gamma*time),real(effparaR[:,1]),lw=4,label=L"\beta_{R,\tau}^*",palette=:reds)
     plot!(log10.(Gamma*time),real(effpara0[1]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\beta_{ref}^*")
 
     # ylims!((0,1.1))
@@ -402,8 +402,8 @@ end
 
 function plot_effchem(effparaL,effparaR,effpara0,Nt,Gamma,time)
 
-    plot(log10.(Gamma*time),real(effparaL[:,2]),lw=4,label=L"\mu_{L,\tau}^*")
-    plot!(log10.(Gamma*time),real(effparaR[:,2]),lw=4,label=L"\mu_{R,\tau}^*")
+    plot(log10.(Gamma*time),real(effparaL[:,2]),lw=4,label=L"\mu_{L,\tau}^*",palette=:blues)
+    plot!(log10.(Gamma*time),real(effparaR[:,2]),lw=4,label=L"\mu_{R,\tau}^*",palette=:blues)
     plot!(log10.(Gamma*time),real(effpara0[2]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\mu_{ref}^*")
 
     # ylims!((0,1.1))
@@ -681,6 +681,27 @@ function vNEfrommatC(val_matC::Union{Vector{Float64},Float64})
 
 end
 
+function boundDrhopi(epsilon::Vector{Float64},beta::Float64,mu::Float64)
+
+    # correlation matrix
+    K = length(epsilon)
+    C0 = zeros(Float64,K)
+    bound = 0
+
+    for kk = 1:K
+        C0[kk] = 1.0/(exp((epsilon[kk]-mu)*beta)+1.0)
+        if C0[kk] < 1/2
+           bound += 1/C0[kk]
+        elseif C0[kk] > 1/2
+           bound += 1/(1 - C0[kk])
+        # elseif
+        end
+    end
+
+    return bound
+
+end
+
 function calculatequantities4(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # Hamiltonian + fluctuated t
@@ -820,6 +841,9 @@ function calculatequantities4(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
     sigma_c2 = zeros(ComplexF64,Nt)
     Drelpinuk2 = zeros(ComplexF64,Nt)
 
+    boundL = zeros(Float64,Nt)
+    boundR = zeros(Float64,Nt)
+
     deltavNEpiL0 = compute_vNEpi(epsilonLR[2:KL+1],betaL,muL)
     deltavNEpiR0 = compute_vNEpi(epsilonLR[KL+2:end],betaR,muR)
 
@@ -945,13 +969,16 @@ function calculatequantities4(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
         # DrelrhopiL[tt] =  (deltavNEpiL[tt] + deltavNEpiL0) - vNE_L[tt] - I_B[tt]
         # DrelrhopiR[tt] =  Drelnuk[tt] - (sigma[tt] - sigma_c2[tt])
 
+        boundL[tt] = boundDrhopi(epsilonLR[2:KL+1],effparaL[tt,1],effparaL[tt,2])
+        boundR[tt] = boundDrhopi(epsilonLR[KL+2:end],effparaR[tt,1],effparaR[tt,2])
+
         println(tt)
 
     end
 
     # return time, vNE_sys, vNE_L, vNE_R, vNE
 
-    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot
+    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, boundL, boundR
     #E_k_L, E_k_R, n_k_L, n_k_R
     # return time, vNE_sys, effparaL, effparaR, QL, QR
     # return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
