@@ -413,11 +413,11 @@ end
 
 function plot_sigmas(sigma,sigma_c2,I_SE,I_B,I_L,I_R,Gamma,time)
 
-    plot(log10.(Gamma*time[2:end]),real(log10.(sigma[2:end])),label=L"\sigma",color=:grey,lw=5)
+    plot(log10.(Gamma*time[2:end]),real(log10.(sigma[2:end])),label=L"\sigma",color=:grey,lw=6)
     plot!(log10.(Gamma*time[2:end]),real(log10.(sigma_c2[2:end])),label=L"\Sigma",color=:black,lw=5)
-    plot!(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end])),label=L"I_{SB}+I_{B}+I_L+I_R",color=:red,lw=5)
-    plot!(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end]+I_L[2:end]+I_R[2:end])),label=L"I_{SB}+I_{B}",color=:blue,lw=5)
-    plot!(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end])),label=L"I_{SB}",color=:green,lw=5)
+    plot!(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end])),label=L"I_{SB}+I_{B}+I_L+I_R",color=:red,lw=4)
+    plot!(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end]+I_L[2:end]+I_R[2:end])),label=L"I_{SB}+I_{B}",color=:blue,lw=3)
+    plot!(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end])),label=L"I_{SB}",color=:green,lw=2)
 
     # plot(log10.(Gamma*time[2:end]),real(sigma[2:end]),label=L"\sigma",color=:grey,lw=5)
     # plot!(log10.(Gamma*time[2:end]),real(sigma_c2[2:end]),label=L"\Sigma",color=:black,lw=5)
@@ -616,26 +616,26 @@ function plot_correlations3(ind::Int64)
     rangeDrelpinuk21 = [34.063524887443684, 46.59327144182832, 47.77443058928806, 48.93522099746331, 48.29375444435278 ]
 
     if ind == 1
-       plot(log10.(rangeX1),rangeI_SE1/(2*log(2)),color=:blue,markershapes=:rect,lw=5)
-       scatter!(log10.(rangeX1),rangeI_SE1/(2*log(2)),color=:blue,markershapes=:rect,ms=8)
+       plot(log10.(rangeX1),rangeI_SE1,color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX1),rangeI_SE1,color=:blue,markershapes=:rect,ms=8)
        # ylims!((0,1))
     end
 
     if ind == 2
-       plot(log10.(rangeX1),rangeI_B1/(2*999*log(2)),color=:blue,markershapes=:rect,lw=5)
-       scatter!(log10.(rangeX1),rangeI_B1/(2*999*log(2)),color=:blue,markershapes=:rect,ms=8)
+       plot(log10.(rangeX1),rangeI_B1,color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX1),rangeI_B1,color=:blue,markershapes=:rect,ms=8)
        # ylims!((-0.01,0.11))
     end
 
     if ind == 3
-       plot(log10.(rangeX1),rangeI_L1/(2*999*log(2)),color=:blue,markershapes=:rect,lw=5)
-       scatter!(log10.(rangeX1),rangeI_L1/(2*999*log(2)),color=:blue,markershapes=:rect,ms=8)
+       plot(log10.(rangeX1),rangeI_L1,color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX1),rangeI_L1,color=:blue,markershapes=:rect,ms=8)
        # ylims!((0,0.04))
     end
 
     if ind == 4
-       plot(log10.(rangeX1),rangeI_R1/(2*999*log(2)),color=:blue,markershapes=:rect,lw=5)
-       scatter!(log10.(rangeX1),rangeI_R1/(2*999*log(2)),color=:blue,markershapes=:rect,ms=8)
+       plot(log10.(rangeX1),rangeI_R1,color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX1),rangeI_R1,color=:blue,markershapes=:rect,ms=8)
        # ylims!((0,0.04))
     end
 
@@ -649,6 +649,16 @@ function plot_correlations3(ind::Int64)
        scatter!(log10.(rangeX1),rangeDrelnuk1,color=:blue,markershapes=:rect,ms=8)
     end
 
+    if ind == 7
+       plot(log10.(rangeX1),rangeI_SE1+rangeI_B1+rangeI_L1+rangeI_R1+rangeDrelpinuk21,color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX1),rangeI_SE1+rangeI_B1+rangeI_L1+rangeI_R1+rangeDrelpinuk21,color=:blue,markershapes=:rect,ms=8)
+    end
+
+    if ind == 8
+       plot(log10.(rangeX1),rangeI_SE1+rangeI_B1+rangeI_L1+rangeI_R1+rangeDrelnuk1,color=:blue,markershapes=:rect,lw=5)
+       scatter!(log10.(rangeX1),rangeI_SE1+rangeI_B1+rangeI_L1+rangeI_R1+rangeDrelnuk1,color=:blue,markershapes=:rect,ms=8)
+    end
+
     # plot!(xlabel=L"log_{10}\Gamma t")
     plot!(legend=:none)
     # plot!(size=(400,400))
@@ -657,10 +667,10 @@ end
 
 function plot_Fnorm_matC(Fnorm_matCL,Fnorm_matCR,Gamma,time)
 
-    plot(log10.(Gamma*time),log10.(Fnorm_matCL),lw=4)
-    plot!(log10.(Gamma*time),log10.(Fnorm_matCR),lw=4)
+    plot(log10.(Gamma*time),log10.(Fnorm_matCL),lw=4,label=L"L",palette=:reds)
+    plot!(log10.(Gamma*time),log10.(Fnorm_matCR),lw=4,label=L"R",palette=:reds)
 
-    plot!(legend=:none)
+    # plot!(legend=:none)
     xlims!((-2.5,7))
     # ylims!((0,4))
     # plot!(size=(400,400))
