@@ -351,6 +351,34 @@ function heatcapacityeff(C0::Vector{Float64},epsilon::Vector{Float64},beta::Floa
 
 end
 
+function Evariance_Gibbs(C0::Vector{Float64},epsilon::Vector{Float64},beta::Float64,mu::Float64)
+
+    # C0 = zeros(Float64,K)
+    C0 .= 0.0
+    for kk = 1:length(C0)
+        C0[kk] = 1.0/(exp((epsilon[kk]-mu)*beta)+1.0)
+    end
+
+    varH = sum(epsilon.^2 .*(C0.*(1.0.-C0)))
+
+    return varH
+
+end
+
+function Nvariance_Gibbs(C0::Vector{Float64},epsilon::Vector{Float64},beta::Float64,mu::Float64)
+
+    # C0 = zeros(Float64,K)
+    C0 .= 0.0
+    for kk = 1:length(C0)
+        C0[kk] = 1.0/(exp((epsilon[kk]-mu)*beta)+1.0)
+    end
+
+    varN = sum(C0.*(1.0.-C0))
+
+    return varN
+
+end
+
 function compute_vNEpi(epsilon::Vector{Float64},beta::Float64,mu::Float64)
 
     # vNE[beta(t)]-vNE[beta(0)] = int dt dQdt*beta(t)
@@ -427,6 +455,22 @@ function plot_sigmas(sigma,sigma_c2,I_SE,I_B,I_L,I_R,Gamma,time)
 
     plot!(legend=:none)
     # plot!(legend=:outerright)
+    # ylims!((0,1.1))
+    # plot!(xlabel=L"log_{10}\Gamma t")
+
+end
+
+function plot_sigmas2(sigma,sigma_c2,I_SE,I_B,I_L,I_R,Gamma,time)
+
+    plot(log10.(Gamma*time[2:end]),real(log10.(sigma_c2[2:end])),label=L"\Sigma",color=:black,lw=5)
+    # plot!(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end])),label=L"I_{SB}",color=:red,lw=2)
+    # plot!(log10.(Gamma*time[2:end]),real(log10.(I_B[2:end])),label=L"I_{B}",color=:blue,lw=2)
+    # plot!(log10.(Gamma*time[2:end]),real(log10.(I_L[2:end])),label=L"I_{L}",color=:green,lw=2)
+    # plot!(log10.(Gamma*time[2:end]),real(log10.(I_R[2:end])),label=L"I_{R}",ls=:dash,color=:orange,lw=2)
+    plot!(log10.(Gamma*time[2:end]),real(log10.(sigma_c2[2:end]-(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end]))),label=L"D_{env}",color=:grey,lw=4)
+
+    plot!(legend=:none)
+    plot!(legend=:topleft)
     # ylims!((0,1.1))
     # plot!(xlabel=L"log_{10}\Gamma t")
 
@@ -719,6 +763,40 @@ function boundDrhopi(epsilon::Vector{Float64},beta::Float64,mu::Float64)
 
 end
 
+function Esquare_bath(Ct::Matrix{ComplexF64},epsilon::Vector{Float64})
+
+    N = length(epsilon)
+    Esquare = 0.0
+
+    for ii = 1:N-1
+        Esquare += epsilon[ii]^2*Ct[ii,ii]
+        for jj = ii+1:N
+            Esquare += epsilon[ii]*epsilon[jj]*(Ct[ii,ii]*Ct[jj,jj]-abs(Ct[ii,jj])^2)*2
+        end
+    end
+    Esquare += epsilon[N]^2*Ct[N,N]
+
+    return Esquare
+
+end
+
+function Nsquare_bath(Ct::Matrix{ComplexF64})
+
+    N = size(Ct)[1]
+    Nsquare = 0.0
+
+    for ii = 1:N-1
+        Nsquare += Ct[ii,ii]
+        for jj = ii+1:N
+            Nsquare += (Ct[ii,ii]*Ct[jj,jj]-abs(Ct[ii,jj])^2)*2
+        end
+    end
+    Nsquare += Ct[N,N]
+
+    return Nsquare
+
+end
+
 function calculatequantities4(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # Hamiltonian + fluctuated t
@@ -812,6 +890,16 @@ function calculatequantities4(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
     N_L = zeros(ComplexF64,Nt)
     N_R = zeros(ComplexF64,Nt)
 
+    Evariance_L = zeros(ComplexF64,Nt)
+    Evariance_R = zeros(ComplexF64,Nt)
+    EvarianceGibbs_L = zeros(Float64,Nt)
+    EvarianceGibbs_R = zeros(Float64,Nt)
+
+    Nvariance_L = zeros(ComplexF64,Nt)
+    Nvariance_R = zeros(ComplexF64,Nt)
+    NvarianceGibbs_L = zeros(Float64,Nt)
+    NvarianceGibbs_R = zeros(Float64,Nt)
+
     effparaL = zeros(Float64,Nt,2)
     effparaR = zeros(Float64,Nt,2)
 
@@ -879,6 +967,9 @@ function calculatequantities4(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
         # E_k_L[:,tt] = dCt[2:K+1].*epsilonLR[2:K+1] # single site energy
         # E_k_R[:,tt] = dCt[K+2:2*K+1].*epsilonLR[K+2:2*K+1]
 
+        Evariance_L[tt] = Esquare_bath(Ct[2:KL+1,2:KL+1],epsilonLR[2:KL+1]) - E_L[tt]^2
+        Evariance_R[tt] = Esquare_bath(Ct[KL+2:end,KL+2:end],epsilonLR[KL+2:end]) - E_R[tt]^2
+
         dCt1 .= Ct[1,1:end] # Ct[1,1:end] - C0[1,1:end]
         E_tot[tt] = E_L[tt] + E_R[tt] + real(sum(dCt1[2:end].*tLRk[2:end])*2)
 
@@ -888,6 +979,9 @@ function calculatequantities4(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
         N_R[tt] = sum(dCt[KL+2:end])
         # n_k_L[:,tt] = dCt[2:K+1] # single site occupation number
         # n_k_R[:,tt] = dCt[K+2:2*K+1]
+
+        Nvariance_L[tt] = Nsquare_bath(Ct[2:KL+1,2:KL+1]) - N_L[tt]^2
+        Nvariance_R[tt] = Nsquare_bath(Ct[KL+2:end,KL+2:end]) - N_R[tt]^2
 
         # vNE
         # total
@@ -961,6 +1055,12 @@ function calculatequantities4(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
         matCL[:,:,tt] = heatcapacityeff(CbathL,epsilonLR[2:KL+1],effparaL[tt,1],effparaL[tt,2])
         matCR[:,:,tt] = heatcapacityeff(CbathR,epsilonLR[KL+2:end],effparaR[tt,1],effparaR[tt,2])
 
+        # variance of Gibbs states
+        EvarianceGibbs_L[tt] = Evariance_Gibbs(CbathL,epsilonLR[2:KL+1],effparaL[tt,1],effparaL[tt,2])
+        EvarianceGibbs_R[tt] = Evariance_Gibbs(CbathR,epsilonLR[KL+2:end],effparaR[tt,1],effparaR[tt,2])
+        NvarianceGibbs_L[tt] = Nvariance_Gibbs(CbathL,epsilonLR[2:KL+1],effparaL[tt,1],effparaL[tt,2])
+        NvarianceGibbs_R[tt] = Nvariance_Gibbs(CbathR,epsilonLR[KL+2:end],effparaR[tt,1],effparaR[tt,2])
+        
         # relative entropy between rho_B(t) and rho_B(0)
         Drel[tt] = - betaQL[tt] - betaQR[tt] - (vNE_E[tt] - vNE_E[1])
 
@@ -995,7 +1095,7 @@ function calculatequantities4(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
 
     # return time, vNE_sys, vNE_L, vNE_R, vNE
 
-    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, boundL, boundR
+    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, boundL, boundR, Evariance_L, Evariance_R, EvarianceGibbs_L, EvarianceGibbs_R, Nvariance_L, Nvariance_R, NvarianceGibbs_L, NvarianceGibbs_R
     #E_k_L, E_k_R, n_k_L, n_k_R
     # return time, vNE_sys, effparaL, effparaR, QL, QR
     # return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
