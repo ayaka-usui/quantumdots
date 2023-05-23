@@ -763,7 +763,7 @@ function boundDrhopi(epsilon::Vector{Float64},beta::Float64,mu::Float64)
 
 end
 
-function Esquare_bath(Ct::Matrix{ComplexF64},epsilon::Vector{Float64})
+function Esquare_bath(Ct::Union{Matrix{ComplexF64},Matrix{Float64}},epsilon::Vector{Float64})
 
     N = length(epsilon)
     Esquare = 0.0
@@ -780,7 +780,7 @@ function Esquare_bath(Ct::Matrix{ComplexF64},epsilon::Vector{Float64})
 
 end
 
-function Nsquare_bath(Ct::Matrix{ComplexF64})
+function Nsquare_bath(Ct::Union{Matrix{ComplexF64},Matrix{Float64}})
 
     N = size(Ct)[1]
     Nsquare = 0.0
@@ -871,6 +871,14 @@ function calculatequantities4(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
     Igg_R = vNEgg_Rk - vNEgg_R
     println("Igg_L=",Igg_L)
     println("Igg_R=",Igg_R)
+
+    # variance
+    EvarianceGibbs_global = Esquare_bath(Cgg,epsilonLR) - E_tot0^2
+    NvarianceGibbs_global = Nsquare_bath(Cgg) - N_tot0^2
+    println("EvarianceGibbs_global=",EvarianceGibbs_global)
+    println("NvarianceGibbs_global=",NvarianceGibbs_global)
+    println("EvarianceGibbs_global/E_tot0^2=",EvarianceGibbs_global/E_tot0^2)
+    println("NvarianceGibbs_global/N_tot0^2=",NvarianceGibbs_global/N_tot0^2)
 
     # define space for input
     Ct = zeros(ComplexF64,KL+KR+1,KL+KR+1)
