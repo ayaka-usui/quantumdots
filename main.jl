@@ -962,6 +962,8 @@ function calculatequantities4(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
 
     Drel_rhoL_piL = zeros(Float64,Nt)
     Drel_rhoR_piR = zeros(Float64,Nt)
+    Drel_rhoL_piL_ratio = zeros(Float64,Nt)
+    Drel_rhoR_piR_ratio = zeros(Float64,Nt)
 
     # Threads.@threads for tt = 1:Nt
     for tt = 1:Nt
@@ -1103,6 +1105,9 @@ function calculatequantities4(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
         # relative entropy between rho_nu(t) and pi_nu(t)
         Drel_rhoL_piL[tt] = -vNE_L[tt] + (deltavNEpiL[tt] + deltavNEpiL0)
         Drel_rhoR_piR[tt] = -vNE_R[tt] + (deltavNEpiR[tt] + deltavNEpiR0)
+        # ratio with the bound
+        Drel_rhoL_piL_ratio[tt] = Drel_rhoL_piL[tt]/(deltavNEpiL[tt] + deltavNEpiL0)
+        Drel_rhoR_piR_ratio[tt] = Drel_rhoR_piR[tt]/(deltavNEpiR[tt] + deltavNEpiR0)
 
         println(tt)
 
@@ -1110,7 +1115,7 @@ function calculatequantities4(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
 
     # return time, vNE_sys, vNE_L, vNE_R, vNE
 
-    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, N_L, N_R, boundL, boundR, Evariance_L, Evariance_R, EvarianceGibbs_L, EvarianceGibbs_R, Nvariance_L, Nvariance_R, NvarianceGibbs_L, NvarianceGibbs_R, Drel_rhoL_piL, Drel_rhoR_piR
+    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, N_L, N_R, boundL, boundR, Evariance_L, Evariance_R, EvarianceGibbs_L, EvarianceGibbs_R, Nvariance_L, Nvariance_R, NvarianceGibbs_L, NvarianceGibbs_R, Drel_rhoL_piL, Drel_rhoR_piR, Drel_rhoL_piL_ratio, Drel_rhoR_piR_ratio
     #E_k_L, E_k_R, n_k_L, n_k_R
     # return time, vNE_sys, effparaL, effparaR, QL, QR
     # return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
