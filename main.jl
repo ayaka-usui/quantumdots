@@ -439,6 +439,17 @@ function plot_effchem(effparaL,effparaR,effpara0,Nt,Gamma,time)
 
 end
 
+function plot_Drelratio(Drel_rhoL_piL_ratio,Drel_rhoR_piR_ratio,Gamma,time)
+
+    plot(log10.(Gamma*time),Drel_rhoL_piL_ratio,lw=4,label=L"L",palette=:greens)
+    plot!(log10.(Gamma*time),Drel_rhoR_piR_ratio,lw=4,label=L"R",palette=:greens)
+
+    xlims!((-2.5,7))
+
+    plot!(xlabel=L"log_{10}\Gamma t")
+
+end
+
 function plot_sigmas(sigma,sigma_c2,I_SE,I_B,I_L,I_R,Gamma,time)
 
     plot(log10.(Gamma*time[2:end]),real(log10.(sigma[2:end])),label=L"\sigma",color=:grey,lw=6)
@@ -452,6 +463,27 @@ function plot_sigmas(sigma,sigma_c2,I_SE,I_B,I_L,I_R,Gamma,time)
     # plot!(log10.(Gamma*time[2:end]),real(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end]),label=L"I_{SB}+I_{B}+I_L+I_R",color=:red,lw=5)
     # plot!(log10.(Gamma*time[2:end]),real(I_SE[2:end]+I_L[2:end]+I_R[2:end]),label=L"I_{SB}+I_{B}",color=:blue,lw=5)
     # plot!(log10.(Gamma*time[2:end]),real(I_SE[2:end]),label=L"I_{SB}",color=:green,lw=5)
+
+    plot!(legend=:none)
+    # plot!(legend=:outerright)
+    # ylims!((0,1.1))
+    # plot!(xlabel=L"log_{10}\Gamma t")
+
+end
+
+function plot_sigmas_sub(I_SE,I_B,I_L,I_R,Gamma,time,Drelnuk,Drelpinuk2)
+
+    plot(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end])),label=L"I_{SB}",lw=2)
+    
+    plot!(log10.(Gamma*time[2:end]),real(log10.(I_R[2:end])),label=L"I_{R}",lw=4)
+    plot!(log10.(Gamma*time[2:end]),real(log10.(I_L[2:end])),label=L"I_{L}",lw=6)
+ 
+    plot!(log10.(Gamma*time[2:end]),real(log10.(I_B[2:end])),label=L"I_{B}",lw=8)
+
+    # plot!(log10.(Gamma*time[2:end]),real(log10.(Drelnuk[2:end])),label=L"Drelnuk",lw=10)
+    # plot!(log10.(Gamma*time[2:end]),real(log10.(Drelpinuk2[2:end])),label=L"Drelpinuk",lw=12)
+
+    xlims!((-2.5,7))
 
     plot!(legend=:none)
     # plot!(legend=:outerright)
@@ -2060,7 +2092,7 @@ function movingmean(x::Vector{Float64}, n::Int64)
 
 end
 
-function plot_sigmas(time,GammaLR,sigma,sigma_c,I_SE,I_B,I_L,I_R,Drelnuk,Drelpinuk)
+function plot_sigmas_old(time,GammaLR,sigma,sigma_c,I_SE,I_B,I_L,I_R,Drelnuk,Drelpinuk)
 
     I_SE_mvave = movingmean(real(I_SE),1001);
     I_L_mvave = movingmean(real(I_L),1001);
