@@ -484,6 +484,7 @@ function plot_sigmas_sub(I_SE,I_B,I_L,I_R,Gamma,time,Drelnuk,Drelpinuk2)
     # plot!(log10.(Gamma*time[2:end]),real(log10.(Drelpinuk2[2:end])),label=L"Drelpinuk",lw=12)
 
     xlims!((-2.5,7))
+    ylims!((-3,3.5))
 
     plot!(legend=:none)
     # plot!(legend=:outerright)
