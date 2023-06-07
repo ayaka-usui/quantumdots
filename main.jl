@@ -419,22 +419,24 @@ end
 
 function plot_efftem(effparaL,effparaR,effpara0,Nt,Gamma,time)
 
-    plot(log10.(Gamma*time),real(effparaL[:,1]),lw=4,label=L"\beta_{L,\tau}^*",palette=:reds)
+    plot(log10.(Gamma*time),real(effparaL[:,1]),lw=4,label=L"\beta_{L,\tau}^*",palette=:reds,framestyle = :box)
     plot!(log10.(Gamma*time),real(effparaR[:,1]),lw=4,label=L"\beta_{R,\tau}^*",palette=:reds)
     plot!(log10.(Gamma*time),real(effpara0[1]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\beta_{ref}^*")
 
     # ylims!((0,1.1))
+    xlims!((-2.5,7))
     plot!(xlabel=L"log_{10}\Gamma t")
 
 end
 
 function plot_effchem(effparaL,effparaR,effpara0,Nt,Gamma,time)
 
-    plot(log10.(Gamma*time),real(effparaL[:,2]),lw=4,label=L"\mu_{L,\tau}^*",palette=:blues)
+    plot(log10.(Gamma*time),real(effparaL[:,2]),lw=4,label=L"\mu_{L,\tau}^*",palette=:blues,framestyle = :box)
     plot!(log10.(Gamma*time),real(effparaR[:,2]),lw=4,label=L"\mu_{R,\tau}^*",palette=:blues)
     plot!(log10.(Gamma*time),real(effpara0[2]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\mu_{ref}^*")
 
     # ylims!((0,1.1))
+    xlims!((-2.5,7))
     plot!(xlabel=L"log_{10}\Gamma t")
 
 end
@@ -2182,6 +2184,24 @@ function plot_sigmas_old(time,GammaLR,sigma,sigma_c,I_SE,I_B,I_L,I_R,Drelnuk,Dre
 
 end
 
+function lowerbound_array_Drel(diagCnu,K)
+
+    lowerbound = 0.0
+
+    for jj = 1:K
+        mineigvalue_pi = 1.0
+        if diagCnu[jj] <= 0.5
+           mineigvalue_pi = diagCnu[jj]
+        else #diagCnu[jj] > 0.5
+            mineigvalue_pi = 1 - diagCnu[jj]
+        end
+        lowerbound += 1.0/mineigvalue_pi
+    end
+
+    return lowerbound
+
+end
+
 function averagecorrelationsregimeIII(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,muL::Float64,muR::Float64)
 
     array_Gamma = [10.0^(-2), 10.0^(-1.5), 10.0^(-1), 10.0^(-0.5), 1.0, 10.0^(0.5), 10.0, 10.0^(1.5), 10.0^2]
@@ -2194,7 +2214,7 @@ function averagecorrelationsregimeIII(K::Int64,W::Int64,t_flu::Float64,betaL::Fl
     array_I_L = zeros(Float64,length(array_Gamma))
     array_I_R = zeros(Float64,length(array_Gamma))
     array_Drelnuk = zeros(Float64,length(array_Gamma))
-    # array_Drelpinuk = zeros(Float64,length(array_Gamma))
+    array_Drelpinuk = zeros(Float64,length(array_Gamma))
 
     for jj = 1:length(array_Gamma)
 
@@ -2218,22 +2238,22 @@ function averagecorrelationsregimeIII(K::Int64,W::Int64,t_flu::Float64,betaL::Fl
         array_I_L[jj] = mean(real(I_L[tt0:tt1]))
         array_I_R[jj] = mean(real(I_R[tt0:tt1]))
         array_Drelnuk[jj] = mean(real(Drelnuk[tt0:tt1]))
-        # array_Drelpinuk[jj] = mean(real(Drelpinuk[tt0:tt1]))
+        array_Drelpinuk[jj] = mean(real(Drelpinuk[tt0:tt1]))
 
     end
 
-    return array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk #array_Drelpinuk
+    return array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk, array_Drelpinuk
 
 end
 
 function plot_averagecorrelationsregimeIII(array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk,array_Drelpinuk,K)
 
-    p1 = plot(log10.(array_Gamma),array_I_SE/2,color=:red,marker=(:circle,8),lw=3,label=L"\langle I_{SB} \rangle")
+    p1 = plot(log10.(array_Gamma),array_I_SE/(2*log(2)),color=:red,marker=(:circle,8),lw=3,label=L"\langle I_{SB} \rangle")
     ylims!((0.0,1))
-    p2 = plot(log10.(array_Gamma),array_I_B/(2*K),color=:blue,marker=(:rect,8),lw=3,label=L"\langle I_{B} \rangle")
+    p2 = plot(log10.(array_Gamma),array_I_B/(2*K*log(2)),color=:blue,marker=(:rect,8),lw=3,label=L"\langle I_{B} \rangle")
     ylims!((0.0,0.11))
-    p3 = plot(log10.(array_Gamma),array_I_L/(2*K),color=:green,marker=(:utriangle,8),lw=3,label=L"\langle I_{L} \rangle")
-    plot!(log10.(array_Gamma),array_I_R/(2*K),color=:orange,marker=(:dtriangle,8),lw=3,label=L"\langle I_{R} \rangle")
+    p3 = plot(log10.(array_Gamma),array_I_L/(2*K*log(2)),color=:green,marker=(:utriangle,8),lw=3,label=L"\langle I_{L} \rangle")
+    plot!(log10.(array_Gamma),array_I_R/(2*K*log(2)),color=:orange,marker=(:dtriangle,8),lw=3,label=L"\langle I_{R} \rangle")
     ylims!((0.0,0.02))
     p4 = plot(log10.(array_Gamma),array_Drelnuk,color=:purple,marker=(:pentagon,8),lw=3,label=L"\langle D_{env} \rangle")
     ylims!((0.0,100.0))
