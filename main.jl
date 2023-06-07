@@ -423,9 +423,10 @@ function plot_efftem(effparaL,effparaR,effpara0,Nt,Gamma,time)
     plot!(log10.(Gamma*time),real(effparaR[:,1]),lw=4,label=L"\beta_{R,\tau}^*",palette=:reds)
     plot!(log10.(Gamma*time),real(effpara0[1]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\beta_{ref}^*")
 
-    # ylims!((0,1.1))
+    # ylims!((0,1.05))
     xlims!((-2.5,7))
     plot!(xlabel=L"log_{10}\Gamma t")
+    plot!(aspect_ratio=6.0)
 
 end
 
@@ -435,9 +436,10 @@ function plot_effchem(effparaL,effparaR,effpara0,Nt,Gamma,time)
     plot!(log10.(Gamma*time),real(effparaR[:,2]),lw=4,label=L"\mu_{R,\tau}^*",palette=:blues)
     plot!(log10.(Gamma*time),real(effpara0[2]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\mu_{ref}^*")
 
-    # ylims!((0,1.1))
+    # ylims!((0,2.05))
     xlims!((-2.5,7))
     plot!(xlabel=L"log_{10}\Gamma t")
+    plot!(aspect_ratio=3.0)
 
 end
 
