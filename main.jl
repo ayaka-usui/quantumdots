@@ -445,8 +445,8 @@ end
 
 function plot_Drelratio(Drel_rhoL_piL_ratio,Drel_rhoR_piR_ratio,Gamma,time)
 
-    plot(log10.(Gamma*time),Drel_rhoL_piL_ratio,lw=4,label=L"L",palette=:greens)
-    plot!(log10.(Gamma*time),Drel_rhoR_piR_ratio,lw=4,label=L"R",palette=:greens)
+    plot(log10.(Gamma*time),Drel_rhoL_piL_ratio,lw=4,label=L"L",palette=:greens,framestyle = :box)
+    plot!(log10.(Gamma*time),Drel_rhoR_piR_ratio,lw=4,label=L"R",palette=:greens,framestyle = :box)
 
     xlims!((-2.5,7))
 
@@ -456,7 +456,7 @@ end
 
 function plot_sigmas(sigma,sigma_c2,I_SE,I_B,I_L,I_R,Gamma,time)
 
-    plot(log10.(Gamma*time[2:end]),real(log10.(sigma[2:end])),label=L"\sigma",color=:grey,lw=6)
+    plot(log10.(Gamma*time[2:end]),real(log10.(sigma[2:end])),label=L"\sigma",color=:grey,lw=6,framestyle = :box)
     plot!(log10.(Gamma*time[2:end]),real(log10.(sigma_c2[2:end])),label=L"\Sigma",color=:black,lw=5)
     plot!(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end])),label=L"I_{SB}+I_{B}+I_L+I_R",color=:red,lw=4)
     plot!(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end]+I_L[2:end]+I_R[2:end])),label=L"I_{SB}+I_{B}",color=:blue,lw=3)
@@ -472,6 +472,8 @@ function plot_sigmas(sigma,sigma_c2,I_SE,I_B,I_L,I_R,Gamma,time)
     # plot!(legend=:outerright)
     # ylims!((0,1.1))
     # plot!(xlabel=L"log_{10}\Gamma t")
+    xlims!((-2.5,7))
+    ylims!((-3,3.5))
 
 end
 
