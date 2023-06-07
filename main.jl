@@ -419,8 +419,8 @@ end
 
 function plot_efftem(effparaL,effparaR,effpara0,Nt,Gamma,time)
 
-    plot(log10.(Gamma*time),real(effparaL[:,1]),lw=4,label=L"\beta_{L,\tau}^*",palette=:reds,framestyle = :box)
-    plot!(log10.(Gamma*time),real(effparaR[:,1]),lw=4,label=L"\beta_{R,\tau}^*",palette=:reds)
+    plot(log10.(Gamma*time),real(effparaL[:,1]),lw=4,label=L"\beta_{L,t}^*",palette=:reds,framestyle = :box)
+    plot!(log10.(Gamma*time),real(effparaR[:,1]),lw=4,label=L"\beta_{R,t}^*",palette=:reds)
     plot!(log10.(Gamma*time),real(effpara0[1]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\beta_{ref}^*")
 
     # ylims!((0,1.05))
@@ -432,8 +432,8 @@ end
 
 function plot_effchem(effparaL,effparaR,effpara0,Nt,Gamma,time)
 
-    plot(log10.(Gamma*time),real(effparaL[:,2]),lw=4,label=L"\mu_{L,\tau}^*",palette=:blues,framestyle = :box)
-    plot!(log10.(Gamma*time),real(effparaR[:,2]),lw=4,label=L"\mu_{R,\tau}^*",palette=:blues)
+    plot(log10.(Gamma*time),real(effparaL[:,2]),lw=4,label=L"\mu_{L,t}^*",palette=:blues,framestyle = :box)
+    plot!(log10.(Gamma*time),real(effparaR[:,2]),lw=4,label=L"\mu_{R,t}^*",palette=:blues)
     plot!(log10.(Gamma*time),real(effpara0[2]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\mu_{ref}^*")
 
     # ylims!((0,2.05))
@@ -479,7 +479,7 @@ end
 
 function plot_sigmas_sub(I_SE,I_B,I_L,I_R,Gamma,time,Drelnuk,Drelpinuk2)
 
-    plot(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end])),label=L"I_{SB}",lw=2)
+    plot(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end])),label=L"I_{SB}",lw=2,framestyle = :box)
     
     plot!(log10.(Gamma*time[2:end]),real(log10.(I_R[2:end])),label=L"I_{R}",lw=4)
     plot!(log10.(Gamma*time[2:end]),real(log10.(I_L[2:end])),label=L"I_{L}",lw=6)
@@ -757,8 +757,8 @@ end
 
 function plot_Fnorm_matC(Fnorm_matCL,Fnorm_matCR,Gamma,time)
 
-    plot(log10.(Gamma*time),log10.(Fnorm_matCL),lw=4,label=L"L",palette=:reds)
-    plot!(log10.(Gamma*time),log10.(Fnorm_matCR),lw=4,label=L"R",palette=:reds)
+    plot(log10.(Gamma*time),log10.(Fnorm_matCL),lw=4,label=L"L",palette=:reds,framestyle = :box)
+    plot!(log10.(Gamma*time),log10.(Fnorm_matCR),lw=4,label=L"R",palette=:reds,framestyle = :box)
 
     # plot!(legend=:none)
     xlims!((-2.5,7))
@@ -2188,30 +2188,14 @@ function plot_sigmas_old(time,GammaLR,sigma,sigma_c,I_SE,I_B,I_L,I_R,Drelnuk,Dre
 
 end
 
-function lowerbound_array_Drel(diagCnu,K)
+function averagecorrelationsregimeIII(K::Int64,betaL::Float64,betaR::Float64,muL::Float64,muR::Float64)
 
-    lowerbound = 0.0
-
-    for jj = 1:K
-        mineigvalue_pi = 1.0
-        if diagCnu[jj] <= 0.5
-           mineigvalue_pi = diagCnu[jj]
-        else #diagCnu[jj] > 0.5
-            mineigvalue_pi = 1 - diagCnu[jj]
-        end
-        lowerbound += 1.0/mineigvalue_pi
-    end
-
-    return lowerbound
-
-end
-
-function averagecorrelationsregimeIII(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,betaR::Float64,muL::Float64,muR::Float64)
-
-    array_Gamma = [10.0^(-2), 10.0^(-1.5), 10.0^(-1), 10.0^(-0.5), 1.0, 10.0^(0.5), 10.0, 10.0^(1.5), 10.0^2]
+    # array_Gamma = [10.0^(-2), 10.0^(-1.5), 10.0^(-1), 10.0^(-0.5), 1.0, 10.0^(0.5), 10.0, 10.0^(1.5), 10.0^2]
+    array_Gamma = [10.0^(-1), 10.0^(-0.5), 10.0^(0), 10.0^(0), 10.0^(0.5), 10.0]
+    array_W = [4, 4, 4, 20, 20, 20]
     tt_ref0 = 10.0^4
-    tt_ref1 = 10.0^(4.5)
-    array_tt = 5*tt_ref0./array_Gamma
+    tt_ref1 = 10.0^6 #10.0^(4.5)
+    array_tt = 5*tt_ref1./array_Gamma
 
     array_I_SE = zeros(Float64,length(array_Gamma))
     array_I_B = zeros(Float64,length(array_Gamma))
@@ -2223,9 +2207,10 @@ function averagecorrelationsregimeIII(K::Int64,W::Int64,t_flu::Float64,betaL::Fl
     for jj = 1:length(array_Gamma)
 
         Gamma = array_Gamma[jj]
+        W = array_W[jj]
         tt = array_tt[jj]
 
-        time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR = calculatequantities2(K,W,t_flu,betaL,betaR,Gamma,Gamma,muL,muR,tt,501)
+        time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR = calculatequantities2(K,W,0.0,betaL,betaR,Gamma,Gamma,muL,muR,tt,11) #501
 
         tt0 = argmin(abs.(time*Gamma.-tt_ref0))
         if time[tt0] < tt_ref0
@@ -2250,7 +2235,7 @@ function averagecorrelationsregimeIII(K::Int64,W::Int64,t_flu::Float64,betaL::Fl
 
 end
 
-function plot_averagecorrelationsregimeIII(array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk,array_Drelpinuk,K)
+function plot_averagecorrelationsregimeIII(array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk,array_Drelpinuk,K,boundL,boundR)
 
     p1 = plot(log10.(array_Gamma),array_I_SE/(2*log(2)),color=:red,marker=(:circle,8),lw=3,label=L"\langle I_{SB} \rangle")
     ylims!((0.0,1))
@@ -2259,9 +2244,9 @@ function plot_averagecorrelationsregimeIII(array_Gamma, array_I_SE, array_I_B, a
     p3 = plot(log10.(array_Gamma),array_I_L/(2*K*log(2)),color=:green,marker=(:utriangle,8),lw=3,label=L"\langle I_{L} \rangle")
     plot!(log10.(array_Gamma),array_I_R/(2*K*log(2)),color=:orange,marker=(:dtriangle,8),lw=3,label=L"\langle I_{R} \rangle")
     ylims!((0.0,0.02))
-    p4 = plot(log10.(array_Gamma),array_Drelnuk,color=:purple,marker=(:pentagon,8),lw=3,label=L"\langle D_{env} \rangle")
+    p4 = plot(log10.(array_Gamma),array_Drelnuk/(boundL+boundR),color=:purple,marker=(:pentagon,8),lw=3,label=L"\langle D_{env} \rangle")
     ylims!((0.0,100.0))
-    p5 = plot(log10.(array_Gamma),array_Drelpinuk,color=:cyan,marker=(:hexagon,8),lw=3,label=L"\langle \tilde{D}_{env} \rangle")
+    p5 = plot(log10.(array_Gamma),array_Drelpinuk/(boundL+boundR),color=:cyan,marker=(:hexagon,8),lw=3,label=L"\langle \tilde{D}_{env} \rangle")
     ylims!((0.0,16.0))
 
     plot(p1,p2,p3,layout=(1,3),size=(800,300),dpi=600)
