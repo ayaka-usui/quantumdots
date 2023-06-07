@@ -2192,7 +2192,9 @@ function averagecorrelationsregimeIII(K::Int64,betaL::Float64,betaR::Float64,muL
 
     # array_Gamma = [10.0^(-2), 10.0^(-1.5), 10.0^(-1), 10.0^(-0.5), 1.0, 10.0^(0.5), 10.0, 10.0^(1.5), 10.0^2]
     array_Gamma = [10.0^(-1), 10.0^(-0.5), 10.0^(0), 10.0^(0), 10.0^(0.5), 10.0]
+    # array_Gamma = [10.0^(-1), 10.0^(-0.5), 10.0^(0)]
     array_W = [4, 4, 4, 20, 20, 20]
+    # array_W = [4, 4, 4]
     tt_ref0 = 10.0^4
     tt_ref1 = 10.0^6 #10.0^(4.5)
     array_tt = 5*tt_ref1./array_Gamma
@@ -2210,7 +2212,8 @@ function averagecorrelationsregimeIII(K::Int64,betaL::Float64,betaR::Float64,muL
         W = array_W[jj]
         tt = array_tt[jj]
 
-        time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR = calculatequantities2(K,W,0.0,betaL,betaR,Gamma,Gamma,muL,muR,tt,11) #501
+        # time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR = calculatequantities2(K,W,0.0,betaL,betaR,Gamma,Gamma,muL,muR,tt,11) #501
+        time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, N_L, N_R, boundL, boundR, Evariance_L, Evariance_R, EvarianceGibbs_L, EvarianceGibbs_R, Nvariance_L, Nvariance_R, NvarianceGibbs_L, NvarianceGibbs_R, Drel_rhoL_piL, Drel_rhoR_piR, Drel_rhoL_piL_ratio, Drel_rhoR_piR_ratio = calculatequantities4(K,K,W,betaL,betaR,Gamma,Gamma,muL,muR,tt,11) #501
 
         tt0 = argmin(abs.(time*Gamma.-tt_ref0))
         if time[tt0] < tt_ref0
@@ -2222,16 +2225,18 @@ function averagecorrelationsregimeIII(K::Int64,betaL::Float64,betaR::Float64,muL
            # tt1 = tt1 + 1
         # end
 
-        array_I_SE[jj] = mean(real(I_SE[tt0:tt1]))
-        array_I_B[jj] = mean(real(I_B[tt0:tt1]))
-        array_I_L[jj] = mean(real(I_L[tt0:tt1]))
-        array_I_R[jj] = mean(real(I_R[tt0:tt1]))
-        array_Drelnuk[jj] = mean(real(Drelnuk[tt0:tt1]))
-        array_Drelpinuk[jj] = mean(real(Drelpinuk[tt0:tt1]))
+        array_I_SE[jj] = mean(real(I_SE[tt0:tt1]))/(2*log(2))
+        array_I_B[jj] = mean(real(I_B[tt0:tt1]))/(2*K*log(2))
+        array_I_L[jj] = mean(real(I_L[tt0:tt1]))/(2*K*log(2))
+        array_I_R[jj] = mean(real(I_R[tt0:tt1]))/(2*K*log(2))
+        array_Drelnuk[jj] = mean(real(Drelnuk[tt0:tt1]))/(boundL[1]+boundR[1])
+
+        Drelpinuk_ratio = real(Drelpinuk2[tt0:tt1]) ./ (boundL[tt0:tt1]+boundR[tt0:tt1])
+        array_Drelpinuk[jj] = mean(Drelpinuk_ratio)
 
     end
 
-    return array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk, array_Drelpinuk
+    return array_Gamma, array_W, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk, array_Drelpinuk
 
 end
 
