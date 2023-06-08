@@ -2216,7 +2216,7 @@ function averagecorrelationsregimeIII(K::Int64,betaL::Float64,betaR::Float64,muL
         tt = array_tt[jj]
 
         # time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR = calculatequantities2(K,W,0.0,betaL,betaR,Gamma,Gamma,muL,muR,tt,11) #501
-        time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, N_L, N_R, boundL, boundR, Evariance_L, Evariance_R, EvarianceGibbs_L, EvarianceGibbs_R, Nvariance_L, Nvariance_R, NvarianceGibbs_L, NvarianceGibbs_R, Drel_rhoL_piL, Drel_rhoR_piR, Drel_rhoL_piL_ratio, Drel_rhoR_piR_ratio = calculatequantities4(K,K,W,betaL,betaR,Gamma,Gamma,muL,muR,tt,201) #11
+        time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, N_L, N_R, boundL, boundR, Evariance_L, Evariance_R, EvarianceGibbs_L, EvarianceGibbs_R, Nvariance_L, Nvariance_R, NvarianceGibbs_L, NvarianceGibbs_R, Drel_rhoL_piL, Drel_rhoR_piR, Drel_rhoL_piL_ratio, Drel_rhoR_piR_ratio = calculatequantities4(K,K,W,betaL,betaR,Gamma,Gamma,muL,muR,tt,6) #11
 
         tt0 = argmin(abs.(time*Gamma.-tt_ref0))
         if time[tt0] < tt_ref0
@@ -2241,7 +2241,7 @@ function averagecorrelationsregimeIII(K::Int64,betaL::Float64,betaR::Float64,muL
         sigma_c = real(I_SE + I_B + I_L + I_R + Drelpinuk2)
 
         array_sigma_d[jj] = mean(sigma_d[tt0:tt1]/(2*log(2)+2*K*log(2)+2*K*log(2)+2*K*log(2)+boundL[1]+boundR[1]))
-        array_sigma_c[jj] = mean(sigma_c[tt0:tt1] ./ (2*log(2)+2*K*log(2)+2*K*log(2)+2*K*log(2)+boundL[tt0:tt1]+boundR[tt0:tt1]))
+        array_sigma_c[jj] = mean(sigma_c[tt0:tt1] ./ (2*log(2) .+ 2*K*log(2) .+ 2*K*log(2) .+ 2*K*log(2) .+ boundL[tt0:tt1] .+ boundR[tt0:tt1]))
 
     end
 
