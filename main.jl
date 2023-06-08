@@ -2251,11 +2251,17 @@ end
 
 function plot_averagecorrelationsregimeIII(array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk, array_Drelpinuk)
 
-    plot(log10.(array_Gamma[1:3]),log10.(array_I_SE[1:3]),color=:red,marker=(:circle,8),lw=3,label=L"\langle I_{SB} \rangle",framestyle = :box)
-    plot!(log10.(array_Gamma[4:6]),log10.(array_I_SE[4:6]),color=:blue,marker=(:circle,8),lw=3,label=L"\langle I_{SB} \rangle")
+    plot(log10.(array_Gamma[1:3]),log10.(array_sigma_c[1:3]),color=:red,marker=(:circle,8),lw=3,label=L"\langle \sigma_c \rangle",framestyle = :box)
+    plot!(log10.(array_Gamma[4:6]),log10.(array_sigma_c[4:6]),color=:blue,marker=(:circle,8),lw=3,label=L"\langle \sigma_c \rangle")
 
-    plot!(log10.(array_Gamma[1:3]),log10.(array_I_B[1:3]),color=:red,marker=(:utriangle,8),lw=3,label=L"\langle I_{B} \rangle")
-    plot!(log10.(array_Gamma[4:6]),log10.(array_I_B[4:6]),color=:blue,marker=(:utriangle,8),lw=3,label=L"\langle I_{B} \rangle")
+    plot!(log10.(array_Gamma[1:3]),log10.(array_sigma_d[1:3]),color=:red,marker=(:star4,8),lw=3,label=L"\langle \sigma_d \rangle")
+    plot!(log10.(array_Gamma[4:6]),log10.(array_sigma_d[4:6]),color=:blue,marker=(:star4,8),lw=3,label=L"\langle \sigma_d \rangle")
+
+    plot!(log10.(array_Gamma[1:3]),log10.(array_I_SE[1:3]),color=:red,marker=(:utriangle,8),lw=3,label=L"\langle I_{SB} \rangle")
+    plot!(log10.(array_Gamma[4:6]),log10.(array_I_SE[4:6]),color=:blue,marker=(:utriangle,8),lw=3,label=L"\langle I_{SB} \rangle")
+
+    plot!(log10.(array_Gamma[1:3]),log10.(array_I_B[1:3]),color=:red,marker=(:dtriangle,8),lw=3,label=L"\langle I_{B} \rangle")
+    plot!(log10.(array_Gamma[4:6]),log10.(array_I_B[4:6]),color=:blue,marker=(:dtriangle,8),lw=3,label=L"\langle I_{B} \rangle")
 
     plot!(log10.(array_Gamma[1:3]),log10.(array_I_L[1:3]),color=:red,marker=(:ltriangle,14),lw=3,label=L"\langle I_{L} \rangle")
     plot!(log10.(array_Gamma[4:6]),log10.(array_I_L[4:6]),color=:blue,marker=(:ltriangle,14),lw=3,label=L"\langle I_{L} \rangle")
