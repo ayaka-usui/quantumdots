@@ -291,7 +291,7 @@ function createH_fluctuatedt!(K::Int64,W::Int64,t_flu::Float64,betaL::Float64,be
 
 end
 
-function createH_differentKLKR!(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,matH::SparseMatrixCSC{Float64})
+function createH_differentKLKR!(epsilond::Float64,KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,matH::SparseMatrixCSC{Float64})
 
     # matH = sparse(Float64,K*2+1,K*2+1)
     matH .= 0.0
@@ -300,7 +300,7 @@ function createH_differentKLKR!(KL::Int64,KR::Int64,W::Int64,betaL::Float64,beta
     tunnelL = sqrt(GammaL*DepsilonL/(2*pi)) #GammaL
     tunnelR = sqrt(GammaR*DepsilonR/(2*pi)) #GammaR
 
-    matH[1,1] = 0.0 # epsilon for the system
+    matH[1,1] = epsilond # epsilon for the system
 
     for kk = 1:KL
         matH[1+kk,1+kk] = (kk-1)*DepsilonL - W/2 # epsilon for the bath L
@@ -419,14 +419,14 @@ end
 
 function plot_efftem(effparaL,effparaR,effpara0,Nt,Gamma,time)
 
-    plot(log10.(Gamma*time),real(effparaL[:,1]),lw=4,label=L"\beta_{L,t}^*",palette=:reds,framestyle = :box)
-    plot!(log10.(Gamma*time),real(effparaR[:,1]),lw=4,label=L"\beta_{R,t}^*",palette=:reds)
+    plot(log10.(Gamma*time),real(effparaL[:,1]),lw=4,label=L"\beta_{L,t}^*",palette=:reds,marker=(:circle,8),framestyle = :box)
+    plot!(log10.(Gamma*time),real(effparaR[:,1]),lw=4,label=L"\beta_{R,t}^*",palette=:reds,marker=(:circle,8))
     plot!(log10.(Gamma*time),real(effpara0[1]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\beta_{ref}^*")
 
     # ylims!((0,1.05))
-    xlims!((-2.5,7))
+    # xlims!((-2.5,7))
     plot!(xlabel=L"log_{10}\Gamma t")
-    plot!(aspect_ratio=6.0)
+    # plot!(aspect_ratio=6.0)
 
 end
 
@@ -836,11 +836,35 @@ function Nsquare_bath(Ct::Union{Matrix{ComplexF64},Matrix{Float64}})
 
 end
 
-function calculatequantities4(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
+function compute_pi(K::Int64,W::Int64,betaL::Float64,muL::Float64,betaR::Float64,muR::Float64)
+
+    # correlation matrix
+    epsilon = zeros(Float64,K)
+    Depsilon = W/(K-1)
+    for kk = 1:K
+        epsilon[kk] = (kk-1)*Depsilon - W/2
+    end
+
+    CL = zeros(Float64,K)
+    CR = zeros(Float64,K)
+    for kk = 1:K
+        CL[kk] = 1.0/(exp((epsilon[kk]-muL)*betaL)+1.0)
+        CR[kk] = 1.0/(exp((epsilon[kk]-muR)*betaR)+1.0)
+    end
+
+    plot(epsilon,CL,marker=(:circle,8))
+    plot!(epsilon,CR,marker=(:circle,8))
+    ylims!((-0.1,1.1))
+    plot!(legend=:none)
+    plot!(xlabel=L"\epsilon")
+
+end
+
+function calculatequantities4(epsilond::Float64,KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # Hamiltonian + fluctuated t
     matH = spzeros(Float64,KL+KR+1,KL+KR+1)
-    createH_differentKLKR!(KL,KR,W,betaL,betaR,GammaL,GammaR,matH)
+    createH_differentKLKR!(epsilond,KL,KR,W,betaL,betaR,GammaL,GammaR,matH)
     epsilonLR = diag(Array(matH))
     tLRk = matH[1,1:end]
 
@@ -993,16 +1017,16 @@ function calculatequantities4(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
     sigma_c2 = zeros(ComplexF64,Nt)
     Drelpinuk2 = zeros(ComplexF64,Nt)
 
-    boundL = zeros(Float64,Nt)
-    boundR = zeros(Float64,Nt)
+    # boundL = zeros(Float64,Nt)
+    # boundR = zeros(Float64,Nt)
 
     deltavNEpiL0 = compute_vNEpi(epsilonLR[2:KL+1],betaL,muL)
     deltavNEpiR0 = compute_vNEpi(epsilonLR[KL+2:end],betaR,muR)
 
     Drel_rhoL_piL = zeros(Float64,Nt)
     Drel_rhoR_piR = zeros(Float64,Nt)
-    Drel_rhoL_piL_ratio = zeros(Float64,Nt)
-    Drel_rhoR_piR_ratio = zeros(Float64,Nt)
+    # Drel_rhoL_piL_ratio = zeros(Float64,Nt)
+    # Drel_rhoR_piR_ratio = zeros(Float64,Nt)
 
     # Threads.@threads for tt = 1:Nt
     for tt = 1:Nt
@@ -1138,15 +1162,15 @@ function calculatequantities4(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
         # DrelrhopiL[tt] =  (deltavNEpiL[tt] + deltavNEpiL0) - vNE_L[tt] - I_B[tt]
         # DrelrhopiR[tt] =  Drelnuk[tt] - (sigma[tt] - sigma_c2[tt])
 
-        boundL[tt] = boundDrhopi(epsilonLR[2:KL+1],effparaL[tt,1],effparaL[tt,2])
-        boundR[tt] = boundDrhopi(epsilonLR[KL+2:end],effparaR[tt,1],effparaR[tt,2])
+        # boundL[tt] = boundDrhopi(epsilonLR[2:KL+1],effparaL[tt,1],effparaL[tt,2])
+        # boundR[tt] = boundDrhopi(epsilonLR[KL+2:end],effparaR[tt,1],effparaR[tt,2])
 
         # relative entropy between rho_nu(t) and pi_nu(t)
         Drel_rhoL_piL[tt] = -vNE_L[tt] + (deltavNEpiL[tt] + deltavNEpiL0)
         Drel_rhoR_piR[tt] = -vNE_R[tt] + (deltavNEpiR[tt] + deltavNEpiR0)
         # ratio with the bound
-        Drel_rhoL_piL_ratio[tt] = Drel_rhoL_piL[tt]/(deltavNEpiL[tt] + deltavNEpiL0)
-        Drel_rhoR_piR_ratio[tt] = Drel_rhoR_piR[tt]/(deltavNEpiR[tt] + deltavNEpiR0)
+        # Drel_rhoL_piL_ratio[tt] = Drel_rhoL_piL[tt]/(deltavNEpiL[tt] + deltavNEpiL0)
+        # Drel_rhoR_piR_ratio[tt] = Drel_rhoR_piR[tt]/(deltavNEpiR[tt] + deltavNEpiR0)
 
         println(tt)
 
@@ -1154,7 +1178,7 @@ function calculatequantities4(KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR:
 
     # return time, vNE_sys, vNE_L, vNE_R, vNE
 
-    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, N_L, N_R, boundL, boundR, Evariance_L, Evariance_R, EvarianceGibbs_L, EvarianceGibbs_R, Nvariance_L, Nvariance_R, NvarianceGibbs_L, NvarianceGibbs_R, Drel_rhoL_piL, Drel_rhoR_piR, Drel_rhoL_piL_ratio, Drel_rhoR_piR_ratio
+    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, N_L, N_R, Evariance_L, Evariance_R, EvarianceGibbs_L, EvarianceGibbs_R, Nvariance_L, Nvariance_R, NvarianceGibbs_L, NvarianceGibbs_R, Drel_rhoL_piL, Drel_rhoR_piR
     #E_k_L, E_k_R, n_k_L, n_k_R
     # return time, vNE_sys, effparaL, effparaR, QL, QR
     # return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
