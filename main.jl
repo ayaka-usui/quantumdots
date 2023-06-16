@@ -860,6 +860,13 @@ function compute_pi(K::Int64,W::Int64,betaL::Float64,muL::Float64,betaR::Float64
 
 end
 
+function compute_nnuk(KL,KR,Ct)
+
+    plot(real.(diag(Ct[2:1+KL,2:1+KL])),marker=(:circle,8))
+    plot!(real.(diag(Ct[2+KL:end,2+KL:end])),marker=(:circle,8))
+
+end
+
 function calculatequantities4(epsilond::Float64,KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # Hamiltonian + fluctuated t
@@ -1178,7 +1185,7 @@ function calculatequantities4(epsilond::Float64,KL::Int64,KR::Int64,W::Int64,bet
 
     # return time, vNE_sys, vNE_L, vNE_R, vNE
 
-    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, N_L, N_R, Evariance_L, Evariance_R, EvarianceGibbs_L, EvarianceGibbs_R, Nvariance_L, Nvariance_R, NvarianceGibbs_L, NvarianceGibbs_R, Drel_rhoL_piL, Drel_rhoR_piR
+    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, N_L, N_R, Evariance_L, Evariance_R, EvarianceGibbs_L, EvarianceGibbs_R, Nvariance_L, Nvariance_R, NvarianceGibbs_L, NvarianceGibbs_R, Drel_rhoL_piL, Drel_rhoR_piR, Ct
     #E_k_L, E_k_R, n_k_L, n_k_R
     # return time, vNE_sys, effparaL, effparaR, QL, QR
     # return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
