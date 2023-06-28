@@ -860,10 +860,20 @@ function compute_pi(K::Int64,W::Int64,betaL::Float64,muL::Float64,betaR::Float64
 
 end
 
-function compute_nnuk(KL,KR,Ct)
+function compute_nnuk(KL,KR,W,Ct)
 
-    plot(real.(diag(Ct[2:1+KL,2:1+KL])),marker=(:circle,8))
-    plot!(real.(diag(Ct[2+KL:end,2+KL:end])),marker=(:circle,8))
+    epsilonL = zeros(Float64,KL)
+    epsilonR = zeros(Float64,KR)
+    for kk = 1:KL
+        epsilonL[kk] = (kk-1)*W/(KL-1) - W/2
+    end
+    for kk = 1:KR
+        epsilonR[kk] = (kk-1)*W/(KR-1) - W/2
+    end
+
+    plot(epsilonL,real.(diag(Ct[2:1+KL,2:1+KL])),marker=(:circle,8))
+    plot!(epsilonR,real.(diag(Ct[2+KL:end,2+KL:end])),marker=(:circle,8))
+    plot!(legend=:none)
 
 end
 
