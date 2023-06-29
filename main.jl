@@ -437,7 +437,7 @@ function plot_effchem(effparaL,effparaR,effpara0,Nt,Gamma,time)
     plot!(log10.(Gamma*time),real(effpara0[2]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\mu_{ref}^*")
 
     # ylims!((0,2.05))
-    xlims!((-2.5,7))
+    # xlims!((-2.5,7))
     plot!(xlabel=L"log_{10}\Gamma t")
     plot!(aspect_ratio=3.0)
 
@@ -1042,8 +1042,8 @@ function calculatequantities4(epsilond::Float64,KL::Int64,KR::Int64,W::Int64,bet
 
     Drel_rhoL_piL = zeros(Float64,Nt)
     Drel_rhoR_piR = zeros(Float64,Nt)
-    # Drel_rhoL_piL_ratio = zeros(Float64,Nt)
-    # Drel_rhoR_piR_ratio = zeros(Float64,Nt)
+    Drel_rhoL_piL_ratio = zeros(Float64,Nt)
+    Drel_rhoR_piR_ratio = zeros(Float64,Nt)
 
     # Threads.@threads for tt = 1:Nt
     for tt = 1:Nt
@@ -1186,8 +1186,8 @@ function calculatequantities4(epsilond::Float64,KL::Int64,KR::Int64,W::Int64,bet
         Drel_rhoL_piL[tt] = -vNE_L[tt] + (deltavNEpiL[tt] + deltavNEpiL0)
         Drel_rhoR_piR[tt] = -vNE_R[tt] + (deltavNEpiR[tt] + deltavNEpiR0)
         # ratio with the bound
-        # Drel_rhoL_piL_ratio[tt] = Drel_rhoL_piL[tt]/(deltavNEpiL[tt] + deltavNEpiL0)
-        # Drel_rhoR_piR_ratio[tt] = Drel_rhoR_piR[tt]/(deltavNEpiR[tt] + deltavNEpiR0)
+        Drel_rhoL_piL_ratio[tt] = Drel_rhoL_piL[tt]/(deltavNEpiL[tt] + deltavNEpiL0)
+        Drel_rhoR_piR_ratio[tt] = Drel_rhoR_piR[tt]/(deltavNEpiR[tt] + deltavNEpiR0)
 
         println(tt)
 
@@ -1195,7 +1195,7 @@ function calculatequantities4(epsilond::Float64,KL::Int64,KR::Int64,W::Int64,bet
 
     # return time, vNE_sys, vNE_L, vNE_R, vNE
 
-    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, N_L, N_R, Evariance_L, Evariance_R, EvarianceGibbs_L, EvarianceGibbs_R, Nvariance_L, Nvariance_R, NvarianceGibbs_L, NvarianceGibbs_R, Drel_rhoL_piL, Drel_rhoR_piR, Ct
+    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, N_L, N_R, Evariance_L, Evariance_R, EvarianceGibbs_L, EvarianceGibbs_R, Nvariance_L, Nvariance_R, NvarianceGibbs_L, NvarianceGibbs_R, Drel_rhoL_piL, Drel_rhoR_piR, Drel_rhoL_piL_ratio, Drel_rhoR_piR_ratio, Ct
     #E_k_L, E_k_R, n_k_L, n_k_R
     # return time, vNE_sys, effparaL, effparaR, QL, QR
     # return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
@@ -2232,13 +2232,16 @@ end
 function averagecorrelationsregimeIII(K::Int64,betaL::Float64,betaR::Float64,muL::Float64,muR::Float64)
 
     # array_Gamma = [10.0^(-2), 10.0^(-1.5), 10.0^(-1), 10.0^(-0.5), 1.0, 10.0^(0.5), 10.0, 10.0^(1.5), 10.0^2]
-    array_Gamma = [10.0^(-1), 10.0^(-0.5), 10.0^(0), 10.0^(0), 10.0^(0.5), 10.0]
-    # array_Gamma = [10.0^(-1), 10.0^(-0.5), 10.0^(0)]
-    array_W = [4, 4, 4, 20, 20, 20]
+    # array_Gamma = [10.0^(-1), 10.0^(-0.5), 10.0^(0), 10.0^(0), 10.0^(0.5), 10.0]
+    array_Gamma = [10.0^(0), 10.0^(0.5), 10.0^(1), 10.0^(1.5), 10.0^(2)]
+
+    W = 5
+    # array_W = [4, 4, 4, 20, 20, 20]
     # array_W = [4, 4, 4]
-    tt_ref0 = 10.0^4
-    tt_ref1 = 10.0^6 #10.0^(4.5)
-    array_tt = 5*tt_ref1./array_Gamma
+
+    tt_ref0 = 10.0^5 #10.0^4
+    tt_ref1 = 10.0^8 
+    array_tt = tt_ref1./array_Gamma
 
     array_I_SE = zeros(Float64,length(array_Gamma))
     array_I_B = zeros(Float64,length(array_Gamma))
@@ -2253,11 +2256,11 @@ function averagecorrelationsregimeIII(K::Int64,betaL::Float64,betaR::Float64,muL
     for jj = 1:length(array_Gamma)
 
         Gamma = array_Gamma[jj]
-        W = array_W[jj]
+        # W = array_W[jj]
         tt = array_tt[jj]
 
         # time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR = calculatequantities2(K,W,0.0,betaL,betaR,Gamma,Gamma,muL,muR,tt,11) #501
-        time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, N_L, N_R, boundL, boundR, Evariance_L, Evariance_R, EvarianceGibbs_L, EvarianceGibbs_R, Nvariance_L, Nvariance_R, NvarianceGibbs_L, NvarianceGibbs_R, Drel_rhoL_piL, Drel_rhoR_piR, Drel_rhoL_piL_ratio, Drel_rhoR_piR_ratio = calculatequantities4(K,K,W,betaL,betaR,Gamma,Gamma,muL,muR,tt,201) #11
+        time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, N_L, N_R, Evariance_L, Evariance_R, EvarianceGibbs_L, EvarianceGibbs_R, Nvariance_L, Nvariance_R, NvarianceGibbs_L, NvarianceGibbs_R, Drel_rhoL_piL, Drel_rhoR_piR, Drel_rhoL_piL_ratio, Drel_rhoR_piR_ratio, Ct = calculatequantities4(0.0,K,K,W,betaL,betaR,Gamma,Gamma,muL,muR,tt,201) #11
 
         tt0 = argmin(abs.(time*Gamma.-tt_ref0))
         if time[tt0] < tt_ref0
