@@ -419,16 +419,16 @@ end
 
 function plot_efftem(effparaL,effparaR,effpara0,Nt,time)
 
-    plot(log10.(time),real(effparaL[:,1]),lw=4,label=L"\beta_{L,t}^*",palette=:reds,markershapes=:rect,framestyle = :box)
-    plot!(log10.(time),real(effparaR[:,1]),lw=4,label=L"\beta_{R,t}^*",ls=:dash,palette=:reds,markershapes=:rect)
+    plot(log10.(time),real(effparaL[:,1]),lw=4,label=L"\beta_{L,t}^*",palette=:reds,framestyle = :box)
+    plot!(log10.(time),real(effparaR[:,1]),lw=4,label=L"\beta_{R,t}^*",palette=:reds)
     plot!(log10.(time),real(effpara0[1]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\beta_{ref}^*")
 
-    # plot!([-1.5,-1.5000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime I")
-    # plot!([5,5.0000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime II")
+    plot!([-1,-1.000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime I")
+    plot!([5,5.0000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime II")
 
-    # ylims!((0,11))
+    ylims!((0,11))
     # xlims!((-2.5,7))
-    plot!(xlabel=L"log_{10} t")
+    # plot!(xlabel=L"log_{10} t")
     # plot!(aspect_ratio=6.0)
     plot!(legend=:none)
 
@@ -436,16 +436,16 @@ end
 
 function plot_effchem(effparaL,effparaR,effpara0,Nt,time)
 
-    plot(log10.(time),real(effparaL[:,2]),lw=4,label=L"\mu_{L,t}^*",palette=:blues,markershapes=:rect,framestyle = :box)
-    plot!(log10.(time),real(effparaR[:,2]),lw=4,label=L"\mu_{R,t}^*",ls=:dash,palette=:blues,markershapes=:rect)
+    plot(log10.(time),real(effparaL[:,2]),lw=4,label=L"\mu_{L,t}^*",palette=:blues,framestyle = :box)
+    plot!(log10.(time),real(effparaR[:,2]),lw=4,label=L"\mu_{R,t}^*",palette=:blues)
     plot!(log10.(time),real(effpara0[2]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\mu_{ref}^*")
 
-    # plot!([-1.5,-1.5000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime I")
-    # plot!([5,5.0000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime II")
+    plot!([-1,-1.000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime I")
+    plot!([5,5.0000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime II")
 
-    # ylims!((-0.21,0.21))
+    ylims!((-1.1,1.1))
     # xlims!((-2.5,7))
-    plot!(xlabel=L"log_{10} t")
+    # plot!(xlabel=L"log_{10} t")
     # plot!(aspect_ratio=3.0)
     plot!(legend=:none)
 
@@ -456,11 +456,11 @@ function plot_Drelratio(Drel_rhoL_piL_ratio,Drel_rhoR_piR_ratio,time)
     plot(log10.(time),Drel_rhoL_piL_ratio,lw=4,label=L"L",palette=:greens,framestyle = :box)
     plot!(log10.(time),Drel_rhoR_piR_ratio,lw=4,label=L"R",palette=:greens,framestyle = :box)
 
-    plot!([-1.5,-1.5000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime I")
+    plot!([-1,-1.000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime I")
     plot!([5,5.0000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime II")
 
     # xlims!((-2.5,7))
-    ylims!((-0.01,0.21))
+    ylims!((-0.1,1.1))
 
     # plot!(xlabel=L"log_{10} t")
 
@@ -886,11 +886,14 @@ function compute_pi(K::Int64,W::Int64,betaL::Float64,muL::Float64,betaR::Float64
     # println("vNER=",vNEfrommatC(CR))
     # println("vNEL-vNER=",vNEfrommatC(CL)-vNEfrommatC(CR))
 
-    plot(epsilon,CL,marker=(:circle,8))
-    plot!(epsilon,CR,marker=(:circle,8))
+    # plot(epsilon,CL,marker=(:circle,8),framestyle = :box)
+    # plot!(epsilon,CR,marker=(:circle,8))
+
+    plot(epsilon,CL,lw=8,color=:black,label=L"L",framestyle = :box)
+    plot!(epsilon,CR,lw=8,color=:gray,label=L"R")
     ylims!((-0.1,1.1))
-    plot!(legend=:none)
-    plot!(xlabel=L"\epsilon")
+    # plot!(legend=:none)
+    # plot!(xlabel=L"\epsilon_k")
 
 end
 
@@ -1106,6 +1109,11 @@ function calculatequantities4(epsilond::Float64,KL::Int64,KR::Int64,W::Int64,bet
 
     deltavNEpiL0 = compute_vNEpi(epsilonLR[2:KL+1],betaL,muL)
     deltavNEpiR0 = compute_vNEpi(epsilonLR[KL+2:end],betaR,muR)
+
+    # println("test=",deltavNEpiL0)
+    # println("test=",deltavNEpiR0)
+    # println("D_L_global_ratio=",vNEgg_L/deltavNEpiL0+1)
+    # println("D_R_global_ratio=",vNEgg_R/deltavNEpiR0+1)
 
     Drel_rhoL_piL = zeros(Float64,Nt)
     Drel_rhoR_piR = zeros(Float64,Nt)
