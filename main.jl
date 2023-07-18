@@ -417,50 +417,62 @@ function distribute_timepoint(Nt::Int64,ti::Float64,tf::Float64)
 
 end
 
-function plot_efftem(effparaL,effparaR,effpara0,Nt,Gamma,time)
+function plot_efftem(effparaL,effparaR,effpara0,Nt,time)
 
-    plot(log10.(Gamma*time),real(effparaL[:,1]),lw=4,label=L"\beta_{L,t}^*",palette=:reds,marker=(:circle,8),framestyle = :box)
-    plot!(log10.(Gamma*time),real(effparaR[:,1]),lw=4,label=L"\beta_{R,t}^*",palette=:reds,marker=(:circle,8))
-    plot!(log10.(Gamma*time),real(effpara0[1]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\beta_{ref}^*")
+    plot(log10.(time),real(effparaL[:,1]),lw=4,label=L"\beta_{L,t}^*",palette=:reds,markershapes=:rect,framestyle = :box)
+    plot!(log10.(time),real(effparaR[:,1]),lw=4,label=L"\beta_{R,t}^*",ls=:dash,palette=:reds,markershapes=:rect)
+    plot!(log10.(time),real(effpara0[1]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\beta_{ref}^*")
 
-    # ylims!((0,1.05))
+    # plot!([-1.5,-1.5000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime I")
+    # plot!([5,5.0000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime II")
+
+    # ylims!((0,11))
     # xlims!((-2.5,7))
-    plot!(xlabel=L"log_{10}\Gamma t")
+    plot!(xlabel=L"log_{10} t")
     # plot!(aspect_ratio=6.0)
+    plot!(legend=:none)
 
 end
 
-function plot_effchem(effparaL,effparaR,effpara0,Nt,Gamma,time)
+function plot_effchem(effparaL,effparaR,effpara0,Nt,time)
 
-    plot(log10.(Gamma*time),real(effparaL[:,2]),lw=4,label=L"\mu_{L,t}^*",palette=:blues,framestyle = :box)
-    plot!(log10.(Gamma*time),real(effparaR[:,2]),lw=4,label=L"\mu_{R,t}^*",palette=:blues)
-    plot!(log10.(Gamma*time),real(effpara0[2]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\mu_{ref}^*")
+    plot(log10.(time),real(effparaL[:,2]),lw=4,label=L"\mu_{L,t}^*",palette=:blues,markershapes=:rect,framestyle = :box)
+    plot!(log10.(time),real(effparaR[:,2]),lw=4,label=L"\mu_{R,t}^*",ls=:dash,palette=:blues,markershapes=:rect)
+    plot!(log10.(time),real(effpara0[2]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\mu_{ref}^*")
 
-    # ylims!((0,2.05))
+    # plot!([-1.5,-1.5000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime I")
+    # plot!([5,5.0000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime II")
+
+    # ylims!((-0.21,0.21))
     # xlims!((-2.5,7))
-    plot!(xlabel=L"log_{10}\Gamma t")
-    plot!(aspect_ratio=3.0)
+    plot!(xlabel=L"log_{10} t")
+    # plot!(aspect_ratio=3.0)
+    plot!(legend=:none)
 
 end
 
-function plot_Drelratio(Drel_rhoL_piL_ratio,Drel_rhoR_piR_ratio,Gamma,time)
+function plot_Drelratio(Drel_rhoL_piL_ratio,Drel_rhoR_piR_ratio,time)
 
-    plot(log10.(Gamma*time),Drel_rhoL_piL_ratio,lw=4,label=L"L",palette=:greens,framestyle = :box)
-    plot!(log10.(Gamma*time),Drel_rhoR_piR_ratio,lw=4,label=L"R",palette=:greens,framestyle = :box)
+    plot(log10.(time),Drel_rhoL_piL_ratio,lw=4,label=L"L",palette=:greens,framestyle = :box)
+    plot!(log10.(time),Drel_rhoR_piR_ratio,lw=4,label=L"R",palette=:greens,framestyle = :box)
 
-    xlims!((-2.5,7))
+    plot!([-1.5,-1.5000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime I")
+    plot!([5,5.0000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime II")
 
-    plot!(xlabel=L"log_{10}\Gamma t")
+    # xlims!((-2.5,7))
+    ylims!((-0.01,0.21))
+
+    # plot!(xlabel=L"log_{10} t")
 
 end
 
-function plot_sigmas(sigma,sigma_c2,I_SE,I_B,I_L,I_R,Gamma,time)
+function plot_sigmas(sigma,sigma_c2,I_SE,I_B,I_L,I_R,time)
 
-    plot(log10.(Gamma*time[2:end]),real(log10.(sigma[2:end])),label=L"\sigma",color=:grey,lw=6,framestyle = :box)
-    plot!(log10.(Gamma*time[2:end]),real(log10.(sigma_c2[2:end])),label=L"\Sigma",color=:black,lw=5)
-    plot!(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end])),label=L"I_{SB}+I_{B}+I_L+I_R",color=:red,lw=4)
-    plot!(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end]+I_L[2:end]+I_R[2:end])),label=L"I_{SB}+I_{B}",color=:blue,lw=3)
-    plot!(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end])),label=L"I_{SB}",color=:green,lw=2)
+    plot(log10.(time[2:end]),real(log10.(sigma[2:end])),label=L"\sigma",color=:grey,lw=6,framestyle = :box)
+    plot!(log10.(time[2:end]),real(log10.(sigma_c2[2:end])),label=L"\Sigma",color=:black,lw=5)
+    plot!(log10.(time[2:end]),real(log10.(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end])),label=L"I_{SB}+I_{B}+I_L+I_R",color=:red,lw=4)
+    plot!(log10.(time[2:end]),real(log10.(I_SE[2:end]+I_L[2:end]+I_R[2:end])),label=L"I_{SB}+I_{B}",color=:blue,lw=3)
+    plot!(log10.(time[2:end]),real(log10.(I_SE[2:end])),label=L"I_{SB}",color=:green,lw=2)
 
     # plot(log10.(Gamma*time[2:end]),real(sigma[2:end]),label=L"\sigma",color=:grey,lw=5)
     # plot!(log10.(Gamma*time[2:end]),real(sigma_c2[2:end]),label=L"\Sigma",color=:black,lw=5)
@@ -468,29 +480,35 @@ function plot_sigmas(sigma,sigma_c2,I_SE,I_B,I_L,I_R,Gamma,time)
     # plot!(log10.(Gamma*time[2:end]),real(I_SE[2:end]+I_L[2:end]+I_R[2:end]),label=L"I_{SB}+I_{B}",color=:blue,lw=5)
     # plot!(log10.(Gamma*time[2:end]),real(I_SE[2:end]),label=L"I_{SB}",color=:green,lw=5)
 
+    plot!([-1.5,-1.5000001],[-100,100],lw=2,color=:black,ls=:dot,label=L"regime I")
+    plot!([5,5.0000001],[-100,100],lw=2,color=:black,ls=:dot,label=L"regime II")
+
     plot!(legend=:none)
     # plot!(legend=:outerright)
     # ylims!((0,1.1))
     # plot!(xlabel=L"log_{10}\Gamma t")
-    xlims!((-2.5,7))
-    ylims!((-3,3.5))
+    # xlims!((-2.5,7))
+    ylims!((-1,2.4))
 
 end
 
-function plot_sigmas_sub(I_SE,I_B,I_L,I_R,Gamma,time,Drelnuk,Drelpinuk2)
+function plot_sigmas_sub(I_SE,I_B,I_L,I_R,time,Drelnuk,Drelpinuk2)
 
-    plot(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end])),label=L"I_{SB}",lw=2,framestyle = :box)
+    plot(log10.(time[2:end]),log10.(real(I_SE[2:end])),label=L"I_{SB}",lw=2,framestyle = :box)
     
-    plot!(log10.(Gamma*time[2:end]),real(log10.(I_R[2:end])),label=L"I_{R}",lw=4)
-    plot!(log10.(Gamma*time[2:end]),real(log10.(I_L[2:end])),label=L"I_{L}",lw=6)
+    plot!(log10.(time[2:end]),log10.(real(I_R[2:end])),label=L"I_{R}",lw=4)
+    plot!(log10.(time[2:end]),log10.(real(I_L[2:end])),label=L"I_{L}",lw=6)
  
-    plot!(log10.(Gamma*time[2:end]),real(log10.(I_B[2:end])),label=L"I_{B}",lw=8)
+    plot!(log10.(time[6:end]),log10.(real(I_B[6:end])),label=L"I_{B}",lw=8)
 
     # plot!(log10.(Gamma*time[2:end]),real(log10.(Drelnuk[2:end])),label=L"Drelnuk",lw=10)
     # plot!(log10.(Gamma*time[2:end]),real(log10.(Drelpinuk2[2:end])),label=L"Drelpinuk",lw=12)
 
-    xlims!((-2.5,7))
-    ylims!((-3,3.5))
+    plot!([-1.5,-1.5000001],[-100,100],lw=2,color=:black,ls=:dot,label=L"regime I")
+    plot!([5,5.0000001],[-100,100],lw=2,color=:black,ls=:dot,label=L"regime II")
+
+    # xlims!((-2.5,7))
+    ylims!((-1,2.4))
 
     plot!(legend=:none)
     # plot!(legend=:outerright)
@@ -852,6 +870,22 @@ function compute_pi(K::Int64,W::Int64,betaL::Float64,muL::Float64,betaR::Float64
         CR[kk] = 1.0/(exp((epsilon[kk]-muR)*betaR)+1.0)
     end
 
+    println("X=",sum(abs.(CL-CR))/K)
+
+    # println("ratioE=",sum((CL-CR).*epsilon)/sum((CL+CR).*epsilon))
+    println("ratioN=",sum((CL-CR))/sum((CL+CR)))
+
+    println("E_L=",sum(CL.*epsilon))
+    println("N_L=",sum(CL))
+    println("E_R=",sum(CR.*epsilon))
+    println("N_R=",sum(CR))
+
+    # println("square of difference=",sum((CL-CR).^2)*Depsilon)
+
+    # println("vNEL=",vNEfrommatC(CL))
+    # println("vNER=",vNEfrommatC(CR))
+    # println("vNEL-vNER=",vNEfrommatC(CL)-vNEfrommatC(CR))
+
     plot(epsilon,CL,marker=(:circle,8))
     plot!(epsilon,CR,marker=(:circle,8))
     ylims!((-0.1,1.1))
@@ -874,6 +908,37 @@ function compute_nnuk(KL,KR,W,Ct)
     plot(epsilonL,real.(diag(Ct[2:1+KL,2:1+KL])),marker=(:circle,8))
     plot!(epsilonR,real.(diag(Ct[2+KL:end,2+KL:end])),marker=(:circle,8))
     plot!(legend=:none)
+
+end
+
+function compute_Ct_saved(KL,KR,W,Ct,tt)
+
+    Nt = size(Ct)[3]
+
+    epsilonL = zeros(Float64,KL)
+    epsilonR = zeros(Float64,KR)
+    for kk = 1:KL
+        epsilonL[kk] = (kk-1)*W/(KL-1) - W/2
+    end
+    for kk = 1:KR
+        epsilonR[kk] = (kk-1)*W/(KR-1) - W/2
+    end
+
+    plot(epsilonL,real.(diag(Ct[2:1+KL,2:1+KL,tt])),marker=(:circle,8))
+    plot!(epsilonR,real.(diag(Ct[2+KL:end,2+KL:end,tt])),marker=(:circle,8))
+    plot!(legend=:none)
+    # xlims!((-10.5,10.5))
+
+    # @gif for tt = 1:Nt
+    #     plot(epsilonL,real.(diag(Ct[2:1+KL,2:1+KL,tt])),marker=(:circle,8))
+    #     plot!(epsilonR,real.(diag(Ct[2+KL:end,2+KL:end,tt])),marker=(:circle,8))
+    #     plot!(legend=:none)
+    #     title!("tt=")
+    # end
+
+    # return anim
+
+    # gif(anim)
 
 end
 
@@ -969,6 +1034,8 @@ function calculatequantities4(epsilond::Float64,KL::Int64,KR::Int64,W::Int64,bet
     diag_Ct_E = zeros(Float64,KL+KR)
     val_Ct_L = zeros(Float64,KL)
     val_Ct_R = zeros(Float64,KR)
+
+    Ct_saved = zeros(ComplexF64,KL+KR+1,KL+KR+1,Nt)
 
     E_sys = zeros(ComplexF64,Nt)
     E_L = zeros(ComplexF64,Nt)
@@ -1189,13 +1256,16 @@ function calculatequantities4(epsilond::Float64,KL::Int64,KR::Int64,W::Int64,bet
         Drel_rhoL_piL_ratio[tt] = Drel_rhoL_piL[tt]/(deltavNEpiL[tt] + deltavNEpiL0)
         Drel_rhoR_piR_ratio[tt] = Drel_rhoR_piR[tt]/(deltavNEpiR[tt] + deltavNEpiR0)
 
+        #
+        Ct_saved[:,:,tt] = Ct
+
         println(tt)
 
     end
 
     # return time, vNE_sys, vNE_L, vNE_R, vNE
 
-    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, N_L, N_R, Evariance_L, Evariance_R, EvarianceGibbs_L, EvarianceGibbs_R, Nvariance_L, Nvariance_R, NvarianceGibbs_L, NvarianceGibbs_R, Drel_rhoL_piL, Drel_rhoR_piR, Drel_rhoL_piL_ratio, Drel_rhoR_piR_ratio, Ct
+    return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, N_L, N_R, Evariance_L, Evariance_R, EvarianceGibbs_L, EvarianceGibbs_R, Nvariance_L, Nvariance_R, NvarianceGibbs_L, NvarianceGibbs_R, Drel_rhoL_piL, Drel_rhoR_piR, Drel_rhoL_piL_ratio, Drel_rhoR_piR_ratio, Ct_saved, E_sys, N_sys
     #E_k_L, E_k_R, n_k_L, n_k_R
     # return time, vNE_sys, effparaL, effparaR, QL, QR
     # return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
@@ -2235,7 +2305,9 @@ function averagecorrelationsregimeIII(KL::Int64,KR::Int64,betaL::Float64,betaR::
     # array_Gamma = [10.0^(-1), 10.0^(-0.5), 10.0^(0), 10.0^(0), 10.0^(0.5), 10.0]
     # array_Gamma = [10.0^(0), 10.0^(0.5), 10.0^(1), 10.0^(1.5), 10.0^(2)]
     # array_Gamma = [10.0^(-1), 10.0^(-0.5), 10.0^(0)]
-    array_Gamma = [10.0^(-1), 10.0^(0), 10.0^(1)]
+    # array_Gamma = [10.0^(-1), 10.0^(0), 10.0^(1)]
+    array_Gamma = [10.0^(0), 10.0^(1), 10.0^(2), 10.0^(3), 10.0^(4)]
+    # array_Gamma = [10.0^(0), 10.0^(1), 10.0^(2)]
 
     W = 5
     # array_W = [4, 4, 4, 20, 20, 20]
@@ -2243,7 +2315,8 @@ function averagecorrelationsregimeIII(KL::Int64,KR::Int64,betaL::Float64,betaR::
 
     tt_ref0 = 10.0^5 #10.0^4
     tt_ref1 = 10.0^8 
-    array_tt = tt_ref1./array_Gamma
+    # array_tt = tt_ref1./array_Gamma
+    array_tt = tt_ref1
 
     array_I_SE = zeros(Float64,length(array_Gamma))
     array_I_B = zeros(Float64,length(array_Gamma))
@@ -2259,27 +2332,28 @@ function averagecorrelationsregimeIII(KL::Int64,KR::Int64,betaL::Float64,betaR::
 
         Gamma = array_Gamma[jj]
         # W = array_W[jj]
-        tt = array_tt[jj]
+        # tt = array_tt[jj]
+        tt = tt_ref1
 
         # time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR = calculatequantities2(K,W,0.0,betaL,betaR,Gamma,Gamma,muL,muR,tt,11) #501
         time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, N_L, N_R, Evariance_L, Evariance_R, EvarianceGibbs_L, EvarianceGibbs_R, Nvariance_L, Nvariance_R, NvarianceGibbs_L, NvarianceGibbs_R, Drel_rhoL_piL, Drel_rhoR_piR, Drel_rhoL_piL_ratio, Drel_rhoR_piR_ratio, Ct = calculatequantities4(0.0,KL,KR,W,betaL,betaR,Gamma,Gamma,muL,muR,tt,101) #11
 
-        tt0 = argmin(abs.(time*Gamma.-tt_ref0))
+        tt0 = argmin(abs.(time.-tt_ref0))
         if time[tt0] < tt_ref0
            tt0 = tt0 + 1
         end
 
-        tt1 = argmin(abs.(time*Gamma.-tt_ref1))
-        # if time[tt1] < tt_ref1
-           # tt1 = tt1 + 1
-        # end
+        # tt1 = argmin(abs.(time*Gamma.-tt_ref1))
+        # # if time[tt1] < tt_ref1
+        #    # tt1 = tt1 + 1
+        # # end
 
-        array_I_SE[jj] = mean(real(I_SE[tt0:tt1]))
-        array_I_B[jj] = mean(real(I_B[tt0:tt1]))
-        array_I_L[jj] = mean(real(I_L[tt0:tt1]))
-        array_I_R[jj] = mean(real(I_R[tt0:tt1]))
-        array_Drelnuk[jj] = mean(real(Drelnuk[tt0:tt1]))
-        array_Drelpinuk[jj] = mean(Drelpinuk2[tt0:tt1])
+        array_I_SE[jj] = mean(real(I_SE[tt0:end]))
+        array_I_B[jj] = mean(real(I_B[tt0:end]))
+        array_I_L[jj] = mean(real(I_L[tt0:end]))
+        array_I_R[jj] = mean(real(I_R[tt0:end]))
+        array_Drelnuk[jj] = mean(real(Drelnuk[tt0:end]))
+        array_Drelpinuk[jj] = mean(Drelpinuk2[tt0:end])
 
         # sigma_d = real(I_SE + I_B + I_L + I_R + Drelnuk)
         # sigma_c = real(I_SE + I_B + I_L + I_R + Drelpinuk2)
@@ -2295,21 +2369,21 @@ end
 
 function plot_averagecorrelationsregimeIII_each(array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk, array_Drelpinuk)
 
-    plot(log10.(array_Gamma),array_I_SE,marker=(:circle,8),lw=3,label=L"\langle I_{SB} \rangle")
+    plot(log10.(array_Gamma),log10.(array_I_SE),marker=(:circle,8),lw=3,label=L"\langle I_{SB} \rangle", framestyle = :box)
     
-    plot!(log10.(array_Gamma),array_I_B,marker=(:square,8),lw=3,label=L"\langle I_{B} \rangle")
+    plot!(log10.(array_Gamma),log10.(array_I_B),marker=(:square,8),lw=3,label=L"\langle I_{B} \rangle")
     
-    plot!(log10.(array_Gamma),array_I_L,marker=(:utriangle,8),lw=3,label=L"\langle I_{L} \rangle")
+    plot!(log10.(array_Gamma),log10.(array_I_L),marker=(:utriangle,8),lw=3,label=L"\langle I_{L} \rangle")
     
-    plot!(log10.(array_Gamma),array_I_R,marker=(:dtriangle,8),lw=3,label=L"\langle I_{R} \rangle")
+    plot!(log10.(array_Gamma),log10.(array_I_R),marker=(:dtriangle,8),lw=3,label=L"\langle I_{R} \rangle")
     
-    plot!(log10.(array_Gamma),array_Drelnuk,marker=(:square,8),lw=3,label=L"\langle D_{env} \rangle")
+    plot!(log10.(array_Gamma),log10.(array_Drelnuk),marker=(:pentagon,8),lw=3,label=L"\langle D_{env} \rangle")
 
-    plot!(log10.(array_Gamma),array_Drelpinuk,marker=(:diamond,10),lw=3,label=L"\langle \tilde{D}_{env} \rangle")
+    plot!(log10.(array_Gamma),log10.(array_Drelpinuk),marker=(:diamond,10),lw=3,label=L"\langle \tilde{D}_{env} \rangle")
     
-    # xlims!((-1.1,1.1))
-    # ylims!((-0.05,1.3))
-    # plot!(aspect_ratio=0.5)
+    xlims!((-0.1,4.1))
+    ylims!((-0.2,2.2))
+    plot!(aspect_ratio=4.2/2.4)
     plot!(legend=:none)
 
     # plot(p1,p2,p3,layout=(1,3),size=(800,300),dpi=600)
@@ -2320,27 +2394,28 @@ function plot_averagecorrelationsregimeIII_each(array_Gamma, array_I_SE, array_I
 
 end
 
-function plot_averagecorrelationsregimeIII(array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk, array_Drelpinuk)
+function plot_averagecorrelationsregimeIII_ratio(K,array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk, array_Drelpinuk)
 
-    value_x = [-2, 2]
+    value_x = [-2, 5]
     value_y = [1, 1]
-    # plot(value_x, value_y, lw=2, ls=:dash, color=:black, framestyle = :box)
 
-    plot!(log10.(array_Gamma),array_I_SE/log(2),marker=(:circle,8),lw=3,label=L"\langle I_{SB} \rangle")
+    plot(log10.(array_Gamma),log10.(array_I_SE/log(2)),marker=(:circle,8),lw=3,label=L"\langle I_{SB} \rangle")
     
-    plot!(log10.(array_Gamma),array_I_B/1000/log(2),marker=(:square,8),lw=3,label=L"\langle I_{B} \rangle")
+    plot!(log10.(array_Gamma),log10.(array_I_B/K/log(2)),marker=(:square,8),lw=3,label=L"\langle I_{B} \rangle")
 
-    plot!(log10.(array_Gamma),array_I_L/1000/log(2),marker=(:utriangle,8),lw=3,label=L"\langle I_{L} \rangle")
+    plot!(log10.(array_Gamma),log10.(array_I_L/K/log(2)),marker=(:utriangle,8),lw=3,label=L"\langle I_{L} \rangle")
     
-    plot!(log10.(array_Gamma),array_I_R/1000/log(2),marker=(:dtriangle,8),lw=3,label=L"\langle I_{R} \rangle")
+    plot!(log10.(array_Gamma),log10.(array_I_R/K/log(2)),marker=(:dtriangle,8),lw=3,label=L"\langle I_{R} \rangle")
 
-    plot!(log10.(array_Gamma),log10.(array_Drelnuk),marker=(:square,8),lw=3,label=L"\langle D_{env} \rangle")
+    plot!(value_x, log10.(value_y), lw=2, ls=:dash, color=:black, framestyle = :box)
+
+    # plot!(log10.(array_Gamma),log10.(array_Drelnuk),marker=(:square,8),lw=3,label=L"\langle D_{env} \rangle")
     
-    plot!(log10.(array_Gamma),log10.(array_Drelpinuk),marker=(:diamond,10),lw=3,label=L"\langle \tilde{D}_{env} \rangle")
+    # plot!(log10.(array_Gamma),log10.(array_Drelpinuk),marker=(:diamond,10),lw=3,label=L"\langle \tilde{D}_{env} \rangle")
     
-    # xlims!((-1.1,1.1))
-    # ylims!((-0.05,1.3))
-    # plot!(aspect_ratio=0.5)
+    xlims!((-0.1,4.1))
+    ylims!((-2.6,0.5))
+    plot!(aspect_ratio=4.2/3.1)
     plot!(legend=:none)
 
     # plot(p1,p2,p3,layout=(1,3),size=(800,300),dpi=600)
