@@ -945,6 +945,283 @@ function compute_Ct_saved(KL,KR,W,Ct,tt)
 
 end
 
+function set_pureinitialstate!(npure::Vector{Float64},KL::Int64,KR::Int64,nF::Vector{Float64})
+
+    vec_r = rand(Uniform(0,1), KL+KR)
+
+    for kk = 1:KL+KR
+        if vec_r[kk] <= nF[kk]
+           vec_r[kk] = 1
+        else #vec_r[kk] > nF[kk]
+           vec_r[kk] = 0
+        end
+    end
+
+end
+
+function calculatecorrelations(epsilond::Float64,KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,ti::Float64,tf::Float64,Nt::Int64)
+
+    # Hamiltonian + fluctuated t
+    matH = spzeros(Float64,KL+KR+1,KL+KR+1)
+    createH_differentKLKR!(epsilond,KL,KR,W,betaL,betaR,GammaL,GammaR,matH)
+    epsilonLR = diag(Array(matH))
+    tLRk = matH[1,1:end]
+
+    # Hamiltonian is hermitian
+    matH = Hermitian(Array(matH))
+    val_matH, vec_matH = eigen(matH)
+    invvec_matH = inv(vec_matH)
+
+    # time
+    time = distribute_timepoint(Nt,ti,tf)
+
+    # correlation matrix
+    # at initial
+    C0 = zeros(Float64,KL+KR+1)
+    C0[1] = 0.0 + 1e-15 # n_d(0) # make it not 0 exactly to avoid 0.0 log 0.0 = NaN
+    for kk = 1:KL
+        C0[1+kk] = 1.0/(exp((matH[1+kk,1+kk]-muL)*betaL)+1.0)
+    end
+    for kk = 1:KR
+        C0[1+KL+kk] = 1.0/(exp((matH[1+KL+kk,1+KL+kk]-muR)*betaR)+1.0)
+    end
+    C0 = diagm(C0)
+
+    # total enery and particle number, and estimated inverse temperature and chemical potential
+    dC0 = diag(C0)
+    E_tot0 = sum(dC0[1:KL+KR+1].*epsilonLR[1:KL+KR+1])
+    N_tot0 = sum(dC0[1:KL+KR+1])
+    Cgg0 = zeros(Float64,KL+KR+1)
+    matCgg0 = zeros(Float64,KL+KR+1,KL+KR+1)
+    effpara0 = funeffectivebetamu2(epsilonLR,E_tot0,N_tot0,(betaL+betaR)/2,(muL+muR)/2,Cgg0,matCgg0,val_matH,vec_matH,invvec_matH)
+    # println("beta_gg=",effpara0[1])
+    # println("mu_gg=",effpara0[2])
+
+    # global Gibbs state
+    Cgg = globalGibbsstate(val_matH,vec_matH,invvec_matH,effpara0[1],effpara0[2])
+
+    # mutual info between S and E
+    val_Cgg = real(eigvals(Cgg))
+    vNEgg = vNEfrommatC(val_Cgg)
+    val_Cgg_sys = Cgg[1,1]
+    vNEgg_sys = - val_Cgg_sys.*log.(val_Cgg_sys) - (1.0 .- val_Cgg_sys).*log.(1.0 .- val_Cgg_sys)
+    val_Cgg_E = real(eigvals(Cgg[2:end,2:end]))
+    vNEgg_E = vNEfrommatC(val_Cgg_E)
+    Igg_SE = vNEgg_sys + vNEgg_E - vNEgg
+    # println("Igg_SE=",Igg_SE)
+
+    # intrabath correlation
+    val_Cgg_L = real(eigvals(Cgg[2:KL+1,2:KL+1]))
+    vNEgg_L = vNEfrommatC(val_Cgg_L)
+    val_Cgg_R = real(eigvals(Cgg[KL+2:end,KL+2:end]))
+    vNEgg_R = vNEfrommatC(val_Cgg_R)
+    Igg_B = vNEgg_L + vNEgg_R - vNEgg_E
+    # println("Igg_B=",Igg_B)
+
+    # intramode correlation
+    diag_Cgg_L = real(diag(Cgg[2:KL+1,2:KL+1]))
+    vNEgg_Lk = vNEfrommatC(diag_Cgg_L)
+    Igg_L = vNEgg_Lk - vNEgg_L
+    diag_Cgg_R = real(diag(Cgg[KL+2:end,KL+2:end]))
+    vNEgg_Rk = vNEfrommatC(diag_Cgg_R)
+    Igg_R = vNEgg_Rk - vNEgg_R
+    # println("Igg_L=",Igg_L)
+    # println("Igg_R=",Igg_R)
+
+    # define space for input
+    Ct = zeros(ComplexF64,KL+KR+1,KL+KR+1)
+    dCt = zeros(ComplexF64,KL+KR+1)
+    dCt1 = zeros(ComplexF64,KL+KR+1)
+    val_Ct = zeros(Float64,KL+KR+1)
+    val_Ct_E = zeros(Float64,KL+KR)
+    diag_Ct_E = zeros(Float64,KL+KR)
+    val_Ct_L = zeros(Float64,KL)
+    val_Ct_R = zeros(Float64,KR)
+
+    E_sys = zeros(ComplexF64,Nt)
+    E_L = zeros(ComplexF64,Nt)
+    E_R = zeros(ComplexF64,Nt)
+    E_tot = zeros(ComplexF64,Nt)
+    N_sys = zeros(ComplexF64,Nt)
+    N_L = zeros(ComplexF64,Nt)
+    N_R = zeros(ComplexF64,Nt)
+
+    effparaL = zeros(Float64,Nt,2)
+    effparaR = zeros(Float64,Nt,2)
+
+    vNE_sys = zeros(Float64,Nt)
+    vNE_E = zeros(Float64,Nt)
+    vNE_L = zeros(Float64,Nt)
+    vNE_R = zeros(Float64,Nt)
+    vNE_alphak = zeros(Float64,Nt)
+    vNE_Lk = zeros(Float64,Nt)
+    vNE_Rk = zeros(Float64,Nt)
+    vNE = zeros(Float64,Nt)
+
+    I_SE = zeros(ComplexF64,Nt)
+    I_env = zeros(ComplexF64,Nt)
+    I_B = zeros(ComplexF64,Nt)
+    I_L = zeros(ComplexF64,Nt)
+    I_R = zeros(ComplexF64,Nt)
+
+    QL = zeros(ComplexF64,Nt)
+    QR = zeros(ComplexF64,Nt)
+    betaQL = zeros(ComplexF64,Nt)
+    betaQR = zeros(ComplexF64,Nt)
+    dQLdt = zeros(ComplexF64,Nt)
+    dQRdt = zeros(ComplexF64,Nt)
+    betaQLtime = zeros(ComplexF64,Nt)
+    betaQRtime = zeros(ComplexF64,Nt)
+
+    Drel = zeros(ComplexF64,Nt)
+    Drelnuk = zeros(ComplexF64,Nt)
+    Drelpinuk = zeros(ComplexF64,Nt)
+
+    sigma = zeros(ComplexF64,Nt)
+    sigma2 = zeros(ComplexF64,Nt)
+    sigma3 = zeros(ComplexF64,Nt)
+    sigma_c = zeros(ComplexF64,Nt)
+
+    CbathL = zeros(Float64,KL)
+    CbathR = zeros(Float64,KR)
+    matCL = zeros(Float64,2,2,Nt)
+    matCR = zeros(Float64,2,2,Nt)
+
+    deltavNEpiL = zeros(Float64,Nt)
+    deltavNEpiR = zeros(Float64,Nt)
+    sigma_c2 = zeros(ComplexF64,Nt)
+    Drelpinuk_eq = zeros(ComplexF64,Nt)
+    Drelpinuk_eff = zeros(ComplexF64,Nt)
+
+    deltavNEpiL0 = compute_vNEpi(epsilonLR[2:KL+1],betaL,muL)
+    deltavNEpiR0 = compute_vNEpi(epsilonLR[KL+2:end],betaR,muR)
+
+    # Threads.@threads for tt = 1:Nt
+    for tt = 1:Nt
+
+        Ct .= vec_matH*diagm(exp.(1im*val_matH*time[tt]))*invvec_matH
+        Ct .= Ct*C0
+        Ct .= Ct*vec_matH*diagm(exp.(-1im*val_matH*time[tt]))*invvec_matH
+
+        # energy
+        dCt .= diag(Ct) #diag(Ct - C0)
+        E_sys[tt] = dCt[1]*epsilonLR[1]
+        E_L[tt] = sum(dCt[2:KL+1].*epsilonLR[2:KL+1])
+        E_R[tt] = sum(dCt[KL+2:end].*epsilonLR[KL+2:end])
+
+        dCt1 .= Ct[1,1:end] # Ct[1,1:end] - C0[1,1:end]
+        E_tot[tt] = E_L[tt] + E_R[tt] + real(sum(dCt1[2:end].*tLRk[2:end])*2)
+
+        # particle numbers
+        N_sys[tt] = dCt[1]
+        N_L[tt] = sum(dCt[2:KL+1])
+        N_R[tt] = sum(dCt[KL+2:end])
+
+        # vNE
+        # total
+        val_Ct .= real(eigvals(Ct))
+        vNE[tt] = vNEfrommatC(val_Ct)
+        # vNE[tt] = - sum(val_Ct.*log.(val_Ct)) - sum((1.0 .- val_Ct).*log.(1.0 .- val_Ct))
+        # system
+        vNE_sys[tt] = vNEfrommatC(real(Ct[1,1]))
+        # vNE_sys[tt] = -Ct[1,1]*log(Ct[1,1]) - (1-Ct[1,1])*log(1-Ct[1,1])
+        # environment
+        val_Ct_E .= real(eigvals(Ct[2:end,2:end]))
+        vNE_E[tt] = vNEfrommatC(val_Ct_E)
+        # vNE_E[tt] = - sum(val_Ct_E.*log.(val_Ct_E)) - sum((1.0 .- val_Ct_E).*log.(1.0 .- val_Ct_E))
+
+        # I_SE
+        # I_SE[tt] = vNE_sys[tt] - vNE_sys[1] + vNE_E[tt] - vNE_E[1]
+        I_SE[tt] = vNE_sys[tt] - 0.0 + vNE_E[tt] - vNEfrommatC(dC0[2:end])
+
+        # mutual information describing the intraenvironment correlations
+        diag_Ct_E .= real(diag(Ct[2:end,2:end]))
+        vNE_alphak[tt] = vNEfrommatC(diag_Ct_E)
+        # vNE_alphak[tt] = - sum(diag_Ct_E.*log.(diag_Ct_E)) - sum((1.0 .- diag_Ct_E).*log.(1.0 .- diag_Ct_E))
+        I_env[tt] = vNE_alphak[tt] - vNE_E[tt]
+
+        # I_B
+        val_Ct_L .= real(eigvals(Ct[2:KL+1,2:KL+1]))
+        vNE_L[tt] = vNEfrommatC(val_Ct_L)
+        # vNE_L[tt] = - sum(val_Ct_L.*log.(val_Ct_L)) - sum((1.0 .- val_Ct_L).*log.(1.0 .- val_Ct_L))
+        val_Ct_R .= real(eigvals(Ct[KL+2:end,KL+2:end]))
+        vNE_R[tt] = vNEfrommatC(val_Ct_R)
+        # vNE_R[tt] = - sum(val_Ct_R.*log.(val_Ct_R)) - sum((1.0 .- val_Ct_R).*log.(1.0 .- val_Ct_R))
+        I_B[tt] = vNE_L[tt] + vNE_R[tt] - vNE_E[tt]
+
+        # I_nu
+        vNE_Lk[tt] = vNEfrommatC(diag_Ct_E[1:KL])
+        # vNE_Lk[tt] = - sum(diag_Ct_E[1:KL].*log.(diag_Ct_E[1:KL])) - sum((1.0 .- diag_Ct_E[1:KL]).*log.(1.0 .- diag_Ct_E[1:KL]))
+        I_L[tt] = vNE_Lk[tt] - vNE_L[tt]
+        vNE_Rk[tt] = vNEfrommatC(diag_Ct_E[KL+1:end])
+        # vNE_Rk[tt] = - sum(diag_Ct_E[KL+1:end].*log.(diag_Ct_E[KL+1:end])) - sum((1.0 .- diag_Ct_E[KL+1:end]).*log.(1.0 .- diag_Ct_E[KL+1:end]))
+        I_R[tt] = vNE_Rk[tt] - vNE_R[tt]
+
+        # effective inverse temperature and chemical potential
+        betaL0 = betaL
+        betaR0 = betaR
+        muL0 = muL
+        muR0 = muR
+        if tt != 1
+           betaL0 = effparaL[tt-1,1]
+           betaR0 = effparaR[tt-1,1]
+           muL0 = effparaL[tt-1,2]
+           muR0 = effparaR[tt-1,2]
+        end
+        effparaL[tt,:] .= funeffectivebetamu(epsilonLR[2:KL+1],real(E_L[tt]),real(N_L[tt]),betaL0,muL0) #betaL,muL
+        effparaR[tt,:] .= funeffectivebetamu(epsilonLR[KL+2:end],real(E_R[tt]),real(N_R[tt]),betaR0,muR0) #betaR,muR
+
+        # heat
+        dCt .= diag(Ct - C0)
+        QL[tt] = -sum(dCt[2:KL+1].*(epsilonLR[2:KL+1] .- muL))
+        betaQL[tt] = QL[tt]*betaL
+        QR[tt] = -sum(dCt[KL+2:end].*(epsilonLR[KL+2:end] .- muR))
+        betaQR[tt] = QR[tt]*betaR
+ 
+        # relative entropy between rho_B(t) and rho_B(0)
+        # Drel[tt] = - betaQL[tt] - betaQR[tt] - (vNE_E[tt] - vNE_E[1])
+        Drel[tt] = - betaQL[tt] - betaQR[tt] - (vNE_E[tt] - vNEfrommatC(dC0[2:end]))
+
+        # relative entropy between rho_{nu,k}(t) and rho_{nu,k}(0)
+        Drelnuk[tt] = Drel[tt] - I_env[tt]
+
+        # entropy production
+        # sigma[tt] = vNE_sys[tt] - vNE_sys[1] - betaQL[tt] - betaQR[tt]
+        sigma[tt] = vNE_sys[tt] - 0.0 - betaQL[tt] - betaQR[tt]
+        sigma2[tt] = I_SE[tt] + Drel[tt]
+        sigma3[tt] = I_SE[tt] + I_B[tt] + I_L[tt] + I_R[tt] + Drelnuk[tt]
+        # sigma_c[tt] = vNE_sys[tt] - vNE_sys[1] - betaQLtime[tt] - betaQRtime[tt]
+
+        # relative entropy between pi_nuk(t) and pi_nuk(0)
+        # Drelpinuk[tt] =  Drelnuk[tt] - (sigma[tt] - sigma_c[tt])  #sigma[tt] - sigma_c[tt]
+
+        # vNE[beta(t)]-vNE[beta(0)] = int dt dQdt*beta(t)
+        deltavNEpiL[tt] = compute_vNEpi(epsilonLR[2:KL+1],effparaL[tt,1],effparaL[tt,2]) - deltavNEpiL0
+        deltavNEpiR[tt] = compute_vNEpi(epsilonLR[KL+2:end],effparaR[tt,1],effparaR[tt,2]) - deltavNEpiR0
+
+        # sigma_c2[tt] = vNE_sys[tt] - vNE_sys[1] + deltavNEpiL[tt] + deltavNEpiR[tt]
+        sigma_c2[tt] = vNE_sys[tt] - 0.0 + deltavNEpiL[tt] + deltavNEpiR[tt]
+        # Drelpinuk2[tt] =  Drelnuk[tt] - (sigma[tt] - sigma_c2[tt])
+        Drelpinuk_eq[tt] =  sigma[tt] - sigma_c2[tt]
+
+        Drelpinuk_eff[tt] = Drelnuk[tt] - Drelpinuk_eq[tt]
+        # Drelpinuk_eff0[tt] = sigma_c2[tt] - (I_SE[tt] + I_B[tt] + I_L[tt] + I_R[tt])
+
+        println(tt)
+
+    end
+
+    return Igg_SE, Igg_B, Igg_L, Igg_R, I_SE, I_B, I_L, I_R, Drelpinuk_eff, Drelpinuk_eq
+    # return time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, N_L, N_R, Evariance_L, Evariance_R, EvarianceGibbs_L, EvarianceGibbs_R, Nvariance_L, Nvariance_R, NvarianceGibbs_L, NvarianceGibbs_R, Drel_rhoL_piL, Drel_rhoR_piR, Drel_rhoL_piL_ratio, Drel_rhoR_piR_ratio, Ct_saved, E_sys, N_sys
+    #E_k_L, E_k_R, n_k_L, n_k_R
+    # return time, vNE_sys, effparaL, effparaR, QL, QR
+    # return time, sigma, sigma3, sigma_c, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel
+    # return time, sigma, sigma2, sigma3, sigma_c
+    # return time, betaQL, betaQLtime, betaQR, betaQRtime
+    # return time, E_sys, E_L, E_R, N_sys, N_L, N_R, E_tot, effparaL, effparaR
+
+end
+
 function calculatequantities4(epsilond::Float64,KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,tf::Float64,Nt::Int64)
 
     # Hamiltonian + fluctuated t
@@ -969,6 +1246,7 @@ function calculatequantities4(epsilond::Float64,KL::Int64,KR::Int64,W::Int64,bet
 
     # correlation matrix
     # at initial
+    # thermal state
     C0 = zeros(Float64,KL+KR+1)
     C0[1] = 0.0 + 1e-15 # n_d(0) # make it not 0 exactly to avoid 0.0 log 0.0 = NaN
     for kk = 1:KL
@@ -978,6 +1256,14 @@ function calculatequantities4(epsilond::Float64,KL::Int64,KR::Int64,W::Int64,bet
         C0[1+KL+kk] = 1.0/(exp((matH[1+KL+kk,1+KL+kk]-muR)*betaR)+1.0)
     end
     C0 = diagm(C0)
+
+    # pure state
+    nF = diag(C0[2:end,2:end])
+    npure = zeros(Float64,KL+KR)
+    set_pureinitialstate!(npure,KL,KR,nF)
+    C0[2:end,2:end] = diagm(npure)
+
+    return npure, nF
 
     # total enery and particle number, and estimated inverse temperature and chemical potential
     dC0 = diag(C0)
@@ -2314,54 +2600,64 @@ function averagecorrelationsregimeIII(KL::Int64,KR::Int64,betaL::Float64,betaR::
     # array_Gamma = [10.0^(0), 10.0^(0.5), 10.0^(1), 10.0^(1.5), 10.0^(2)]
     # array_Gamma = [10.0^(-1), 10.0^(-0.5), 10.0^(0)]
     # array_Gamma = [10.0^(-1), 10.0^(0), 10.0^(1)]
-    array_Gamma = [10.0^(0), 10.0^(1), 10.0^(2), 10.0^(3), 10.0^(4)]
+    array_Gamma = [10.0^(0.5), 10.0^(1), 10.0^(1.5), 10.0^(2), 10.0^(2.5), 10.0^(3)]
     # array_Gamma = [10.0^(0), 10.0^(1), 10.0^(2)]
+    # array_Gamma = [3.0]
 
-    W = 5
-    # array_W = [4, 4, 4, 20, 20, 20]
-    # array_W = [4, 4, 4]
+    W = 10
 
-    tt_ref0 = 10.0^5 #10.0^4
+    tt_ref0 = 10.0^5
     tt_ref1 = 10.0^8 
-    # array_tt = tt_ref1./array_Gamma
-    array_tt = tt_ref1
 
     array_I_SE = zeros(Float64,length(array_Gamma))
     array_I_B = zeros(Float64,length(array_Gamma))
     array_I_L = zeros(Float64,length(array_Gamma))
     array_I_R = zeros(Float64,length(array_Gamma))
-    array_Drelnuk = zeros(Float64,length(array_Gamma))
-    array_Drelpinuk = zeros(Float64,length(array_Gamma))
+    array_Drelpinuk_eff = zeros(Float64,length(array_Gamma))
+    array_Drelpinuk_eq = zeros(Float64,length(array_Gamma))
 
-    array_sigma_d = zeros(Float64,length(array_Gamma))
-    array_sigma_c = zeros(Float64,length(array_Gamma))
+    array_Igg_SE = zeros(Float64,length(array_Gamma))
+    array_Igg_B = zeros(Float64,length(array_Gamma))
+    array_Igg_L = zeros(Float64,length(array_Gamma))
+    array_Igg_R = zeros(Float64,length(array_Gamma))
 
     for jj = 1:length(array_Gamma)
 
         Gamma = array_Gamma[jj]
         # W = array_W[jj]
         # tt = array_tt[jj]
-        tt = tt_ref1
+        # tt = tt_ref1
 
-        # time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, I_env, Drel, Drelnuk, Drelpinuk, betaQL, betaQR, betaQLtime, betaQRtime, dQLdt, dQRdt, matCL, matCR = calculatequantities2(K,W,0.0,betaL,betaR,Gamma,Gamma,muL,muR,tt,11) #501
-        time, sigma, sigma2, sigma3, sigma_c, effpara0, effparaL, effparaR, I_SE, I_B, I_L, I_R, Drelnuk, betaQL, betaQR, matCL, matCR, sigma_c2, Drelpinuk2, E_L, E_R, E_tot, N_L, N_R, Evariance_L, Evariance_R, EvarianceGibbs_L, EvarianceGibbs_R, Nvariance_L, Nvariance_R, NvarianceGibbs_L, NvarianceGibbs_R, Drel_rhoL_piL, Drel_rhoR_piR, Drel_rhoL_piL_ratio, Drel_rhoR_piR_ratio, Ct = calculatequantities4(0.0,KL,KR,W,betaL,betaR,Gamma,Gamma,muL,muR,tt,101) #11
+        Igg_SE, Igg_B, Igg_L, Igg_R, I_SE, I_B, I_L, I_R, Drelpinuk_eff, Drelpinuk_eq = calculatecorrelations(0.0,KL,KR,W,betaL,betaR,Gamma,Gamma,muL,muR,tt_ref0,tt_ref1,21)
 
-        tt0 = argmin(abs.(time.-tt_ref0))
-        if time[tt0] < tt_ref0
-           tt0 = tt0 + 1
-        end
+        # tt0 = argmin(abs.(time.-tt_ref0))
+        # if time[tt0] < tt_ref0
+        #    tt0 = tt0 + 1
+        # end
 
         # tt1 = argmin(abs.(time*Gamma.-tt_ref1))
         # # if time[tt1] < tt_ref1
         #    # tt1 = tt1 + 1
         # # end
 
-        array_I_SE[jj] = mean(real(I_SE[tt0:end]))
-        array_I_B[jj] = mean(real(I_B[tt0:end]))
-        array_I_L[jj] = mean(real(I_L[tt0:end]))
-        array_I_R[jj] = mean(real(I_R[tt0:end]))
-        array_Drelnuk[jj] = mean(real(Drelnuk[tt0:end]))
-        array_Drelpinuk[jj] = mean(Drelpinuk2[tt0:end])
+        array_Igg_SE[jj] = Igg_SE
+        array_Igg_B[jj] = Igg_B
+        array_Igg_L[jj] = Igg_L
+        array_Igg_R[jj] = Igg_R
+        
+        array_I_SE[jj] = mean(real(I_SE))
+        array_I_B[jj] = mean(real(I_B))
+        array_I_L[jj] = mean(real(I_L))
+        array_I_R[jj] = mean(real(I_R))
+        array_Drelpinuk_eff[jj] = mean(real(Drelpinuk_eff))
+        array_Drelpinuk_eq[jj] = mean(real(Drelpinuk_eq))
+
+        # array_I_SE[jj] = mean(real(I_SE[tt0:end]))
+        # array_I_B[jj] = mean(real(I_B[tt0:end]))
+        # array_I_L[jj] = mean(real(I_L[tt0:end]))
+        # array_I_R[jj] = mean(real(I_R[tt0:end]))
+        # array_Drelnuk[jj] = mean(real(Drelnuk[tt0:end]))
+        # array_Drelpinuk[jj] = mean(Drelpinuk2[tt0:end])
 
         # sigma_d = real(I_SE + I_B + I_L + I_R + Drelnuk)
         # sigma_c = real(I_SE + I_B + I_L + I_R + Drelpinuk2)
@@ -2371,27 +2667,29 @@ function averagecorrelationsregimeIII(KL::Int64,KR::Int64,betaL::Float64,betaR::
 
     end
 
-    return array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk, array_Drelpinuk
+    return array_Gamma, array_Igg_SE, array_Igg_B, array_Igg_L, array_Igg_R, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelpinuk_eff, array_Drelpinuk_eq
 
 end
 
-function plot_averagecorrelationsregimeIII_each(array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk, array_Drelpinuk)
+function plot_averagecorrelationsregimeIII_each(array_Gamma, array_Igg_SE, array_Igg_B, array_Igg_L, array_Igg_R, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelpinuk_eff, array_Drelpinuk_eq)
 
     plot(log10.(array_Gamma),log10.(array_I_SE),marker=(:circle,8),lw=3,label=L"\langle I_{SB} \rangle", framestyle = :box)
-    
+
     plot!(log10.(array_Gamma),log10.(array_I_B),marker=(:square,8),lw=3,label=L"\langle I_{B} \rangle")
     
     plot!(log10.(array_Gamma),log10.(array_I_L),marker=(:utriangle,8),lw=3,label=L"\langle I_{L} \rangle")
     
     plot!(log10.(array_Gamma),log10.(array_I_R),marker=(:dtriangle,8),lw=3,label=L"\langle I_{R} \rangle")
     
-    plot!(log10.(array_Gamma),log10.(array_Drelnuk),marker=(:pentagon,8),lw=3,label=L"\langle D_{env} \rangle")
+    plot!(log10.(array_Gamma),log10.(array_Drelpinuk_eff),marker=(:pentagon,8),lw=3,label=L"\langle D_{env} \rangle")
 
-    plot!(log10.(array_Gamma),log10.(array_Drelpinuk),marker=(:diamond,10),lw=3,label=L"\langle \tilde{D}_{env} \rangle")
+    plot!(log10.(array_Gamma),log10.(array_Drelpinuk_eq),marker=(:diamond,10),lw=3,label=L"\langle \tilde{D}_{env} \rangle")
+
+    plot!(log10.(array_Gamma),log10.(array_Igg_SE),lw=3,ls=:dash,label=L"\langle I_{SB} \rangle", color=:grey)
     
-    xlims!((-0.1,4.1))
-    ylims!((-0.2,2.2))
-    plot!(aspect_ratio=4.2/2.4)
+    # xlims!((-0.1,4.1))
+    # ylims!((-0.2,2.2))
+    # plot!(aspect_ratio=4.2/2.4)
     plot!(legend=:none)
 
     # plot(p1,p2,p3,layout=(1,3),size=(800,300),dpi=600)
@@ -2402,7 +2700,7 @@ function plot_averagecorrelationsregimeIII_each(array_Gamma, array_I_SE, array_I
 
 end
 
-function plot_averagecorrelationsregimeIII_ratio(K,array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R, array_Drelnuk, array_Drelpinuk)
+function plot_averagecorrelationsregimeIII_ratio(K,array_Gamma, array_I_SE, array_I_B, array_I_L, array_I_R)
 
     value_x = [-2, 5]
     value_y = [1, 1]
