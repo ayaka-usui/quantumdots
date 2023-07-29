@@ -429,21 +429,25 @@ function plot_energy(E_L,E_R,time)
 
 end
 
-function plot_efftem(effparaL,effparaR,effpara0,Nt,time)
+function plot_efftem(effparaL,effparaR,effpara0,Nt,time,Gamma)
 
     plot(log10.(time),real(effparaL_G[:,1]),lw=10,color=:lightgray)
     plot!(log10.(time),real(effparaR_G[:,1]),lw=10,color=:lightgray)
 
-    plot!(log10.(time),real(effparaL[:,1]),lw=4,label=L"\beta_{L,t}^*",palette=:reds,framestyle = :box)
-    plot!(log10.(time),real(effparaR[:,1]),lw=4,label=L"\beta_{R,t}^*",palette=:reds)
+    plot!(log10.(time*Gamma),real(effparaL[:,1]),lw=4,label=L"\beta_{L,t}^*",palette=:reds,framestyle = :box)
+    plot!(log10.(time*Gamma),real(effparaR[:,1]),lw=4,label=L"\beta_{R,t}^*",palette=:reds)
     
-    plot!(log10.(time),real(effpara0[1]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\beta_{ref}^*")
+    plot!(log10.(time*Gamma),real(effpara0[1]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\beta_{ref}^*")
 
     plot!([-1,-1.000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime I")
     plot!([5,5.0000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime II")
 
-    ylims!((0,11))
-    # xlims!((-2.5,7))
+    # ylims!((0,11))
+    xlims!((-2.5,7))
+
+    ylims!((0,13))
+    # xlims!((-3.8,8.5))
+    xlims!((-4.5,8.5))
 
     # plot!(xlabel=L"log_{10} t")
     # plot!(aspect_ratio=6.0)
@@ -451,12 +455,12 @@ function plot_efftem(effparaL,effparaR,effpara0,Nt,time)
 
 end
 
-function plot_effchem(effparaL,effparaR,effpara0,Nt,time)
+function plot_effchem(effparaL,effparaR,effpara0,Nt,time,Gamma)
 
-    plot(log10.(time),real(effparaL_G[:,2]),lw=10,color=:lightgray)
-    plot!(log10.(time),real(effparaR_G[:,2]),lw=10,color=:lightgray)
+    # plot(log10.(time),real(effparaL_G[:,2]),lw=10,color=:lightgray)
+    # plot!(log10.(time),real(effparaR_G[:,2]),lw=10,color=:lightgray)
 
-    plot!(log10.(time),real(effparaL[:,2]),lw=4,label=L"\mu_{L,t}^*",palette=:blues,framestyle = :box)
+    plot(log10.(time),real(effparaL[:,2]),lw=4,label=L"\mu_{L,t}^*",palette=:blues,framestyle = :box)
     plot!(log10.(time),real(effparaR[:,2]),lw=4,label=L"\mu_{R,t}^*",palette=:blues)
 
     plot!(log10.(time),real(effpara0[2]*ones(Nt)),lw=2,color=:black,ls=:dash,label=L"\mu_{ref}^*")
@@ -464,8 +468,9 @@ function plot_effchem(effparaL,effparaR,effpara0,Nt,time)
     plot!([-1,-1.000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime I")
     plot!([5,5.0000001],[-1,100],lw=2,color=:black,ls=:dot,label=L"regime II")
 
-    # ylims!((-1.1,1.1))
-    ylims!((0.351,0.64))
+    ylims!((-1.1,1.1))
+    xlims!((-4.5,8.5))
+    # ylims!((0.351,0.64))
     # xlims!((-2.5,7))
     # plot!(xlabel=L"log_{10} t")
     # plot!(aspect_ratio=3.0)
@@ -490,14 +495,17 @@ end
 
 function plot_sigmas(sigma,sigma_c2,I_SE,I_B,I_L,I_R,time)
 
-    # plot(log10.(time[2:end]),real(log.(sigma_G[2:end])),lw=12,color=:lightgray)
-    # plot!(log10.(time[2:end]),real(log.(sigma_c2_G[2:end])),lw=12,color=:lightgray)
+    plot(log10.(time[2:end]),real(log.(sigma_G[2:end])),lw=12,color=:lightgray)
+    plot!(log10.(time[2:end]),real(log.(sigma_c2_G[2:end])),lw=12,color=:lightgray)
+    plot!(log10.(time[2:end]),real(log.(Drelpinuk2_G[2:end])),lw=12,color=:lightgray)
 
-    plot(log10.(time[2:end]),real(log.(sigma[2:end])),label=L"\sigma",color=:grey,lw=6,framestyle = :box)
+    plot!(log10.(time[2:end]),real(log.(sigma[2:end])),label=L"\sigma",color=:grey,lw=6,framestyle = :box)
     plot!(log10.(time[2:end]),real(log.(sigma_c2[2:end])),label=L"\Sigma",color=:black,lw=5)
-    plot!(log10.(time[2:end]),real(log.(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end])),label=L"I_{SB}+I_{B}+I_L+I_R",color=:red,lw=4)
-    plot!(log10.(time[2:end]),real(log.(I_SE[2:end]+I_L[2:end]+I_R[2:end])),label=L"I_{SB}+I_{B}",color=:blue,lw=3)
-    plot!(log10.(time[2:end]),real(log.(I_SE[2:end])),label=L"I_{SB}",color=:green,lw=2)
+    # plot!(log10.(time[2:end]*Gamma),real(log.(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end])),label=L"I_{SB}+I_{B}+I_L+I_R",color=:red,lw=4)
+    # plot!(log10.(time[2:end]*Gamma),real(log.(I_SE[2:end]+I_L[2:end]+I_R[2:end])),label=L"I_{SB}+I_{B}",color=:blue,lw=3)
+    # plot!(log10.(time[2:end]*Gamma),real(log.(I_SE[2:end])),label=L"I_{SB}",color=:green,lw=2)
+
+    plot!(log10.(time[2:end]),real(log.(Drelpinuk2[2:end].+vNE_LR)),label=L"\Sigma",color=palette(:default)[5],lw=3)
 
     # plot(log10.(Gamma*time[2:end]),real(sigma[2:end]),label=L"\sigma",color=:grey,lw=5)
     # plot!(log10.(Gamma*time[2:end]),real(sigma_c2[2:end]),label=L"\Sigma",color=:black,lw=5)
@@ -515,6 +523,10 @@ function plot_sigmas(sigma,sigma_c2,I_SE,I_B,I_L,I_R,time)
     # xlims!((-2.5,7))
     # ylims!((-1,2.4))
     # ylims!((-2,4.2))
+    # ylims!((-4,9))
+
+    # xlims!((-2.5,8.5))
+    xlims!((-4.5,8.5))
     ylims!((-4,9))
 
     # xlims!((-4.3,8.3))
@@ -531,20 +543,17 @@ function plot_sigmas_sub(I_SE,I_B,I_L,I_R,time,Drelnuk,Drelpinuk2)
     # plot!(log10.(time[2:end]),log10.(real(I_L_G[2:end])),label=L"I_{L}",lw=12,color=:lightgreen)
     # plot!(log10.(time[6:end]),log10.(real(I_B_G[6:end])),label=L"I_{B}",lw=12,color=:violet)
 
-    # plot(log10.(time[2:end]),log.(real(I_SE_G[2:end])),lw=12,color=:lightgray)
-    # plot!(log10.(time[2:end]),log.(real(I_R_G[2:end])),lw=12,color=:lightgray)
-    # plot!(log10.(time[2:end]),log.(real(I_L_G[2:end])),lw=12,color=:lightgray)
-    # plot!(log10.(time[6:end]),log.(real(I_B_G[6:end])),lw=12,color=:lightgray)
+    plot(log10.(time[2:end]),log.(real(I_SE_G[2:end])),lw=12,color=:lightgray)
+    plot!(log10.(time[2:end]),log.(real(I_R_G[2:end])),lw=12,color=:lightgray)
+    plot!(log10.(time[2:end]),log.(real(I_L_G[2:end])),lw=12,color=:lightgray)
+    plot!(log10.(time[6:end]),log.(real(I_B_G[6:end])),lw=12,color=:lightgray)
+    plot!(log10.(time[2:end]),log.(real(Drelpinuk2_G[2:end])),lw=12,color=:lightgray)
 
     plot(log10.(time[2:end]),log.(real(I_SE[2:end])),label=L"I_{SB}",lw=2,framestyle = :box, color=palette(:default)[1])
-    
     plot!(log10.(time[2:end]),log.(real(I_R[2:end])),label=L"I_{R}",lw=4, color=palette(:default)[2])
     plot!(log10.(time[2:end]),log.(real(I_L[2:end])),label=L"I_{L}",lw=6, color=palette(:default)[3])
- 
     plot!(log10.(time[6:end]),log.(real(I_B[6:end])),label=L"I_{B}",lw=8, color=palette(:default)[4])
-
-    # plot!(log10.(Gamma*time[2:end]),real(log10.(Drelnuk[2:end])),label=L"Drelnuk",lw=10)
-    # plot!(log10.(Gamma*time[2:end]),real(log10.(Drelpinuk2[2:end])),label=L"Drelpinuk",lw=12)
+    # plot!(log10.(time[2:end]),log.(real((Drelpinuk2[2:end])),label=L"Drelpinuk",lw=10)
 
     plot!([-1,-1.000001],[-100,100],lw=2,color=:black,ls=:dot,label=L"regime I")
     plot!([5,5.0000001],[-100,100],lw=2,color=:black,ls=:dot,label=L"regime II")
@@ -552,6 +561,7 @@ function plot_sigmas_sub(I_SE,I_B,I_L,I_R,time,Drelnuk,Drelpinuk2)
     # xlims!((-2.5,7))
     # ylims!((-1,2.4))
     # ylims!((-2,4.2))
+    xlims!((-4.5,8.5))
     ylims!((-4,9))
 
     plot!(legend=:none)
@@ -568,19 +578,64 @@ function plot_sigmas_sub(I_SE,I_B,I_L,I_R,time,Drelnuk,Drelpinuk2)
 
 end
 
-function plot_sigmas2(sigma,sigma_c2,I_SE,I_B,I_L,I_R,Gamma,time)
+function plot_sigmas2(sigma,sigma_c2,I_SE,I_B,I_L,I_R,time,Drelnuk,Drelpinuk2)
 
-    plot(log10.(Gamma*time[2:end]),real(log10.(sigma_c2[2:end])),label=L"\Sigma",color=:black,lw=5)
-    # plot!(log10.(Gamma*time[2:end]),real(log10.(I_SE[2:end])),label=L"I_{SB}",color=:red,lw=2)
-    # plot!(log10.(Gamma*time[2:end]),real(log10.(I_B[2:end])),label=L"I_{B}",color=:blue,lw=2)
-    # plot!(log10.(Gamma*time[2:end]),real(log10.(I_L[2:end])),label=L"I_{L}",color=:green,lw=2)
-    # plot!(log10.(Gamma*time[2:end]),real(log10.(I_R[2:end])),label=L"I_{R}",ls=:dash,color=:orange,lw=2)
-    plot!(log10.(Gamma*time[2:end]),real(log10.(sigma_c2[2:end]-(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end]))),label=L"D_{env}",color=:grey,lw=4)
-
-    plot!(legend=:none)
-    plot!(legend=:topleft)
+    plot(log10.(time[2:end]),real(sigma_c2[2:end]),label=L"\Sigma",color=:black,lw=5,framestyle = :box)
+    plot!(log10.(time[2:end]),real(I_SE[2:end]),label=L"I_{SB}",color=palette(:default)[1],lw=2)
+    plot!(log10.(time[2:end]),real(I_B[2:end]),label=L"I_{B}",color=palette(:default)[2],lw=2)
+    plot!(log10.(time[2:end]),real(I_L[2:end]),label=L"I_{L}",color=palette(:default)[3],lw=2)
+    plot!(log10.(time[2:end]),real(I_R[2:end]),label=L"I_{R}",ls=:dash,color=palette(:default)[4],lw=2)
+    plot!(log10.(time[2:end]),real(Drelpinuk2[2:end]),label=L"\Delta D_{env}^*",color=palette(:default)[5],lw=2)
+    
+    # plot!(legend=:none)
+    # plot!(legend=:topleft)
     # ylims!((0,1.1))
     # plot!(xlabel=L"log_{10}\Gamma t")
+
+end
+
+function plot_sigmas3(sigma,sigma_c2,I_SE,I_B,I_L,I_R,time,Drelpinuk2,vNE_LR)
+
+    plot(log10.(time[2:end]),real(log.(Drelpinuk2_G[2:end])),lw=12,color=:lightgray)
+
+    # plot(log10.(time[2:end]),real(log.(sigma_G[2:end])),lw=12,color=:lightgray)
+    # plot!(log10.(time[2:end]),real(log.(sigma_c2_G[2:end])),lw=12,color=:lightgray)
+
+    # plot!(log10.(time[2:end]*Gamma),real(log.(sigma[2:end])),label=L"\sigma",color=:grey,lw=6,framestyle = :box)
+    # plot!(log10.(time[2:end]*Gamma),real(log.(sigma_c2[2:end])),label=L"\Sigma",color=:black,lw=5)
+    # plot!(log10.(time[2:end]*Gamma),real(log.(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end])),label=L"I_{SB}+I_{B}+I_L+I_R",color=:red,lw=4)
+    # plot!(log10.(time[2:end]*Gamma),real(log.(I_SE[2:end]+I_L[2:end]+I_R[2:end])),label=L"I_{SB}+I_{B}",color=:blue,lw=3)
+    # plot!(log10.(time[2:end]*Gamma),real(log.(I_SE[2:end])),label=L"I_{SB}",color=:green,lw=2)
+
+    plot!(log10.(time[1:end]),real(log.(Drelpinuk2[1:end].+vNE_LR)),label=L"\Sigma",color=palette(:default)[5],lw=3,framestyle = :box)
+    plot!(log10.(time),real(log.(Drelpinuk2[1]+vNE_LR))*ones(length(time)),color=:black,ls=:dash,lw=2)
+
+    # plot(log10.(Gamma*time[2:end]),real(sigma[2:end]),label=L"\sigma",color=:grey,lw=5)
+    # plot!(log10.(Gamma*time[2:end]),real(sigma_c2[2:end]),label=L"\Sigma",color=:black,lw=5)
+    # plot!(log10.(Gamma*time[2:end]),real(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end]),label=L"I_{SB}+I_{B}+I_L+I_R",color=:red,lw=5)
+    # plot!(log10.(Gamma*time[2:end]),real(I_SE[2:end]+I_L[2:end]+I_R[2:end]),label=L"I_{SB}+I_{B}",color=:blue,lw=5)
+    # plot!(log10.(Gamma*time[2:end]),real(I_SE[2:end]),label=L"I_{SB}",color=:green,lw=5)
+
+    plot!([-1,-1.000001],[-100,100],lw=2,color=:black,ls=:dot,label=L"regime I")
+    plot!([5,5.0000001],[-100,100],lw=2,color=:black,ls=:dot,label=L"regime II")
+
+    plot!(legend=:none)
+    # plot!(legend=:outerright)
+    # ylims!((0,1.1))
+    # plot!(xlabel=L"log_{10}\Gamma t")
+    # xlims!((-2.5,7))
+    # ylims!((-1,2.4))
+    # ylims!((-2,4.2))
+    # ylims!((-4,9))
+
+    # xlims!((-2.5,8.5))
+    xlims!((-4.5,8.5))
+    ylims!((-4,9))
+
+    # xlims!((-4.3,8.3))
+    # ylims!((-2,4.2))
+
+    # plot!(aspect_ratio=14.0/10)
 
 end
 
@@ -1348,19 +1403,21 @@ function calculatequantities4(epsilond::Float64,KL::Int64,KR::Int64,W::Int64,bet
     C0 = diagm(C0)
 
     # pure state
-    nF = diag(C0[2:end,2:end])
-    npure = set_pureinitialstate(KL,KR,nF)
-    C0[2:end,2:end] = diagm(npure)    
-    println("EL_thermal=",sum(nF[1:KL].*epsilonLR[2:KL+1]))
-    println("EL_pure=",sum(npure[1:KL].*epsilonLR[2:KL+1]))
-    println("NL_thermal=",sum(nF[1:KL]))
-    println("NL_pure=",sum(npure[1:KL]))
-    println("ER_thermal=",sum(nF[KL+1:end].*epsilonLR[KL+2:end]))
-    println("ER_pure=",sum(npure[KL+1:end].*epsilonLR[KL+2:end]))
-    println("NR_thermal=",sum(nF[KL+1:end]))
-    println("NR_pure=",sum(npure[KL+1:end]))
-    # println(sum(diag(C0[2:KL+1,2:KL+1]).*epsilonLR[2:KL+1]))
-    # return npure, nF
+    # nF = diag(C0[2:end,2:end])
+    # npure = set_pureinitialstate(KL,KR,nF)
+    # C0[2:end,2:end] = diagm(npure)    
+    # println("EL_thermal=",sum(nF[1:KL].*epsilonLR[2:KL+1]))
+    # println("EL_pure=",sum(npure[1:KL].*epsilonLR[2:KL+1]))
+    # println("NL_thermal=",sum(nF[1:KL]))
+    # println("NL_pure=",sum(npure[1:KL]))
+    # println("ER_thermal=",sum(nF[KL+1:end].*epsilonLR[KL+2:end]))
+    # println("ER_pure=",sum(npure[KL+1:end].*epsilonLR[KL+2:end]))
+    # println("NR_thermal=",sum(nF[KL+1:end]))
+    # println("NR_pure=",sum(npure[KL+1:end]))
+    # println("vNE_L_thermal=",vNEfrommatC(nF[1:KL]))
+    # println("vNE_R_thermal=",vNEfrommatC(nF[KL+1:end]))
+    # # println(sum(diag(C0[2:KL+1,2:KL+1]).*epsilonLR[2:KL+1]))
+    # # return npure, nF
 
     # total enery and particle number, and estimated inverse temperature and chemical potential
     dC0 = diag(C0)
@@ -1374,6 +1431,19 @@ function calculatequantities4(epsilond::Float64,KL::Int64,KR::Int64,W::Int64,bet
 
     # global Gibbs state
     Cgg = globalGibbsstate(val_matH,vec_matH,invvec_matH,effpara0[1],effpara0[2])
+
+    # local temperatures of global Gibbs state
+    dCgg = diag(Cgg)
+    Egg_L = sum(dCgg[2:KL+1].*epsilonLR[2:KL+1])
+    Egg_R = sum(dCgg[KL+2:end].*epsilonLR[KL+2:end])
+    Ngg_L = sum(dCgg[2:KL+1])
+    Ngg_R = sum(dCgg[KL+2:end])
+    effparaL_gg = funeffectivebetamu(epsilonLR[2:KL+1],Egg_L,Ngg_L,betaL,muL)
+    effparaR_gg = funeffectivebetamu(epsilonLR[KL+2:end],Egg_R,Ngg_R,betaR,muR)
+    println("betaL_gg=",effparaL_gg[1])
+    println("muL_gg=",effparaL_gg[2])
+    println("betaR_gg=",effparaR_gg[1])
+    println("muR_gg=",effparaR_gg[2])
 
     # mutual info between S and E
     val_Cgg = real(eigvals(Cgg))
@@ -2786,11 +2856,16 @@ function plot_averagecorrelationsregimeIII_each(array_Gamma, array_Igg_SE, array
 
     plot!(log10.(array_Gamma),log.(array_Drelpinuk_eq),marker=(:diamond,10),lw=3,label=L"\langle \tilde{D}_{env} \rangle")
 
-    plot!(log10.(array_Gamma),log.(array_Igg_SE),lw=3,label=L"\langle I_{SB} \rangle", color=:grey)
+    # plot!(log10.(array_Gamma),log.(array_Igg_SE),lw=3,label=L"\langle I_{SB} \rangle", color=:grey)
     
     # xlims!((-0.1,4.1))
     # ylims!((-0.2,2.2))
     # plot!(aspect_ratio=4.2/2.4)
+
+    xlims!((0,3.6))
+    ylims!((-0.5,8.1))
+    plot!(aspect_ratio=3.6/8.6)
+
     plot!(legend=:none)
 
     # plot(p1,p2,p3,layout=(1,3),size=(800,300),dpi=600)
