@@ -8,6 +8,35 @@ using JLD
 using Combinatorics
 using LaTeXStrings
 
+####
+
+# @recipe function f(::Type{Val{:samplemarkers}}, x, y, z; step = 10)
+#     n = length(y)
+#     sx, sy = x[1:step:n], y[1:step:n]
+#     # add an empty series with the correct type for legend markers
+#     @series begin
+#         seriestype := :path
+#         markershape --> :auto
+#         x := []
+#         y := []
+#     end
+#     # add a series for the line
+#     @series begin
+#         primary := false # no legend entry
+#         markershape := :none # ensure no markers
+#         seriestype := :path
+#         seriescolor := get(plotattributes, :seriescolor, :auto)
+#         x := x
+#         y := y
+#     end
+#     # return  a series for the sampled markers
+#     primary := false
+#     seriestype := :scatter
+#     markershape --> :auto
+#     x := sx
+#     y := sy
+# end
+
 ################ basis functions for vNE
 
 function createH!(K::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,matH::SparseMatrixCSC{Float64})
@@ -495,23 +524,32 @@ end
 
 function plot_sigmas(sigma,sigma_c2,I_SE,I_B,I_L,I_R,time)
 
-    plot(log10.(time[2:end]),real(log.(sigma_G[2:end])),lw=12,color=:lightgray)
-    plot!(log10.(time[2:end]),real(log.(sigma_c2_G[2:end])),lw=12,color=:lightgray)
-    plot!(log10.(time[2:end]),real(log.(Drelpinuk2_G[2:end])),lw=12,color=:lightgray)
+    # plot(log10.(time[2:end]),real(log.(sigma_G[2:end])),lw=12,color=:lightgray)
+    # plot!(log10.(time[2:end]),real(log.(sigma_c2_G[2:end])),lw=12,color=:lightgray)
+    # plot!(log10.(time[2:end]),real(log.(Drelpinuk2_G[2:end])),lw=12,color=:lightgray)
 
-    plot!(log10.(time[2:end]),real(log.(sigma[2:end])),label=L"\sigma",color=:grey,lw=6,framestyle = :box)
-    plot!(log10.(time[2:end]),real(log.(sigma_c2[2:end])),label=L"\Sigma",color=:black,lw=5)
-    # plot!(log10.(time[2:end]*Gamma),real(log.(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end])),label=L"I_{SB}+I_{B}+I_L+I_R",color=:red,lw=4)
-    # plot!(log10.(time[2:end]*Gamma),real(log.(I_SE[2:end]+I_L[2:end]+I_R[2:end])),label=L"I_{SB}+I_{B}",color=:blue,lw=3)
-    # plot!(log10.(time[2:end]*Gamma),real(log.(I_SE[2:end])),label=L"I_{SB}",color=:green,lw=2)
+    # plot(log10.(time[2:end]),real(log.(sigma[2:end])),label=L"\sigma",color=:grey,lw=10,framestyle = :box)
+    # plot!(log10.(time[2:end]),real(log.(sigma_c2[2:end])),label=L"\Sigma",color=:black,lw=9)
+    # plot!(log10.(time[2:end]),real(log.(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end])),label=L"I_{SB}+I_{B}+I_L+I_R",color=RGB(34/255,94/255,168/255),lw=6)
+    # plot!(log10.(time[2:end]),real(log.(I_SE[2:end]+I_L[2:end]+I_R[2:end])),label=L"I_{SB}+I_{B}",lw=3,color=RGB(65/255,182/255,196/255))
+    # plot!(log10.(time[2:end]),real(log.(I_SE[2:end])),label=L"I_{SB}",lw=2,color=RGB(161/255,218/255,180/255))
 
-    plot!(log10.(time[2:end]),real(log.(Drelpinuk2[2:end].+vNE_LR)),label=L"\Sigma",color=palette(:default)[5],lw=3)
+    plot(log10.(time[2:end]),real(log.(sigma[2:end])),label=L"\sigma",color=:grey,lw=10,framestyle = :box)
+    plot!(log10.(time[2:end]),real(log.(sigma_c2[2:end])),label=L"\Sigma",color=:black,lw=9)
+    plot!(log10.(time[2:end]),real(log.(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end])),label=L"I_{SB}+I_{B}+I_L+I_R",color=:red,lw=6,ls=:dot)
+    plot!(log10.(time[2:end]),real(log.(I_SE[2:end]+I_L[2:end]+I_R[2:end])),label=L"I_{SB}+I_{B}",lw=3,color=:blue,ls=:dash)
+    plot!(log10.(time[2:end]),real(log.(I_SE[2:end])),label=L"I_{SB}",lw=2,color=:green)
 
-    # plot(log10.(Gamma*time[2:end]),real(sigma[2:end]),label=L"\sigma",color=:grey,lw=5)
-    # plot!(log10.(Gamma*time[2:end]),real(sigma_c2[2:end]),label=L"\Sigma",color=:black,lw=5)
-    # plot!(log10.(Gamma*time[2:end]),real(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end]),label=L"I_{SB}+I_{B}+I_L+I_R",color=:red,lw=5)
-    # plot!(log10.(Gamma*time[2:end]),real(I_SE[2:end]+I_L[2:end]+I_R[2:end]),label=L"I_{SB}+I_{B}",color=:blue,lw=5)
-    # plot!(log10.(Gamma*time[2:end]),real(I_SE[2:end]),label=L"I_{SB}",color=:green,lw=5)
+    # plot!(log10.(time[2:end]),real(log.(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end])),label=L"I_{SB}+I_{B}+I_L+I_R",color=:black,lw=4,ls=:dot)
+    # plot!(log10.(time[2:end]),real(log.(I_SE[2:end]+I_L[2:end]+I_R[2:end])),label=L"I_{SB}+I_{B}",color=:orange,lw=3,ls=:dash)
+
+    # plot!(log10.(time[2:end]),real(log.(Drelpinuk2[2:end].+vNE_LR)),label=L"\Sigma",color=palette(:default)[5],lw=3)
+
+    # plot(log10.(time[2:end]),real(sigma[2:end]),label=L"\sigma",color=:grey,lw=5)
+    # plot!(log10.(time[2:end]),real(sigma_c2[2:end]),label=L"\Sigma",color=:black,lw=5)
+    # plot!(log10.(time[2:end]),real(I_SE[2:end]+I_L[2:end]+I_R[2:end]+I_B[2:end]),label=L"I_{SB}+I_{B}+I_L+I_R",color=:red,lw=5)
+    # plot!(log10.(time[2:end]),real(I_SE[2:end]+I_L[2:end]+I_R[2:end]),label=L"I_{SB}+I_{B}",color=:blue,lw=5)
+    # plot!(log10.(time[2:end]),real(I_SE[2:end]),label=L"I_{SB}",color=:green,lw=5)
 
     plot!([-1,-1.000001],[-100,100],lw=2,color=:black,ls=:dot,label=L"regime I")
     plot!([5,5.0000001],[-100,100],lw=2,color=:black,ls=:dot,label=L"regime II")
@@ -536,23 +574,29 @@ function plot_sigmas(sigma,sigma_c2,I_SE,I_B,I_L,I_R,time)
 
 end
 
-function plot_sigmas_sub(I_SE,I_B,I_L,I_R,time,Drelnuk,Drelpinuk2)
+function plot_sigmas_sub(I_SE,I_B,I_L,I_R,time)
 
     # plot(log10.(time[2:end]),log10.(real(I_SE_G[2:end])),label=L"I_{SB}",lw=12,color=:lightblue)
     # plot!(log10.(time[2:end]),log10.(real(I_R_G[2:end])),label=L"I_{R}",lw=12,color=:lightsalmon)
     # plot!(log10.(time[2:end]),log10.(real(I_L_G[2:end])),label=L"I_{L}",lw=12,color=:lightgreen)
     # plot!(log10.(time[6:end]),log10.(real(I_B_G[6:end])),label=L"I_{B}",lw=12,color=:violet)
 
-    plot(log10.(time[2:end]),log.(real(I_SE_G[2:end])),lw=12,color=:lightgray)
-    plot!(log10.(time[2:end]),log.(real(I_R_G[2:end])),lw=12,color=:lightgray)
-    plot!(log10.(time[2:end]),log.(real(I_L_G[2:end])),lw=12,color=:lightgray)
-    plot!(log10.(time[6:end]),log.(real(I_B_G[6:end])),lw=12,color=:lightgray)
-    plot!(log10.(time[2:end]),log.(real(Drelpinuk2_G[2:end])),lw=12,color=:lightgray)
+    # plot(log10.(time[2:end]),log.(real(I_SE_G[2:end])),lw=12,color=:lightgray)
+    # plot!(log10.(time[2:end]),log.(real(I_R_G[2:end])),lw=12,color=:lightgray)
+    # plot!(log10.(time[2:end]),log.(real(I_L_G[2:end])),lw=12,color=:lightgray)
+    # plot!(log10.(time[6:end]),log.(real(I_B_G[6:end])),lw=12,color=:lightgray)
+    # plot!(log10.(time[2:end]),log.(real(Drelpinuk2_G[2:end])),lw=12,color=:lightgray)
 
-    plot(log10.(time[2:end]),log.(real(I_SE[2:end])),label=L"I_{SB}",lw=2,framestyle = :box, color=palette(:default)[1])
-    plot!(log10.(time[2:end]),log.(real(I_R[2:end])),label=L"I_{R}",lw=4, color=palette(:default)[2])
-    plot!(log10.(time[2:end]),log.(real(I_L[2:end])),label=L"I_{L}",lw=6, color=palette(:default)[3])
-    plot!(log10.(time[6:end]),log.(real(I_B[6:end])),label=L"I_{B}",lw=8, color=palette(:default)[4])
+    plot(log10.(time[2:end]),log.(real(I_SE_G[2:end])),lw=12,color=:grey93)
+    plot!(log10.(time[2:end]),log.(real(I_R_G[2:end])),lw=12,color=:grey93)
+    plot!(log10.(time[2:end]),log.(real(I_L_G[2:end])),lw=12,color=:grey93)
+    plot!(log10.(time[6:end]),log.(real(I_B_G[6:end])),lw=12,color=:grey93)
+
+    plot!(log10.(time[2:end]),log.(real(I_SE[2:end])),label=L"I_{SB}",lw=2,framestyle = :box, color=RGB(166/255,206/255,227/255))
+    plot!(log10.(time[2:end]),log.(real(I_R[2:end])),label=L"I_{R}",lw=3, color=RGB(31/255,120/255,180/255))
+    plot!(log10.(time[2:end]),log.(real(I_L[2:end])),label=L"I_{L}",lw=6, color=RGB(178/255,223/255,138/255))
+    plot!(log10.(time[6:end]),log.(real(I_B[6:end])),label=L"I_{B}",lw=9, color=RGB(51/255,160/255,44/255))
+    # color=palette(:default)[1]
     # plot!(log10.(time[2:end]),log.(real((Drelpinuk2[2:end])),label=L"Drelpinuk",lw=10)
 
     plot!([-1,-1.000001],[-100,100],lw=2,color=:black,ls=:dot,label=L"regime I")
