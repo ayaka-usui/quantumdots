@@ -587,15 +587,15 @@ function plot_sigmas_sub(I_SE,I_B,I_L,I_R,time)
     # plot!(log10.(time[6:end]),log.(real(I_B_G[6:end])),lw=12,color=:lightgray)
     # plot!(log10.(time[2:end]),log.(real(Drelpinuk2_G[2:end])),lw=12,color=:lightgray)
 
-    plot(log10.(time[2:end]),log.(real(I_SE_G[2:end])),lw=12,color=:grey93)
-    plot!(log10.(time[2:end]),log.(real(I_R_G[2:end])),lw=12,color=:grey93)
-    plot!(log10.(time[2:end]),log.(real(I_L_G[2:end])),lw=12,color=:grey93)
-    plot!(log10.(time[6:end]),log.(real(I_B_G[6:end])),lw=12,color=:grey93)
+    # plot(log10.(time[2:end]),log.(real(I_SE_G[2:end])),lw=12,color=:grey93)
+    # plot!(log10.(time[2:end]),log.(real(I_R_G[2:end])),lw=12,color=:grey93)
+    # plot!(log10.(time[2:end]),log.(real(I_L_G[2:end])),lw=12,color=:grey93)
+    # plot!(log10.(time[6:end]),log.(real(I_B_G[6:end])),lw=12,color=:grey93)
 
+    plot(log10.(time[6:end]),log.(real(I_B[6:end])),label=L"I_{B}",lw=9, color=RGB(51/255,160/255,44/255))
+    plot!(log10.(time[2:end]),log.(real(I_L[2:end])),label=L"I_{L}",lw=7, color=RGB(178/255,223/255,138/255))
+    plot!(log10.(time[2:end]),log.(real(I_R[2:end])),label=L"I_{R}",lw=4, color=RGB(31/255,120/255,180/255))
     plot!(log10.(time[2:end]),log.(real(I_SE[2:end])),label=L"I_{SB}",lw=2,framestyle = :box, color=RGB(166/255,206/255,227/255))
-    plot!(log10.(time[2:end]),log.(real(I_R[2:end])),label=L"I_{R}",lw=3, color=RGB(31/255,120/255,180/255))
-    plot!(log10.(time[2:end]),log.(real(I_L[2:end])),label=L"I_{L}",lw=6, color=RGB(178/255,223/255,138/255))
-    plot!(log10.(time[6:end]),log.(real(I_B[6:end])),label=L"I_{B}",lw=9, color=RGB(51/255,160/255,44/255))
     # color=palette(:default)[1]
     # plot!(log10.(time[2:end]),log.(real((Drelpinuk2[2:end])),label=L"Drelpinuk",lw=10)
 
@@ -640,7 +640,7 @@ end
 
 function plot_sigmas3(sigma,sigma_c2,I_SE,I_B,I_L,I_R,time,Drelpinuk2,vNE_LR)
 
-    plot(log10.(time[2:end]),real(log.(Drelpinuk2_G[2:end])),lw=12,color=:lightgray)
+    # plot(log10.(time[2:end]),real(log.(Drelpinuk2_G[2:end])),lw=12,color=:lightgray)
 
     # plot(log10.(time[2:end]),real(log.(sigma_G[2:end])),lw=12,color=:lightgray)
     # plot!(log10.(time[2:end]),real(log.(sigma_c2_G[2:end])),lw=12,color=:lightgray)
@@ -651,8 +651,8 @@ function plot_sigmas3(sigma,sigma_c2,I_SE,I_B,I_L,I_R,time,Drelpinuk2,vNE_LR)
     # plot!(log10.(time[2:end]*Gamma),real(log.(I_SE[2:end]+I_L[2:end]+I_R[2:end])),label=L"I_{SB}+I_{B}",color=:blue,lw=3)
     # plot!(log10.(time[2:end]*Gamma),real(log.(I_SE[2:end])),label=L"I_{SB}",color=:green,lw=2)
 
-    plot!(log10.(time[1:end]),real(log.(Drelpinuk2[1:end].+vNE_LR)),label=L"\Sigma",color=palette(:default)[5],lw=3,framestyle = :box)
-    plot!(log10.(time),real(log.(Drelpinuk2[1]+vNE_LR))*ones(length(time)),color=:black,ls=:dash,lw=2)
+    # plot!(log10.(time[1:end]),real(log.(Drelpinuk2[1:end].+vNE_LR)),label=L"\Sigma",color=palette(:default)[5],lw=3,framestyle = :box)
+    # plot!(log10.(time),real(log.(Drelpinuk2[1]+vNE_LR))*ones(length(time)),color=:black,ls=:dash,lw=2)
 
     # plot(log10.(Gamma*time[2:end]),real(sigma[2:end]),label=L"\sigma",color=:grey,lw=5)
     # plot!(log10.(Gamma*time[2:end]),real(sigma_c2[2:end]),label=L"\Sigma",color=:black,lw=5)
@@ -1148,7 +1148,7 @@ function plot_pureinitialstate(K::Int64,W::Int64,beta::Float64,mu::Float64)
 
 end
 
-function calculatecorrelations(epsilond::Float64,KL::Int64,KR::Int64,W::Int64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,ti::Float64,tf::Float64,Nt::Int64)
+function calculatecorrelations(epsilond::Float64,KL::Int64,KR::Int64,W::Float64,betaL::Float64,betaR::Float64,GammaL::Float64,GammaR::Float64,muL::Float64,muR::Float64,ti::Float64,tf::Float64,Nt::Int64)
 
     # Hamiltonian + fluctuated t
     matH = spzeros(Float64,KL+KR+1,KL+KR+1)
@@ -3200,11 +3200,11 @@ function averagecorrelationsregimeIII(KL::Int64,KR::Int64,betaL::Float64,betaR::
     # array_Gamma = [10.0^(0), 10.0^(0.5), 10.0^(1), 10.0^(1.5), 10.0^(2)]
     # array_Gamma = [10.0^(-1), 10.0^(-0.5), 10.0^(0)]
     # array_Gamma = [10.0^(-1), 10.0^(0), 10.0^(1)]
-    array_Gamma = [10.0^(0.5), 10.0^(1), 10.0^(1.5), 10.0^(2), 10.0^(2.5), 10.0^(3)]
-    # array_Gamma = [10.0^(0), 10.0^(1), 10.0^(2)]
+    # array_Gamma = [10.0^(0.5), 10.0^(1), 10.0^(1.5), 10.0^(2), 10.0^(2.5), 10.0^(3)]
+    array_Gamma = [10.0^(0.5), 10.0^(1)]
     # array_Gamma = [3.0]
 
-    W = 10
+    W = 10.0
 
     tt_ref0 = 10.0^5
     tt_ref1 = 10.0^8 
