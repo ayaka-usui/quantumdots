@@ -551,7 +551,7 @@ end
 # Figure 6
 function averagecorrelationsregimeIII(KL::Int64,KR::Int64,W::Float64,betaL::Float64,betaR::Float64,muL::Float64,muR::Float64)
 
-    array_Gamma = [10.0^(0.5), 10.0^(1)]
+    array_Gamma = [10.0^(0.5)]
     # array_Gamma = [10.0^(0.5), 10.0^(1), 10.0^(1.5), 10.0^(2), 10.0^(2.5), 10.0^(3)]
 
     tt_ref0 = 10.0^5
